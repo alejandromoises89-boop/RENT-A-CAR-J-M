@@ -11,10 +11,10 @@ def init_db():
 
 def obtener_flota():
     return [
-        {"id": "TUC", "nombre": "Hyundai Tucson", "color": "Blanco", "precio": 260000, "img": "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=400"},
-        {"id": "VITZW", "nombre": "Toyota Vitz", "color": "Blanco", "precio": 195000, "img": "https://images.unsplash.com/photo-1619682817481-e994891cd1f5?w=400"},
-        {"id": "VITZB", "nombre": "Toyota Vitz", "color": "Negro", "precio": 195000, "img": "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=400"},
-        {"id": "VOXYG", "nombre": "Toyota Voxy", "color": "Gris", "precio": 240000, "img": "https://images.unsplash.com/photo-1517524008697-84bbe3c3fd98?w=400"}
+        {"id": "TUCSON_W", "nombre": "Hyundai Tucson", "color": "Blanco", "precio": 260000, "img": "https://www.iihs.org/cdn-cgi/image/width=636/api/ratings/model-year-images/2098/"},
+        {"id": "VITZ_W", "nombre": "Toyota Vitz", "color": "Blanco", "precio": 195000, "img": "https://a0.anyrgb.com/pngimg/1498/1242/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel-economy-in-automobiles-hybrid-vehicle-frontwheel-drive-minivan.png"},
+        {"id": "VITZ_N", "nombre": "Toyota Vitz", "color": "Negro", "precio": 195000, "img": "https://i.ibb.co/yFNrttM2/BG160258-2427f0-Photoroom.png"},
+        {"id": "VOXY_G", "nombre": "Toyota Voxy", "color": "Gris", "precio": 240000, "img": "https://i.ibb.co/Y7ZHY8kX/pngegg.png"}
     ]
 
 def verificar_disponibilidad(auto_id, inicio, fin):
