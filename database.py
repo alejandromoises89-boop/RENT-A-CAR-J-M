@@ -10,7 +10,6 @@ def init_db():
     conn.close()
 
 def obtener_flota():
-    # Links optimizados para visualización directa
     return [
         {"id": "TUCSON", "nombre": "Hyundai Tucson", "color": "Blanco", "precio": 260000, "img": "https://www.iihs.org/cdn-cgi/image/width=636/api/ratings/model-year-images/2098/"},
         {"id": "VITZ_W", "nombre": "Toyota Vitz", "color": "Blanco", "precio": 195000, "img": "https://a0.anyrgb.com/pngimg/1498/1242/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel-economy-in-automobiles-hybrid-vehicle-frontwheel-drive-minivan.png"},
