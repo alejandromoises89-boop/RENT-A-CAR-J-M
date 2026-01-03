@@ -16,7 +16,7 @@ if not st.session_state.logged_in:
     login_screen()
     if 'temp_nombre' in st.session_state:
         link_app = "https://rent-a-car-j-m-nigbrrf2rzdecmahq2kbuq.streamlit.app/"
-        mensaje = f"Es un placer saludarte, {st.session_state.temp_nombre}. Hemos habilitado nuestro nuevo Portal Ejecutivo de Rent-a-Car...\n\n🌐 Accede aquí: {link_app}\n\nJ&M ASOCIADOS | Alquiler de Vehículos & Alta Gama"
+        mensaje = f"Es un placer saludarte, {st.session_state.temp_nombre}. Hemos habilitado nuestro nuevo Portal Ejecutivo de Rent-a-Car...\n\n🌐 Accede aquí: {https://rent-a-car-j-m-asociados.streamlit.app/}\n\nJ&M ASOCIADOS | Alquiler de Vehículos"
         st.link_button("📲 Enviar Bienvenida por WhatsApp", f"https://wa.me/{st.session_state.temp_tel}?text={urllib.parse.quote(mensaje)}")
 else:
     st.markdown('<div class="header-jm"><h1>J&M ASOCIADOS</h1><p>Alquiler de Vehículos & Alta Gama</p></div>', unsafe_allow_html=True)
@@ -43,3 +43,4 @@ else:
 
     if st.session_state.role == "admin":
         with tabs[-1]: panel_control()
+
