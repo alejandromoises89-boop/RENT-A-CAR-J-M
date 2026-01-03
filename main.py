@@ -26,19 +26,13 @@ st.markdown("""
 def init_db():
     conn = sqlite3.connect('jm_asociados.db')
     c = conn.cursor()
-    # Tabla de Reservas
     c.execute('CREATE TABLE IF NOT EXISTS reservas (id INTEGER PRIMARY KEY, cliente TEXT, auto TEXT, monto_brl REAL, fecha TEXT)')
-    # Tabla de Reseñas
     c.execute('CREATE TABLE IF NOT EXISTS resenas (id INTEGER PRIMARY KEY, cliente TEXT, comentario TEXT, estrellas INTEGER, fecha TEXT)')
-    # Tabla de Usuarios
     c.execute('CREATE TABLE IF NOT EXISTS usuarios (id INTEGER PRIMARY KEY, nombre TEXT, usuario TEXT UNIQUE, password TEXT, tipo TEXT)')
-    
-    # Crear admin por defecto si no existe
     try:
         c.execute("INSERT INTO usuarios (nombre, usuario, password, tipo) VALUES (?,?,?,?)", 
                   ("ADMIN MASTER", "admin@jymasociados.com", "JM2026_MASTER", "admin"))
     except: pass
-    
     conn.commit()
     conn.close()
 
@@ -59,74 +53,68 @@ flota = [
     {"nombre": "Toyota Vitz", "color": "Blanco", "precio_brl": 195, "img": "https://i.ibb.co/Y7ZHY8kX/pngegg.png"}
 ]
 
-# --- 4. LOGICA DE SESIÓN ---
-if 'logged_in' not in st.session_state: st.session_state.logged_in = False
+# --- 4. LÓGICA DE SESIÓN ---
+if 'logged_in' not in st.session_state: 
+    st.session_state.logged_in = False
 
 def logout():
-    st.toast("✨ Gracias por confiar en J&M Asesoría Contable. ¡Vuelva pronto!")
-    time.sleep(2)
+    st.toast("✨ Gracias por confiar en J&M. ¡Vuelva pronto!")
+    time.sleep(1.5)
     st.session_state.logged_in = False
     st.session_state.user_name = None
     st.session_state.role = None
     st.rerun()
 
-# --- 5. INTERFAZ DE ACCESO (LOGIN / REGISTRO) ---
+# --- 5. ACCESO (LOGIN / REGISTRO) ---
 if not st.session_state.logged_in:
     st.markdown('<div class="header-jm">J&M</div><div class="sub-header">ASOCIADOS & CONSULTORES</div>', unsafe_allow_html=True)
     
-    opcion = st.radio("Seleccione una opción:", ["Ingresar", "Registrarse"], horizontal=True)
+    opcion = st.radio("Acceso al Portal:", ["Ingresar", "Registrarse"], horizontal=True)
     
     if opcion == "Ingresar":
-        with st.container():
-            u = st.text_input("Usuario (Email)")
-            p = st.text_input("Contraseña", type="password")
-            if st.button("INGRESAR AL PORTAL"):
-                conn = sqlite3.connect('jm_asociados.db')
-                c = conn.cursor()
-                c.execute("SELECT nombre, tipo FROM usuarios WHERE usuario=? AND password=?", (u, p))
-                user_data = c.fetchone()
-                conn.close()
-                
-                if user_data:
-                    st.session_state.logged_in = True
-                    st.session_state.user_name = user_data[0]
-                    st.session_state.role = user_data[1]
-                    st.rerun()
-                else:
-                    st.error("❌ Usuario o contraseña incorrectos")
-                    
-    else: # REGISTRO
-        with st.container():
-            new_name = st.text_input("Nombre Completo")
-            new_user = st.text_input("Correo Electrónico (será su usuario)")
-            new_pass = st.text_input("Cree una Contraseña", type="password")
-            if st.button("CREAR MI CUENTA"):
-                if new_name and new_user and new_pass:
-                    try:
-                        conn = sqlite3.connect('jm_asociados.db')
-                        conn.cursor().execute("INSERT INTO usuarios (nombre, usuario, password, tipo) VALUES (?,?,?,?)", 
-                                             (new_name, new_user, new_pass, "user"))
-                        conn.commit()
-                        conn.close()
-                        st.success("✅ Cuenta creada con éxito. Ahora seleccione 'Ingresar'.")
-                    except:
-                        st.error("❌ El usuario ya existe.")
-                else:
-                    st.warning("⚠️ Complete todos los campos.")
+        u = st.text_input("Usuario (Email)")
+        p = st.text_input("Contraseña", type="password")
+        if st.button("INGRESAR"):
+            conn = sqlite3.connect('jm_asociados.db')
+            c = conn.cursor()
+            c.execute("SELECT nombre, tipo FROM usuarios WHERE usuario=? AND password=?", (u, p))
+            user_data = c.fetchone()
+            conn.close()
+            if user_data:
+                st.session_state.logged_in = True
+                st.session_state.user_name = user_data[0]
+                st.session_state.role = user_data[1]
+                st.rerun()
+            else:
+                st.error("❌ Datos incorrectos")
+    else:
+        new_name = st.text_input("Nombre Completo")
+        new_user = st.text_input("Nuevo Usuario (Email)")
+        new_pass = st.text_input("Contraseña", type="password")
+        if st.button("CREAR CUENTA"):
+            if new_name and new_user and new_pass:
+                try:
+                    conn = sqlite3.connect('jm_asociados.db')
+                    conn.cursor().execute("INSERT INTO usuarios (nombre, usuario, password, tipo) VALUES (?,?,?,?)", 
+                                         (new_name, new_user, new_pass, "user"))
+                    conn.commit()
+                    conn.close()
+                    st.success("✅ Cuenta creada. Ya puede Ingresar.")
+                except: st.error("❌ El usuario ya existe.")
+            else: st.warning("⚠️ Complete todos los campos.")
 
-# --- 6. INTERFAZ DEL PORTAL (USUARIO LOGUEADO) ---
+# --- 6. PORTAL ---
 else:
-    # Encabezado
-    st.markdown('<div class="header-jm">J&M</div><div class="sub-header">Alquiler de Vehículos</div>', unsafe_allow_html=True)
-    st.sidebar.write(f"👤 **{st.session_state.user_name}**")
+    st.sidebar.markdown(f"### 👤 {st.session_state.user_name}")
     if st.sidebar.button("🚪 Cerrar Sesión"):
         logout()
 
-    tabs = st.tabs(["🚗 Catálogo", "📅 Mi Historial", "📍 Ubicación", "⭐ Reseñas", "⚙️ Panel Master"] if st.session_state.role == "admin" else ["🚗 Catálogo", "📅 Mi Historial", "📍 Ubicación", "⭐ Reseñas"])
+    st.markdown('<div class="header-jm">J&M</div><div class="sub-header">Alquiler de Vehículos</div>', unsafe_allow_html=True)
+    
+    tabs = st.tabs(["🚗 Catálogo", "📅 Mis Alquileres", "📍 Ubicación", "⭐ Reseñas", "⚙️ Panel Master"] if st.session_state.role == "admin" else ["🚗 Catálogo", "📅 Mis Alquileres", "📍 Ubicación", "⭐ Reseñas"])
 
-    # CATÁLOGO
     with tabs[0]:
-        st.markdown(f'<p style="color:#D4AF37;">Cotización: 1 Real = {cotizacion_hoy:,} PYG</p>', unsafe_allow_html=True)
+        st.write(f"Cotización actual: **1 BRL = {cotizacion_hoy:,} PYG**")
         for idx, auto in enumerate(flota):
             monto_pyg = auto['precio_brl'] * cotizacion_hoy
             with st.container():
@@ -136,15 +124,32 @@ else:
                 with c2:
                     st.subheader(f"{auto['nombre']} {auto['color']}")
                     st.write(f"Tarifa: **{auto['precio_brl']} BRL** (Gs. {monto_pyg:,})")
-                    if st.button("Confirmar Reserva", key=f"res_{idx}"):
+                    if st.button("Reservar Ahora", key=f"res_{idx}"):
                         conn = sqlite3.connect('jm_asociados.db')
                         conn.cursor().execute("INSERT INTO reservas (cliente, auto, monto_brl, fecha) VALUES (?,?,?,?)",
                                              (st.session_state.user_name, auto['nombre'], auto['precio_brl'], datetime.now().strftime("%Y-%m-%d")))
                         conn.commit()
-                        st.success("✅ Registrado. Pague vía PIX y envíe el comprobante.")
+                        conn.close()
+                        st.success("✅ Reserva registrada. Pague vía PIX para confirmar.")
                         st.image("https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=24510861818")
                 st.markdown('</div>', unsafe_allow_html=True)
 
-    # HISTORIAL
     with tabs[1]:
-        st.subheader("Mis
+        st.subheader("Mis Alquileres Registrados")
+        conn = sqlite3.connect('jm_asociados.db')
+        df_h = pd.read_sql_query(f"SELECT auto, monto_brl, fecha FROM reservas WHERE cliente = '{st.session_state.user_name}'", conn)
+        st.dataframe(df_h, use_container_width=True)
+        conn.close()
+
+    with tabs[2]:
+        st.markdown("### 📍 Edificio Aramí")
+        st.write("Farid Rahal y Curupayty, Ciudad del Este")
+        st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3600.627727142!2d-54.611111!3d-25.511111!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjXCsDMwJzQwLjAiUyA1NMKwMzYnNDAuMCJX!5e0!3m2!1ses!2spy!4v1620000000000!5m2!1ses!2spy" width="100%" height="400" style="border:0; border-radius:15px;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
+        st.markdown(f'''
+            <a href="https://www.instagram.com/jm_asociados_consultoria?igsh=djBzYno0MmViYzBo" target="_blank" class="btn-notif btn-instagram">Ver Instagram</a>
+            <a href="https://wa.me/595991681191" target="_blank" class="btn-notif btn-whatsapp">WhatsApp Oficial</a>
+        ''', unsafe_allow_html=True)
+
+    with tabs[3]:
+        with st.form("res_f"):
+            com = st
