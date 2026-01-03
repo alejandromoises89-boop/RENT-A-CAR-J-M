@@ -1,6 +1,5 @@
 import streamlit as st
 import urllib.parse
-import io
 from database import init_db, obtener_flota, guardar_reserva
 from styles import aplicar_estilos
 from auth import login_screen
@@ -71,3 +70,4 @@ else:
     if st.session_state.role == "admin":
         with tabs[-1]:
             panel_control()
+
