@@ -44,7 +44,7 @@ def obtener_cotizacion_brl():
 cotizacion_hoy = obtener_cotizacion_brl()
 init_db()
 
-# --- 3. FLOTA (ORDEN Y LINKS CORREGIDOS) ---
+# --- 3. FLOTA ---
 flota = [
     {"nombre": "Toyota Vitz", "color": "Negro", "precio_brl": 195, "img": "https://a0.anyrgb.com/pngimg/1498/1242/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel-economy-in-automobiles-hybrid-vehicle-frontwheel-drive-minivan.png"},
     {"nombre": "Hyundai Tucson", "color": "Blanco", "precio_brl": 260, "img": "https://www.iihs.org/cdn-cgi/image/width=636/api/ratings/model-year-images/2098/"},
@@ -74,70 +74,15 @@ else:
     if st.session_state.role == "admin": tab_list.append("⚙️ Panel Master")
     tabs = st.tabs(tab_list)
 
+    # --- TAB 1: CATALOGO (AHORA CON OPCIONES DE PAGO PARA TODOS) ---
     with tabs[0]:
         for idx, auto in enumerate(flota):
             monto_pyg = auto['precio_brl'] * cotizacion_hoy
+            auto_id = f"veh_{idx}"
             with st.container():
                 st.markdown('<div class="card-auto">', unsafe_allow_html=True)
                 c1, c2 = st.columns([1, 2])
                 with c1: st.image(auto['img'], use_container_width=True)
                 with c2:
                     st.subheader(f"{auto['nombre']} {auto['color']}")
-                    st.write(f"Tarifa: **{auto['precio_brl']} BRL**")
-                    if st.button("Reservar", key=f"res_{idx}"):
-                        conn = sqlite3.connect('jm_asociados.db')
-                        conn.cursor().execute("INSERT INTO reservas (cliente, auto, inicio, fin, monto_pyg, monto_brl, fecha_registro) VALUES (?,?,?,?,?,?,?)",
-                                             (st.session_state.user_name, f"{auto['nombre']} {auto['color']}", "Pendiente", "Pendiente", monto_pyg, auto['precio_brl'], datetime.now().strftime("%Y-%m-%d")))
-                        conn.commit()
-                        st.success("✅ Verifique en 'Mi Historial'")
-                st.markdown('</div>', unsafe_allow_html=True)
-
-    with tabs[1]:
-        st.subheader("Mis Alquileres")
-        conn = sqlite3.connect('jm_asociados.db')
-        df_mine = pd.read_sql_query(f"SELECT auto, monto_brl, fecha_registro FROM reservas WHERE cliente = '{st.session_state.user_name}'", conn)
-        st.dataframe(df_mine, use_container_width=True)
-        conn.close()
-
-    with tabs[2]:
-        col_m, col_t = st.columns([2, 1])
-        with col_m:
-            st.markdown("### 📍 Ubicación")
-            st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3601.2472648784534!2d-54.6133863!3d-25.5134749!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f68fbd65f874ed%3A0x336570e647c771b6!2sJ%26M%20ASOCIADOS%20Consultoria!5e0!3m2!1ses!2spy!4v1700000000000!5m2!1ses!2spy" width="100%" height="450" style="border:0; border-radius:15px;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
-        with col_t:
-            st.markdown("### 🏢 Oficina")
-            st.write("**Edificio Aramí** (Frente Edif. España)")
-            st.write("Farid Rahal y Curupayty, CDE")
-            st.divider()
-            st.markdown(f'''
-                <a href="https://www.instagram.com/jm_asociados_consultoria?igsh=djBzYno0MmViYzBo" target="_blank" class="btn-notif btn-instagram">
-                    <i class="fa-brands fa-instagram btn-icon"></i> Instagram
-                </a>
-                <a href="https://wa.me/595991681191" target="_blank" class="btn-notif btn-whatsapp">
-                    <i class="fa-brands fa-whatsapp btn-icon"></i> WhatsApp
-                </a>
-            ''', unsafe_allow_html=True)
-
-    with tabs[3]:
-        st.subheader("⭐ Danos tu opinión")
-        with st.form("resena_f"):
-            txt = st.text_area("Comentario")
-            est = st.select_slider("Calificación", options=[1,2,3,4,5], value=5)
-            if st.form_submit_button("Enviar"):
-                conn = sqlite3.connect('jm_asociados.db')
-                conn.cursor().execute("INSERT INTO resenas (cliente, comentario, estrellas, fecha) VALUES (?,?,?,?)", (st.session_state.user_name, txt, est, datetime.now().strftime("%Y-%m-%d")))
-                conn.commit()
-                st.success("¡Gracias!")
-
-    if st.session_state.role == "admin":
-        with tabs[4]:
-            st.title("⚙️ Panel Master")
-            conn = sqlite3.connect('jm_asociados.db')
-            df_all = pd.read_sql_query("SELECT * FROM reservas", conn)
-            st.metric("Total BRL", f"{df_all['monto_brl'].sum():,} BRL")
-            st.dataframe(df_all, use_container_width=True)
-            if st.button("LIMPIAR REGISTROS"):
-                conn.cursor().execute("DELETE FROM reservas")
-                conn.commit()
-                st.rerun()
-            conn.close()
+                    st.write(f"Tarifa: **{auto['precio_brl']} BRL** (Gs. {m
