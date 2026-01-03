@@ -9,6 +9,7 @@ def login_screen():
         pw = st.text_input("Contraseña", type="password")
         
         if st.button("ENTRAR"):
+            # Credenciales Maestro
             if user == "admin@jymasociados.com" and pw == "JM2026_MASTER":
                 st.session_state.logged_in = True
                 st.session_state.role = "admin"
