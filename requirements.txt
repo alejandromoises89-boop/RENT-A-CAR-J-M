@@ -1,7 +1,0 @@
-streamlit
-qrcode
-Pillow
-requests
-beautifulsoup4
-pandas
-st-gsheets-connection
