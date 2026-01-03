@@ -19,7 +19,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. LÓGICA DE NEGOCIO ---
+# --- 2. LÓGICA DE BASE DE DATOS ---
 def init_db():
     conn = sqlite3.connect('jm_asociados.db')
     c = conn.cursor()
@@ -30,7 +30,7 @@ def init_db():
 
 def verificar_disponibilidad(auto_nombre, inicio, fin):
     conn = sqlite3.connect('jm_asociados.db')
-    df = pd.read_sql_query(f"SELECT inicio, fin FROM reservas WHERE auto = '{auto_nombre}'", conn)
+    df = pd.read_sql_query(f"SELECT inicio, fin FROM reservas WHERE auto LIKE '{auto_nombre}%'", conn)
     conn.close()
     nuevo_ini, nuevo_fin = pd.to_datetime(inicio), pd.to_datetime(fin)
     for _, row in df.iterrows():
@@ -44,7 +44,7 @@ def generar_pdf(nombre, auto, f1, f2):
     p.setFont("Helvetica-Bold", 16)
     p.drawString(150, 800, "CONTRATO DE ALQUILER - J&M ASOCIADOS")
     p.setFont("Helvetica", 12)
-    p.drawString(50, 750, f"CLIENTE: {nombre}")
+    p.drawString(50, 750, f"ARRENDATARIO: {nombre}")
     p.drawString(50, 730, f"VEHÍCULO: {auto}")
     p.drawString(50, 710, f"PERIODO: {f1} al {f2}")
     p.drawString(50, 680, "Este documento certifica la reserva del vehículo.")
@@ -52,12 +52,12 @@ def generar_pdf(nombre, auto, f1, f2):
     p.save()
     return buffer.getvalue()
 
-# --- 3. FLOTA CONFIGURADA ---
+# --- 3. FLOTA ---
 flota = [
-    {"nombre": "Hyundai Tucson", "color": "Blanco", "precio": 260000, "img": "https://www.iihs.org/cdn-cgi/image/width=636/api/ratings/model-year-images/2098/"},
-    {"nombre": "Toyota Vitz", "color": "Blanco", "precio": 195000, "img": "https://a0.anyrgb.com/pngimg/1498/1242/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel-economy-in-automobiles-hybrid-vehicle-frontwheel-drive-minivan.png"},
-    {"nombre": "Toyota Vitz", "color": "Negro", "precio": 195000, "img": "https://i.ibb.co/yFNrttM2/BG160258-2427f0-Photoroom.png"},
-    {"nombre": "Toyota Voxy", "color": "Gris", "precio": 240000, "img": "https://i.ibb.co/Y7ZHY8kX/pngegg.png"}
+    {"nombre": "Hyundai Tucson", "color": "Blanco", "precio_brl": 260, "img": "https://www.iihs.org/cdn-cgi/image/width=636/api/ratings/model-year-images/2098/"},
+    {"nombre": "Toyota Vitz", "color": "Negro", "precio_brl": 195, "img": "https://a0.anyrgb.com/pngimg/1498/1242/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel-economy-in-automobiles-hybrid-vehicle-frontwheel-drive-minivan.png"},
+    {"nombre": "Toyota Voxy", "color": "Gris", "precio_brl": 240, "img": "https://i.ibb.co/yFNrttM2/BG160258-2427f0-Photoroom.png"},
+    {"nombre": "Toyota Vitz", "color": "Blanco", "precio_brl": 195, "img": "https://i.ibb.co/Y7ZHY8kX/pngegg.png"}
 ]
 
 # --- 4. INTERFAZ ---
@@ -100,21 +100,43 @@ else:
                         conn.commit()
                         conn.close()
                         
-                        st.success("✅ Vehículo Bloqueado Exitosamente")
-                        
-                        # --- NOTIFICACIONES Y PAGOS ---
+                        st.success("✅ Vehículo Reservado")
                         st.image("https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=PIX_24510861818_MARINA", caption="Escanea PIX - Marina Baez")
                         
-                        pdf = generar_pdf(st.session_state.user_name, auto['nombre'], f_ini, f_fin)
-                        st.download_button("📥 Descargar Contrato (PDF)", data=pdf, file_name="Contrato_JM.pdf")
+                        # Preparación de mensajes
+                        link_app = "https://rent-a-car-j-m-nigbrrf2rzdecmahq2kbuq.streamlit.app/"
+                        msg_whatsapp = f"""*J&M ASOCIADOS - NUEVA RESERVA*
+👤 *Cliente:* {st.session_state.user_name}
+🚗 *Vehículo:* {auto['nombre']} {auto['color']}
+📅 *Periodo:* {f_ini} al {f_fin}
+💰 *Tarifa:* Gs. {auto['precio']:,}
+✅ *Estado:* Pendiente de Comprobante PIX"""
+                        
+                        msg_correo = f"""Es un placer saludarte, {st.session_state.user_name}. Hemos habilitado nuestro nuevo Portal Ejecutivo de Rent-a-Car, diseñado para que gestiones tus alquileres de forma rápida y segura.
+
+A través de nuestra App podrás:
+✅ Ver nuestra flota exclusiva.
+✅ Realizar reservas y pagos vía PIX.
+✅ Descargar tus contratos en PDF.
+
+🌐 Accede aquí: {link_app}
+
+Tip: Abre el link y selecciona "Añadir a pantalla de inicio" para tener la App siempre a mano.
+
+J&M ASOCIADOS | Alquiler de Vehículos & Alta Gama"""
                         
                         col_a, col_b = st.columns(2)
                         with col_a:
-                            msg_wa = f"Hola J&M! Soy {st.session_state.user_name}, reservé el {auto['nombre']} {auto['color']} del {f_ini} al {f_fin}."
-                            st.markdown(f'[📲 Notificar Empresa (WhatsApp)](https://wa.me/595991681191?text={urllib.parse.quote(msg_wa)})', unsafe_allow_html=True)
+                            st.markdown(f'''<a href="https://wa.me/595991681191?text={urllib.parse.quote(msg_whatsapp)}" target="_blank">
+                                <button style="width:100%; background-color:#25D366; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer;">
+                                📲 Notificar por WhatsApp</button></a>''', unsafe_allow_html=True)
                         with col_b:
-                            mailto = f"mailto:{st.session_state.user_name}?subject=Reserva J&M&body=Detalles de su alquiler..."
-                            st.markdown(f'[📧 Enviar Copia al Cliente (Email)]({mailto})', unsafe_allow_html=True)
+                            st.markdown(f'''<a href="mailto:{st.session_state.user_name}?subject=Confirmacion de Alquiler J&M&body={urllib.parse.quote(msg_correo)}">
+                                <button style="width:100%; background-color:#D4AF37; color:black; border:none; padding:10px; border-radius:5px; cursor:pointer;">
+                                📧 Enviar Correo Ejecutivo</button></a>''', unsafe_allow_html=True)
+                        
+                        pdf = generar_pdf(st.session_state.user_name, auto['nombre'], f_ini, f_fin)
+                        st.download_button("📥 Descargar Contrato PDF", data=pdf, file_name="Contrato_JM.pdf")
                     else:
                         st.error("❌ Fechas no disponibles para este auto.")
             st.markdown('</div>', unsafe_allow_html=True)
