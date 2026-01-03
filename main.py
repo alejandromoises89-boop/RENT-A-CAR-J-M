@@ -1,6 +1,6 @@
 import streamlit as st
 import sqlite3
-import pd
+import pandas as pd  # <-- CORREGIDO AQUÍ
 from datetime import datetime, timedelta
 import time
 import base64
@@ -22,7 +22,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. BASE DE DATOS Y LÓGICA DE BLOQUEO ---
+# --- 2. BASE DE DATOS ---
 def init_db():
     conn = sqlite3.connect('jm_master_final.db')
     c = conn.cursor()
@@ -39,7 +39,6 @@ def init_db():
 def verificar_bloqueo(auto, inicio, fin):
     conn = sqlite3.connect('jm_master_final.db')
     c = conn.cursor()
-    # Lógica de solapamiento: (InicioA <= FinB) AND (FinA >= InicioB)
     c.execute('''SELECT * FROM reservas WHERE auto=? AND (inicio <= ? AND fin >= ?)''', 
               (auto, fin.strftime("%Y-%m-%d"), inicio.strftime("%Y-%m-%d")))
     resultado = c.fetchone()
@@ -92,9 +91,9 @@ if not st.session_state.logged_in:
                         conn.commit()
                         st.success("✅ Cuenta creada. Ingrese ahora.")
                         conn.close()
-                    except Exception as e: st.error(f"Error: {e}")
+                    except Exception as e: st.error("Error: El correo ya está registrado.")
 
-# --- 5. INTERFAZ PRINCIPAL (POST-LOGIN) ---
+# --- 5. INTERFAZ PRINCIPAL ---
 else:
     st.markdown(f'<h3 style="text-align:center; color:#D4AF37;">Panel de {st.session_state.user_name}</h3>', unsafe_allow_html=True)
     
@@ -170,7 +169,7 @@ else:
                 conn.commit()
                 st.success("¡Gracias por tu reseña!")
 
-    # ⚙️ PANEL MASTER (PIN: 2026)
+    # ⚙️ PANEL MASTER
     with tabs[4]:
         pin = st.text_input("PIN de Administrador", type="password")
         if pin == "2026":
@@ -180,3 +179,25 @@ else:
             if not df_m.empty:
                 st.write("### 📊 Balance Financiero")
                 ing = df_m['monto_ingreso'].sum()
+                egr = df_m['monto_egreso'].sum()
+                st.columns(3)[0].metric("Ingresos Totales", f"{ing} BRL")
+                st.columns(3)[1].metric("Costos Operativos", f"{egr} BRL")
+                st.columns(3)[2].metric("Utilidad Neta", f"{ing-egr} BRL")
+                
+                st.bar_chart(df_m.groupby('auto')['monto_ingreso'].sum())
+                
+                csv = df_m.to_csv(index=False).encode('utf-8')
+                st.download_button("📥 Exportar Reporte Anual", csv, "JM_Cierre_2026.csv", "text/csv")
+                
+                if st.button("🗑️ Borrar Todo el Historial"):
+                    conn.cursor().execute("DELETE FROM reservas")
+                    conn.commit()
+                    st.rerun()
+            conn.close()
+
+    # --- BOTÓN CERRAR SESIÓN ---
+    st.markdown('<div class="logout-box">', unsafe_allow_html=True)
+    if st.button("🚪 CERRAR SESIÓN"):
+        st.session_state.logged_in = False
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
