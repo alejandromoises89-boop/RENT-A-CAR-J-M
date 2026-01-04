@@ -4,45 +4,6 @@ import plotly.express as px
 from fpdf import FPDF
 import datetime
 
-# --- 1. CONFIGURACIÓN E IDENTIDAD ---
-st.set_page_config(page_title="JM ASOCIADOS - GESTIÓN", layout="wide")
-
-# Estilos para la interfaz interna (Fondo Blanco, detalles Bordó y Dorado)
-st.markdown("""
-<style>
-    .main { background-color: #FFFFFF; }
-    .car-container {
-        border: 2px solid #EEEEEE;
-        border-radius: 15px;
-        padding: 20px;
-        background-color: white;
-        box-shadow: 0px 4px 15px rgba(0,0,0,0.1);
-        text-align: center;
-        margin-bottom: 20px;
-    }
-    .header-band {
-        background-color: #4A0404;
-        color: #D4AF37;
-        padding: 20px;
-        text-align: center;
-        font-family: 'Times New Roman', serif;
-        font-size: 30px;
-        font-weight: bold;
-        border-bottom: 4px solid #D4AF37;
-        margin-bottom: 30px;
-    }
-    .spec-box {
-        font-size: 14px;
-        color: #333;
-        background: #F9F9F9;
-        padding: 10px;
-        border-radius: 5px;
-        margin-top: 10px;
-        border-left: 3px solid #4A0404;
-    }
-</style>
-""", unsafe_allow_html=True)
-
 # --- 2. BASE DE DATOS Y LÓGICA DE NEGOCIO ---
 if 'reservas' not in st.session_state:
     st.session_state.reservas = []
@@ -176,3 +137,4 @@ def pantalla_principal():
 
 # --- 5. EJECUCIÓN ---
 pantalla_principal()
+
