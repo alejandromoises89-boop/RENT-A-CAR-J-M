@@ -1,5 +1,11 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
+from fpdf import FPDF
+import datetime
+
+import streamlit as st
+import pandas as pd
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="J&M ASOCIADOS - Login", layout="centered")
@@ -121,5 +127,110 @@ else:
         st.session_state.autenticado = False
         st.rerun()
 
-    # Aquí seguirían tus pestañas (Historial, Panel Admin, etc.)
-    # ...
+# --- 3. BASE DE DATOS Y ESTADO ---
+if 'db_reservas' not in st.session_state:
+    st.session_state.db_reservas = pd.DataFrame(columns=[
+        "ID", "Fecha", "Cliente", "Auto", "Ingreso", "Egreso", "Estado"
+    ])
+
+VEHICULOS = {
+    "Toyota Vitz 2012": {
+        "precio": 220, "color": "Negro", "trans": "Automático", "motor": "1.3L",
+        "img": "https://a0.anyrgb.com/pngimg/1498/1242/toyota-vitz.png"
+    },
+    "Hyundai Tucson 2012": {
+        "precio": 260, "color": "Blanco", "trans": "Automático", "motor": "2.0L",
+        "img": "https://www.iihs.org/api/ratings/model-year-images/2098/"
+    },
+    "Toyota Voxy 2011": {
+        "precio": 240, "color": "Gris", "trans": "Secuencial", "motor": "2.0L",
+        "img": "https://i.ibb.co/yFNrttM2/BG160258-2427f0-Photoroom.png"
+    }
+}
+
+# --- 4. ESTRUCTURA DE PESTAÑAS ---
+tab1, tab2, tab3 = st.tabs(["🏠 ALQUILAR", "📋 MI HISTORIAL", "⚙️ ADMIN J&M"])
+
+with tab1:
+    st.subheader("Seleccione su Vehículo")
+    cols = st.columns(3)
+    
+    for i, (nombre, info) in enumerate(VEHICULOS.items()):
+        with cols[i % 3]:
+            st.markdown(f"""
+            <div class="car-card">
+                <img src="{info['img']}" style="width:100%; height:120px; object-fit:contain;">
+                <h4 style="color:#4A0404; margin-bottom:5px;">{nombre}</h4>
+                <div class="spec-text">
+                    <b>🎨 Color:</b> {info['color']}<br>
+                    <b>⚙️ Motor:</b> {info['motor']}<br>
+                    <b>🕹️ Transmisión:</b> {info['trans']}
+                </div>
+                <hr>
+                <p class="price-tag">R$ {info['precio']} <small>/ día</small></p>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button(f"Reservar {nombre}", key=f"res_{i}"):
+                st.session_state.seleccionado = nombre
+
+    if 'seleccionado' in st.session_state:
+        st.divider()
+        with st.form("registro_alquiler"):
+            st.markdown(f"### Completar Reserva: **{st.session_state.seleccionado}**")
+            c1, c2 = st.columns(2)
+            nombre_cli = c1.text_input("Nombre Completo")
+            dias = c2.number_input("Días de Alquiler", min_value=1, value=1)
+            
+            if st.form_submit_button("Confirmar y Pago PIX"):
+                total = dias * VEHICULOS[st.session_state.seleccionado]['precio']
+                egreso_estimado = total * 0.20 # 20% para mantenimiento
+                nueva_reserva = {
+                    "ID": len(st.session_state.db_reservas) + 1,
+                    "Fecha": datetime.date.today(),
+                    "Cliente": nombre_cli,
+                    "Auto": st.session_state.seleccionado,
+                    "Ingreso": total,
+                    "Egreso": egreso_estimado,
+                    "Estado": "Pagado"
+                }
+                st.session_state.db_reservas = pd.concat([st.session_state.db_reservas, pd.DataFrame([nueva_reserva])], ignore_index=True)
+                st.success(f"✅ ¡Reserva Exitosa para {nombre_cli}!")
+
+with tab2:
+    st.subheader("Historial de Alquileres")
+    st.dataframe(st.session_state.db_reservas, use_container_width=True)
+
+with tab3:
+    st.header("📊 Auditoría y Finanzas")
+    df = st.session_state.db_reservas
+    
+    if not df.empty:
+        c1, c2 = st.columns(2)
+        
+        # Gráfico de Torta (Ganancias vs Pérdidas/Gastos)
+        with c1:
+            total_ing = df['Ingreso'].sum()
+            total_egr = df['Egreso'].sum()
+            fig_pie = px.pie(
+                values=[total_ing, total_egr], 
+                names=['Ganancia Neta', 'Gastos Mantenimiento'],
+                color_discrete_sequence=['#28A745', '#DC3545'],
+                hole=0.4, title="Distribución Financiera (BRL)"
+            )
+            st.plotly_chart(fig_pie, use_container_width=True)
+            
+        # Gráfico de Barras por Auto
+        with c2:
+            fig_bar = px.bar(df, x='Auto', y='Ingreso', color='Auto', title="Ingresos por Vehículo")
+            st.plotly_chart(fig_bar, use_container_width=True)
+        
+        # Botón de Exportación para Auditoría
+        csv = df.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Descargar Reporte para Auditoría (CSV)",
+            data=csv,
+            file_name=f"Auditoria_JM_{datetime.date.today()}.csv",
+            mime='text/csv',
+        )
+    else:
+        st.info("No hay datos financieros para reportar.")
