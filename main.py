@@ -3,7 +3,13 @@ import sqlite3
 import pandas as pd
 from datetime import datetime, timedelta
 import urllib.parse
-import plotly.express as px
+
+# Intento de importar Plotly, si no está, usamos gráficos nativos de Streamlit
+try:
+    import plotly.express as px
+    HAS_PLOTLY = True
+except ImportError:
+    HAS_PLOTLY = False
 
 # --- 1. CONFIGURACIÓN Y ESTILO JM PREMIUM ---
 st.set_page_config(page_title="JM | Alquiler de Autos", layout="wide")
@@ -65,7 +71,7 @@ init_db()
 
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 
-# --- 3. ACCESO (LOGIN / REGISTRO) ---
+# --- 3. ACCESO ---
 if not st.session_state.logged_in:
     st.markdown('<div class="header-jm">JM</div><div class="sub-header">ALQUILER DE VEHÍCULOS</div>', unsafe_allow_html=True)
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
@@ -140,7 +146,7 @@ else:
                     st.write(f"### {car['n']}")
                     if disponible:
                         st.markdown(f'<p class="price-tag">{car["p"]} Reales / día</p>', unsafe_allow_html=True)
-                        if st.button(f"Confirmar Reserva: {car['n']}", key=car['n']):
+                        if st.button(f"Confirmar Reserva: {car['n']}", key=f"res_{car['n']}"):
                             conn = sqlite3.connect('jm_final_safe.db')
                             conn.cursor().execute("INSERT INTO reservas (cliente, auto, monto_ingreso, monto_egreso, inicio, fin) VALUES (?,?,?,?,?,?)",
                                                  (st.session_state.user_name, car['n'], total, car['eg']*dias, f_ini.strftime("%Y-%m-%d"), f_fin.strftime("%Y-%m-%d")))
@@ -152,19 +158,18 @@ else:
                         st.markdown('<h4 style="color:#b02121;">🔴 NO DISPONIBLE</h4>', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- PESTAÑA MI HISTORIAL (CORREGIDO) ---
+    # --- PESTAÑA MI HISTORIAL ---
     with tabs[1]:
         st.subheader("📋 Mi Historial")
         conn = sqlite3.connect('jm_final_safe.db')
         df_h = pd.read_sql_query(f"SELECT auto as Vehículo, inicio as Entrega, fin as Devolución, monto_ingreso as Total FROM reservas WHERE cliente='{st.session_state.user_name}'", conn)
         conn.close()
-        
         if not df_h.empty:
             st.dataframe(df_h, use_container_width=True)
         else:
             st.info("Sin reservas.")
 
-    # --- PESTAÑA UBICACIÓN (MAPA EXACTO Y REDES) ---
+    # --- PESTAÑA UBICACIÓN ---
     with tabs[2]:
         st.subheader("📍 JM ASOCIADOS - Ubicación Exacta")
         c_u1, c_u2 = st.columns([1, 2])
@@ -174,8 +179,8 @@ else:
             st.markdown('<a href="https://wa.me/595991681191" class="btn-wa-confirm">📲 WhatsApp Directo</a>', unsafe_allow_html=True)
             st.markdown('<br><a href="https://www.instagram.com/jm_asociados_consultoria?igsh=djBzYno0MmViYzBo" style="text-decoration:none; color:#E1306C; font-weight:bold; font-size:1.2rem;">📸 Instagram Oficial</a>', unsafe_allow_html=True)
         with c_u2:
-            # Embebiendo Google Maps con la ubicación de Ciudad del Este basada en el link compartido
-            st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d14401.554316947665!2d-54.611181!3d-25.525434!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f691bc227a6f2b%3A0xc3f6d744b7f4337!2sCiudad%20del%20Este!5e0!3m2!1ses!2spy!4v1715000000000!5m2!1ses!2spy" width="100%" height="400" style="border-radius:15px; border:0;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
+            # Mapa basado en la ubicación de Ciudad del Este
+            st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3600.672106416801!2d-54.6148384!3d-25.51676!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f690967568f6a9%3A0x6a0f7e4e1a0a5f0!2sCiudad%20del%20Este!5e0!3m2!1ses-419!2spy!4v1700000000000" width="100%" height="400" style="border-radius:15px; border:0;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
 
     # --- PESTAÑA RESEÑAS ---
     with tabs[3]:
@@ -188,11 +193,12 @@ else:
                 conn.commit()
                 st.rerun()
         conn = sqlite3.connect('jm_final_safe.db')
-        for _, r in pd.read_sql_query("SELECT * FROM feedback ORDER BY id DESC", conn).iterrows():
+        df_feed = pd.read_sql_query("SELECT * FROM feedback ORDER BY id DESC", conn)
+        for _, r in df_feed.iterrows():
             st.markdown(f'<div class="review-card"><strong>{r["cliente"]}</strong> (★{r["estrellas"]})<br>{r["comentario"]}</div>', unsafe_allow_html=True)
         conn.close()
 
-    # --- PESTAÑA ADMIN (GRÁFICOS Y ESTADÍSTICAS) ---
+    # --- PESTAÑA ADMIN ---
     with tabs[4]:
         if st.text_input("PIN Admin", type="password") == "2026":
             conn = sqlite3.connect('jm_final_safe.db')
@@ -202,22 +208,20 @@ else:
                 st.write("### 📊 Estadísticas Financieras")
                 total_ingresos = df_m['monto_ingreso'].sum()
                 total_gastos = df_m['monto_egreso'].sum()
-                utilidad = total_ingresos - total_gastos
                 
                 c_a1, c_a2, c_a3 = st.columns(3)
                 c_a1.metric("Ingresos Totales", f"{total_ingresos} BRL")
                 c_a2.metric("Gastos Totales", f"{total_gastos} BRL")
-                c_a3.metric("Utilidad Neta", f"{utilidad} BRL")
+                c_a3.metric("Utilidad", f"{total_ingresos - total_gastos} BRL")
                 
-                # Gráfico de Tortas
-                st.write("#### Balance General (Ventas vs Gastos)")
-                df_pie = pd.DataFrame({
-                    "Concepto": ["Ventas (Ingresos)", "Gastos"],
-                    "Monto": [total_ingresos, total_gastos]
-                })
-                fig = px.pie(df_pie, values='Monto', names='Concepto', color='Concepto',
-                             color_discrete_map={'Ventas (Ingresos)':'#25D366', 'Gastos':'#b02121'})
-                st.plotly_chart(fig, use_container_width=True)
+                st.write("#### Balance General")
+                if HAS_PLOTLY:
+                    fig = px.pie(values=[total_ingresos, total_gastos], names=['Ventas', 'Gastos'], 
+                                 color_discrete_sequence=['#25D366', '#b02121'])
+                    st.plotly_chart(fig, use_container_width=True)
+                else:
+                    # Alternativa nativa si no hay Plotly
+                    st.bar_chart(pd.DataFrame({"Monto": [total_ingresos, total_gastos]}, index=["Ventas", "Gastos"]))
                 
                 st.write("#### Detalle de Reservas")
                 st.dataframe(df_m, use_container_width=True)
