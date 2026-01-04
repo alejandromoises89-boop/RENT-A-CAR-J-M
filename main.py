@@ -5,93 +5,70 @@ import urllib.parse
 import requests
 from datetime import datetime
 
-import streamlit as st
-import pandas as pd
-import plotly.express as px
-import datetime
-from fpdf import FPDF
+# --- 1. CONFIGURACIÓN ---
+st.set_page_config(page_title="J&M ASOCIADOS", layout="centered")
 
-# --- 1. CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="J&M ASOCIADOS", layout="wide")
-
-# --- 2. GESTIÓN DE ESTADO (BLINDAJE) ---
+# Inicialización de estados
 if 'autenticado' not in st.session_state:
     st.session_state.autenticado = False
+if 'mostrar_registro' not in st.session_state:
+    st.session_state.mostrar_registro = False
 
-# --- 3. ESTILO CSS "ROMANO DORADO" ---
+# --- 2. ESTILO CSS "ROMANO DORADO & BIOMETRÍA" ---
 st.markdown("""
 <style>
-    /* Fondo Degradado Bordó profundo */
-    .stApp {
-        background: radial-gradient(circle, #4A0404 0%, #1A0000 100%);
-    }
-
-    /* Encabezado Principal */
-    .header-container {
-        text-align: center;
-        margin-bottom: 30px;
-    }
+    .stApp { background: radial-gradient(circle, #4A0404 0%, #1A0000 100%); }
+    
+    .header-container { text-align: center; margin-bottom: 20px; }
     .title-jm {
-        font-family: 'Times New Roman', Times, serif;
-        color: #D4AF37;
-        font-size: 55px;
-        font-weight: bold;
-        letter-spacing: 5px;
-        margin-bottom: 0px;
-        text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+        font-family: 'Times New Roman', serif;
+        color: #D4AF37; font-size: 50px; font-weight: bold;
+        letter-spacing: 5px; margin-bottom: 0px;
     }
     .subtitle-jm {
-        font-family: 'Times New Roman', Times, serif;
-        color: #D4AF37;
-        font-size: 22px;
-        letter-spacing: 3px;
-        margin-top: -10px;
+        font-family: 'Times New Roman', serif;
+        color: #D4AF37; font-size: 20px; letter-spacing: 3px;
     }
 
-    /* Candado y Cuadros Dorados */
-    .lock-style {
-        font-size: 50px;
-        color: #D4AF37;
-        text-align: center;
-        margin: 20px 0;
+    .lock-style { font-size: 45px; color: #D4AF37; text-align: center; margin: 10px 0; }
+    
+    /* Huella Digital */
+    .biometry-icon {
+        font-size: 50px; color: #D4AF37; text-align: center; 
+        cursor: pointer; margin-top: 20px; transition: 0.3s;
     }
+    .biometry-icon:hover { transform: scale(1.1); filter: drop-shadow(0 0 10px #D4AF37); }
 
-    /* Inputs con bordes dorados finos */
+    /* Cuadros Dorados */
     .stTextInput>div>div>input {
         background-color: rgba(255, 255, 255, 0.05) !important;
         border: 1px solid #D4AF37 !important;
         color: #D4AF37 !important;
         border-radius: 4px !important;
-        font-family: 'Times New Roman', serif;
     }
 
-    /* Botón ENTRAR Bordó destacado */
     .stButton>button {
         background-color: #600000 !important;
         color: #D4AF37 !important;
         border: 2px solid #D4AF37 !important;
         font-family: 'Times New Roman', serif;
         font-weight: bold !important;
-        font-size: 20px !important;
-        width: 100%;
-        border-radius: 5px !important;
+        font-size: 18px !important;
+        width: 100%; border-radius: 5px !important;
     }
 
-    /* Estilo de Pestañas */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 24px;
-        background-color: transparent;
-    }
-    .stTabs [data-baseweb="tab"] {
-        font-family: 'Times New Roman', serif;
+    /* Enlaces de registro y recuperación */
+    .link-gold {
         color: #D4AF37 !important;
-        font-size: 18px;
+        text-decoration: none;
+        font-size: 14px;
+        font-family: 'Times New Roman', serif;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 4. PANTALLA DE LOGIN ---
-def mostrar_login():
+# --- 3. LÓGICA DE LOGIN, REGISTRO Y RECUPERACIÓN ---
+def pantalla_acceso():
     st.markdown("""
         <div class="header-container">
             <p class="title-jm">ACCESO A J&M</p>
@@ -100,23 +77,82 @@ def mostrar_login():
         <div class="lock-style">🔒</div>
     """, unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns([1, 1.5, 1])
+    col1, col2, col3 = st.columns([0.5, 2, 0.5])
+    
     with col2:
-        with st.form("login_prestige"):
-            user = st.text_input("USUARIO / TELÉFONO")
-            pw = st.text_input("CONTRASEÑA", type="password")
-            btn_login = st.form_submit_button("ENTRAR")
+        if not st.session_state.mostrar_registro:
+            # --- FORMULARIO DE LOGIN ---
+            with st.form("login_prestige"):
+                user = st.text_input("CORREO O TELÉFONO")
+                pw = st.text_input("CONTRASEÑA", type="password")
+                btn_login = st.form_submit_button("ENTRAR")
 
-            if btn_login:
-                if user == "admin" and pw == "2026":
-                    st.session_state.autenticado = True
+                if btn_login:
+                    if user == "admin" and pw == "2026":
+                        st.session_state.autenticado = True
+                        st.rerun()
+                    else:
+                        st.error("Credenciales Incorrectas")
+            
+            # --- SECCIÓN BIOMETRÍA ---
+            st.markdown('<div class="biometry-icon">☝️</div>', unsafe_allow_html=True)
+            if st.button("INGRESAR CON BIOMETRÍA", help="Use su huella digital o FaceID"):
+                st.info("Iniciando escaneo biométrico del dispositivo...")
+
+            # --- ENLACES INFERIORES ---
+            c_left, c_right = st.columns(2)
+            with c_left:
+                if st.button("Crear Cuenta", key="btn_reg"):
+                    st.session_state.mostrar_registro = "nuevo"
                     st.rerun()
-                else:
-                    st.error("Credenciales Incorrectas")
+            with c_right:
+                if st.button("Olvidé mi Clave", key="btn_rec"):
+                    st.session_state.mostrar_registro = "recuperar"
+                    st.rerun()
+
+        elif st.session_state.mostrar_registro == "nuevo":
+            # --- FORMULARIO DE REGISTRO ---
+            st.markdown("<h3 style='color:#D4AF37; text-align:center;'>REGISTRO DE CLIENTE</h3>", unsafe_allow_html=True)
+            with st.form("registro_nuevo"):
+                st.text_input("Nombre y Apellido")
+                st.text_input("Correo Electrónico")
+                st.text_input("Teléfono / WhatsApp")
+                st.text_input("Documento (CPF/RG/DNI)")
+                st.text_input("Nueva Contraseña", type="password")
+                if st.form_submit_button("REGISTRARME"):
+                    st.success("Cuenta creada exitosamente")
+                    st.session_state.mostrar_registro = False
+            if st.button("Volver"):
+                st.session_state.mostrar_registro = False
+                st.rerun()
+
+        elif st.session_state.mostrar_registro == "recuperar":
+            # --- RECUPERACIÓN ---
+            st.markdown("<h3 style='color:#D4AF37; text-align:center;'>RECUPERAR ACCESO</h3>", unsafe_allow_html=True)
+            email_rec = st.text_input("Ingrese su Correo o Teléfono registrado")
+            if st.button("Enviar Código de Recuperación"):
+                st.success(f"Se ha enviado un enlace a {email_rec}")
+            if st.button("Volver"):
+                st.session_state.mostrar_registro = False
+                st.rerun()
+
+# --- 4. CUERPO DE LA APP (POST-LOGIN) ---
+def pantalla_principal():
+    st.markdown('<p class="title-jm" style="font-size:30px; text-align:left;">J&M ASOCIADOS</p>', unsafe_allow_html=True)
+    if st.sidebar.button("CERRAR SESIÓN"):
+        st.session_state.autenticado = False
+        st.rerun()
+    st.write("Bienvenido al sistema de gestión de alta gama.")
+
+# --- 5. EJECUCIÓN ---
+if not st.session_state.autenticado:
+    pantalla_acceso()
+else:
+    pantalla_principal()
 
 # --- 5. APLICACIÓN PRINCIPAL (POST-LOGIN) ---
 def mostrar_app():
-    st.markdown('<p class="title-jm" style="font-size:35px;">J&M ASOCIADOS</p>', unsafe_allow_html=True)
+    st.markdown('<p class="title-jm" style="font-size:35px;">JM ASOCIADOS</p>', unsafe_allow_html=True)
     
     tab1, tab2, tab3, tab4 = st.tabs(["🚗 CATÁLOGO", "📜 HISTORIAL", "💬 RESEÑAS", "🛡️ PANEL CONTROL"])
 
@@ -308,5 +344,6 @@ else:
             st.download_button("📥 Descargar Excel (CSV)", df_all.to_csv(index=False).encode('utf-8'), "reporte_jm_final.csv")
             
             conn.close()
+
 
 
