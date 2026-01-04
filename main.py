@@ -36,7 +36,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. BASE DE DATOS (ESTRUCTURA COMPLETA) ---
+# --- 2. BASE DE DATOS (ESTRUCTURA KYC COMPLETA) ---
 def init_db():
     conn = sqlite3.connect('jm_final_safe.db')
     c = conn.cursor()
@@ -64,7 +64,7 @@ init_db()
 
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 
-# --- 3. ACCESO (LOGIN Y REGISTRO KYC) ---
+# --- 3. ACCESO (LOGIN Y REGISTRO) ---
 if not st.session_state.logged_in:
     st.markdown('<div class="header-jm">JM</div><div class="sub-header">ALQUILER DE VEHÍCULOS</div>', unsafe_allow_html=True)
     col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
@@ -88,7 +88,7 @@ if not st.session_state.logged_in:
         
         else:
             with st.form("reg_completo"):
-                st.markdown("### 📋 Registro de Nuevo Cliente (KYC)")
+                st.markdown("### 📋 Registro de Nuevo Cliente")
                 c1, c2 = st.columns(2)
                 with c1:
                     n_f = st.text_input("Nombre Completo")
@@ -105,6 +105,100 @@ if not st.session_state.logged_in:
                     if n_f and e_f and p_f and d_n:
                         try:
                             conn = sqlite3.connect('jm_final_safe.db')
+                            # LÍNEA CORREGIDA AQUÍ:
                             conn.cursor().execute("""INSERT INTO usuarios 
                                 (nombre, correo, password, tel, doc_tipo, doc_num, nacionalidad, direccion) 
-                                VALUES (?,?,?,?,?,?,?,?)""", (n_f, e_f, p_f, t_f, d_t, d
+                                VALUES (?,?,?,?,?,?,?,?)""", (n_f, e_f, p_f, t_f, d_t, d_n, nac, dir_c))
+                            conn.commit()
+                            conn.close()
+                            st.success("✅ Cuenta creada. Ya puede ingresar.")
+                        except: st.error("❌ El correo ya está registrado.")
+                    else: st.warning("⚠️ Complete los campos obligatorios.")
+
+# --- 4. PORTAL JM ---
+else:
+    st.markdown(f'<h3 style="text-align:center; color:#D4AF37;">Bienvenido | {st.session_state.user_name}</h3>', unsafe_allow_html=True)
+    tabs = st.tabs(["🚗 Alquiler", "📅 Mi Historial", "📍 Ubicación", "⭐ Reseñas", "⚙️ Panel Master"])
+
+    # --- ALQUILER ---
+    with tabs[0]:
+        c_f1, c_f2 = st.columns(2)
+        f_ini = c_f1.date_input("Fecha Entrega", min_value=datetime.now().date())
+        f_fin = c_f2.date_input("Fecha Devolución", min_value=f_ini + timedelta(days=1))
+        dias = (f_fin - f_ini).days
+
+        flota = [
+            {"n": "Toyota Vitz Negro", "p": 195, "eg": 45, "img": "https://a0.anyrgb.com/pngimg/1498/1242/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel-economy-in-automobiles-hybrid-vehicle-frontwheel-drive-minivan.png"},
+            {"n": "Tucson Blanco", "p": 260, "eg": 65, "img": "https://www.iihs.org/cdn-cgi/image/width=636/api/ratings/model-year-images/2098/"},
+            {"n": "Voxy Gris", "p": 240, "eg": 55, "img": "https://i.ibb.co/yFNrttM2/BG160258-2427f0-Photoroom.png"},
+            {"n": "Toyota Vitz Blanco", "p": 195, "eg": 45, "img": "https://i.ibb.co/Y7ZHY8kX/pngegg.png"}
+        ]
+
+        for car in flota:
+            libre = verificar_bloqueo(car['n'], f_ini, f_fin)
+            total = car['p'] * dias
+            with st.container():
+                st.markdown('<div class="card-auto">', unsafe_allow_html=True)
+                col1, col2 = st.columns([1, 2])
+                col1.image(car['img'])
+                with col2:
+                    st.write(f"### {car['n']}")
+                    if libre:
+                        st.markdown(f'<p class="price-tag">{car["p"]} Reales / día</p>', unsafe_allow_html=True)
+                        st.write(f"Total: **{total} Reales**")
+                        if st.button(f"Confirmar {car['n']}", key=car['n']):
+                            conn = sqlite3.connect('jm_final_safe.db')
+                            conn.cursor().execute("INSERT INTO reservas (cliente, auto, monto_ingreso, monto_egreso, inicio, fin) VALUES (?,?,?,?,?,?)",
+                                                 (st.session_state.user_name, car['n'], total, car['eg']*dias, f_ini.strftime("%Y-%m-%d"), f_fin.strftime("%Y-%m-%d")))
+                            conn.commit()
+                            st.success("✅ Reserva realizada.")
+                            st.image(f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=PAY_JM_{total}")
+                            msg = urllib.parse.quote(f"Hola JM, soy {st.session_state.user_name}. Reservé el {car['n']} del {f_ini} al {f_fin}.")
+                            st.markdown(f'<a href="https://wa.me/595991681191?text={msg}" class="btn-wa-confirm">📲 NOTIFICAR WHATSAPP</a>', unsafe_allow_html=True)
+                    else: st.error("🔴 No disponible.")
+                st.markdown('</div>', unsafe_allow_html=True)
+
+    # --- MI HISTORIAL ---
+    with tabs[1]:
+        st.subheader("📋 Mis Reservas")
+        conn = sqlite3.connect('jm_final_safe.db')
+        df_h = pd.read_sql_query(f"SELECT auto as Vehículo, inicio as Entrega, fin as Devolución, monto_ingreso as Total FROM reservas WHERE cliente='{st.session_state.user_name}'", conn)
+        st.dataframe(df_h, use_container_width=True) if not df_h.empty else st.info("Sin reservas.")
+        conn.close()
+
+    # --- UBICACIÓN ---
+    with tabs[2]:
+        st.subheader("📍 JM ASOCIADOS - Ciudad del Este")
+        c_u1, c_u2 = st.columns([1, 1.5])
+        with c_u1:
+            st.write("**WhatsApp:** 0991 681191")
+            st.markdown('<a href="https://wa.me/595991681191" class="btn-wa-confirm">📲 WhatsApp Directo</a>', unsafe_allow_html=True)
+        with c_u2:
+            st.markdown('<iframe src="https://maps.google.com/?cid=3703490403065393590&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQ23" width="100%" height="300" style="border-radius:15px; border:0;"></iframe>', unsafe_allow_html=True)
+
+    # --- RESEÑAS ---
+    with tabs[3]:
+        with st.form("feedback_new"):
+            est = st.select_slider("Estrellas", options=[1,2,3,4,5], value=5)
+            com = st.text_area("Comentario")
+            if st.form_submit_button("Publicar"):
+                conn = sqlite3.connect('jm_final_safe.db')
+                conn.cursor().execute("INSERT INTO feedback (cliente, comentario, estrellas, fecha) VALUES (?,?,?,?)", (st.session_state.user_name, com, est, datetime.now().strftime("%d/%m/%Y")))
+                conn.commit()
+                st.rerun()
+        conn = sqlite3.connect('jm_final_safe.db')
+        for _, r in pd.read_sql_query("SELECT * FROM feedback ORDER BY id DESC", conn).iterrows():
+            st.markdown(f'<div class="review-card"><strong>{r["cliente"]}</strong> (★{r["estrellas"]})<br>{r["comentario"]}</div>', unsafe_allow_html=True)
+        conn.close()
+
+    # --- PANEL MASTER ---
+    with tabs[4]:
+        if st.text_input("PIN Admin", type="password") == "2026":
+            conn = sqlite3.connect('jm_final_safe.db')
+            st.write("### Clientes Registrados")
+            st.dataframe(pd.read_sql_query("SELECT nombre, tel, doc_num, nacionalidad FROM usuarios", conn))
+            conn.close()
+
+    if st.button("🚪 SALIR"):
+        st.session_state.logged_in = False
+        st.rerun()
