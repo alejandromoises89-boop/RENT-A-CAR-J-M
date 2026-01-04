@@ -3,6 +3,7 @@ import sqlite3
 import pandas as pd
 from datetime import datetime, timedelta
 import urllib.parse
+import plotly.express as px
 
 # --- 1. CONFIGURACIÓN Y ESTILO JM PREMIUM ---
 st.set_page_config(page_title="JM | Alquiler de Autos", layout="wide")
@@ -36,7 +37,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. BASE DE DATOS Y LÓGICA DE DISPONIBILIDAD ---
+# --- 2. BASE DE DATOS ---
 def init_db():
     conn = sqlite3.connect('jm_final_safe.db')
     c = conn.cursor()
@@ -52,17 +53,13 @@ def init_db():
     conn.close()
 
 def verificar_disponibilidad(auto, inicio, fin):
-    """
-    Verifica si hay cruces de fechas para un auto específico.
-    Lógica: Una reserva choca si (Inicio_Nuevo < Fin_Existente) Y (Fin_Nuevo > Inicio_Existente)
-    """
     conn = sqlite3.connect('jm_final_safe.db')
     c = conn.cursor()
     c.execute('''SELECT * FROM reservas WHERE auto=? AND (inicio < ? AND fin > ?)''', 
               (auto, fin.strftime("%Y-%m-%d"), inicio.strftime("%Y-%m-%d")))
     resultado = c.fetchone()
     conn.close()
-    return resultado is None # True si está libre, False si está ocupado
+    return resultado is None
 
 init_db()
 
@@ -116,11 +113,10 @@ if not st.session_state.logged_in:
 # --- 4. PORTAL JM ---
 else:
     st.markdown(f'<h3 style="text-align:center; color:#D4AF37;">Bienvenido | {st.session_state.user_name}</h3>', unsafe_allow_html=True)
-    tabs = st.tabs(["🚗 Alquiler", "📅 Mi Historial", "📍 Ubicación", "⭐ Reseñas", "⚙️ Panel Master"])
+    tabs = st.tabs(["🚗 Alquiler", "📅 Mi Historial", "📍 Ubicación", "⭐ Reseñas", "⚙️ Admin"])
 
     # --- PESTAÑA ALQUILER ---
     with tabs[0]:
-        st.subheader("Seleccione sus fechas")
         c_f1, c_f2 = st.columns(2)
         f_ini = c_f1.date_input("Fecha Entrega", min_value=datetime.now().date())
         f_fin = c_f2.date_input("Fecha Devolución", min_value=f_ini + timedelta(days=1))
@@ -134,10 +130,8 @@ else:
         ]
 
         for car in flota:
-            # Validación de rango de fechas para evitar cruces
             disponible = verificar_disponibilidad(car['n'], f_ini, f_fin)
             total = car['p'] * dias
-            
             with st.container():
                 st.markdown('<div class="card-auto">', unsafe_allow_html=True)
                 col1, col2 = st.columns([1, 2])
@@ -146,42 +140,42 @@ else:
                     st.write(f"### {car['n']}")
                     if disponible:
                         st.markdown(f'<p class="price-tag">{car["p"]} Reales / día</p>', unsafe_allow_html=True)
-                        st.write(f"Total por {dias} días: **{total} Reales**")
                         if st.button(f"Confirmar Reserva: {car['n']}", key=car['n']):
                             conn = sqlite3.connect('jm_final_safe.db')
                             conn.cursor().execute("INSERT INTO reservas (cliente, auto, monto_ingreso, monto_egreso, inicio, fin) VALUES (?,?,?,?,?,?)",
                                                  (st.session_state.user_name, car['n'], total, car['eg']*dias, f_ini.strftime("%Y-%m-%d"), f_fin.strftime("%Y-%m-%d")))
                             conn.commit()
-                            st.success("✅ Reserva registrada en sistema.")
-                            st.image(f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=JM_RESERVA_{total}")
-                            
-                            # MENSAJE DE WHATSAPP ACTUALIZADO
+                            st.success("✅ Registrado.")
                             msg = urllib.parse.quote(f"Hola JM, soy {st.session_state.user_name}. Quiero alquilar el {car['n']} del {f_ini} al {f_fin}. Total: {total} Reales.")
                             st.markdown(f'<a href="https://wa.me/595991681191?text={msg}" class="btn-wa-confirm">ALQUILAR Y NOTIFICAR</a>', unsafe_allow_html=True)
                     else:
                         st.markdown('<h4 style="color:#b02121;">🔴 NO DISPONIBLE</h4>', unsafe_allow_html=True)
-                        st.info("Este vehículo ya está reservado para las fechas seleccionadas.")
                 st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- PESTAÑA MI HISTORIAL ---
+    # --- PESTAÑA MI HISTORIAL (CORREGIDO) ---
     with tabs[1]:
-        st.subheader("📋 Mis Reservas")
+        st.subheader("📋 Mi Historial")
         conn = sqlite3.connect('jm_final_safe.db')
         df_h = pd.read_sql_query(f"SELECT auto as Vehículo, inicio as Entrega, fin as Devolución, monto_ingreso as Total FROM reservas WHERE cliente='{st.session_state.user_name}'", conn)
-        st.dataframe(df_h, use_container_width=True) if not df_h.empty else st.info("Sin reservas.")
         conn.close()
+        
+        if not df_h.empty:
+            st.dataframe(df_h, use_container_width=True)
+        else:
+            st.info("Sin reservas.")
 
-    # --- PESTAÑA UBICACIÓN (LINK INSTAGRAM CORREGIDO) ---
+    # --- PESTAÑA UBICACIÓN (MAPA EXACTO Y REDES) ---
     with tabs[2]:
-        st.subheader("📍 JM ASOCIADOS - Ubicación")
-        c_u1, c_u2 = st.columns([1, 1.5])
+        st.subheader("📍 JM ASOCIADOS - Ubicación Exacta")
+        c_u1, c_u2 = st.columns([1, 2])
         with c_u1:
-            st.write("**Corporativo:** 0991 681191")
+            st.write("**Dirección:** C/ Farid Rahal Canan, Ciudad del Este.")
+            st.write("📞 **Corporativo:** 0991 681191")
             st.markdown('<a href="https://wa.me/595991681191" class="btn-wa-confirm">📲 WhatsApp Directo</a>', unsafe_allow_html=True)
-            # LINK DE INSTAGRAM ACTUALIZADO
-            st.markdown('<br><a href="https://www.instagram.com/jm_asociados_consultoria?igsh=djBzYno0MmViYzBo" style="color:#E1306C; font-weight:bold; font-size:1.2rem; text-decoration:none;">📸 Instagram Oficial</a>', unsafe_allow_html=True)
+            st.markdown('<br><a href="https://www.instagram.com/jm_asociados_consultoria?igsh=djBzYno0MmViYzBo" style="text-decoration:none; color:#E1306C; font-weight:bold; font-size:1.2rem;">📸 Instagram Oficial</a>', unsafe_allow_html=True)
         with c_u2:
-            st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d3600.9575825227284!2d-54.611158!3d-25.506456!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f685fd04f8f4ed%3A0xd36570e647c7f1b6!2sJ%26M%20ASOCIADOS%20Consultoria!5e0!3m2!1ses!2spy!4v170000000000020" width="100%" height="300" style="border-radius:15px; border:0;"></iframe>', unsafe_allow_html=True)
+            # Embebiendo Google Maps con la ubicación de Ciudad del Este basada en el link compartido
+            st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d14401.554316947665!2d-54.611181!3d-25.525434!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f691bc227a6f2b%3A0xc3f6d744b7f4337!2sCiudad%20del%20Este!5e0!3m2!1ses!2spy!4v1715000000000!5m2!1ses!2spy" width="100%" height="400" style="border-radius:15px; border:0;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
 
     # --- PESTAÑA RESEÑAS ---
     with tabs[3]:
@@ -198,14 +192,38 @@ else:
             st.markdown(f'<div class="review-card"><strong>{r["cliente"]}</strong> (★{r["estrellas"]})<br>{r["comentario"]}</div>', unsafe_allow_html=True)
         conn.close()
 
-    # --- PESTAÑA PANEL MASTER ---
+    # --- PESTAÑA ADMIN (GRÁFICOS Y ESTADÍSTICAS) ---
     with tabs[4]:
         if st.text_input("PIN Admin", type="password") == "2026":
             conn = sqlite3.connect('jm_final_safe.db')
-            st.write("### Reservas Activas")
-            st.dataframe(pd.read_sql_query("SELECT * FROM reservas", conn))
-            st.write("### Clientes Registrados")
-            st.dataframe(pd.read_sql_query("SELECT nombre, tel, doc_num FROM usuarios", conn))
+            df_m = pd.read_sql_query("SELECT * FROM reservas", conn)
+            
+            if not df_m.empty:
+                st.write("### 📊 Estadísticas Financieras")
+                total_ingresos = df_m['monto_ingreso'].sum()
+                total_gastos = df_m['monto_egreso'].sum()
+                utilidad = total_ingresos - total_gastos
+                
+                c_a1, c_a2, c_a3 = st.columns(3)
+                c_a1.metric("Ingresos Totales", f"{total_ingresos} BRL")
+                c_a2.metric("Gastos Totales", f"{total_gastos} BRL")
+                c_a3.metric("Utilidad Neta", f"{utilidad} BRL")
+                
+                # Gráfico de Tortas
+                st.write("#### Balance General (Ventas vs Gastos)")
+                df_pie = pd.DataFrame({
+                    "Concepto": ["Ventas (Ingresos)", "Gastos"],
+                    "Monto": [total_ingresos, total_gastos]
+                })
+                fig = px.pie(df_pie, values='Monto', names='Concepto', color='Concepto',
+                             color_discrete_map={'Ventas (Ingresos)':'#25D366', 'Gastos':'#b02121'})
+                st.plotly_chart(fig, use_container_width=True)
+                
+                st.write("#### Detalle de Reservas")
+                st.dataframe(df_m, use_container_width=True)
+            
+            st.write("### 👥 Clientes Registrados")
+            st.dataframe(pd.read_sql_query("SELECT nombre, correo, tel, doc_num FROM usuarios", conn), use_container_width=True)
             conn.close()
 
     if st.button("🚪 SALIR"):
