@@ -7,7 +7,6 @@ import urllib.parse
 # --- 1. CONFIGURACIÓN Y ESTILOS ---
 st.set_page_config(page_title="JM Alquiler de Autos", layout="wide")
 
-st.markdown("""
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -85,4 +84,5 @@ else:
     # Se mantiene toda la lógica de gestión de reservas, exportación y borrado anterior
     st.markdown(f'<h4 style="text-align:right; color:#D4AF37;">👤 {st.session_state.user_name}</h4>', unsafe_allow_html=True)
     # ... Resto del código de pestañas ...
+
 
