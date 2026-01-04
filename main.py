@@ -169,19 +169,28 @@ else:
         else:
             st.info("Sin reservas.")
 
-    # --- PESTAÑA UBICACIÓN ---
+    # --- TAB 3: UBICACIÓN & REDES ---
     with tabs[2]:
-        st.subheader("📍 JM ASOCIADOS - Ubicación Exacta")
-        c_u1, c_u2 = st.columns([1, 2])
-        with c_u1:
-            st.write("**Dirección:** C/ Farid Rahal Canan, Ciudad del Este.")
-            st.write("📞 **Corporativo:** 0991 681191")
-            st.markdown('<a href="https://wa.me/595991681191" class="btn-wa-confirm">📲 WhatsApp Directo</a>', unsafe_allow_html=True)
-            st.markdown('<br><a href="https://www.instagram.com/jm_asociados_consultoria?igsh=djBzYno0MmViYzBo" style="text-decoration:none; color:#E1306C; font-weight:bold; font-size:1.2rem;">📸 Instagram Oficial</a>', unsafe_allow_html=True)
-        with c_u2:
-            # Mapa basado en la ubicación de Ciudad del Este
-            st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3600.672106416801!2d-54.6148384!3d-25.51676!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f690967568f6a9%3A0x6a0f7e4e1a0a5f0!2sCiudad%20del%20Este!5e0!3m2!1ses-419!2spy!4v1700000000000" width="100%" height="400" style="border-radius:15px; border:0;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
-
+        col_m, col_t = st.columns([2, 1])
+        with col_m:
+            st.markdown("### 📍 Nuestra Oficina Principal")
+            # MAPA ENFOCADO EN FARID RAHAL Y CURUPAYTY, CDE
+            st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3601.4475475143!2d-54.6133!3d-25.5158!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjXCsDMwJzU2LjkiUyA1NMKwMzYnNDcuOSJX!5e0!3m2!1ses!2spy!4v1625678901234!5m2!1ses!2spy" width="100%" height="450" style="border:0; border-radius:15px;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
+        with col_t:
+            st.markdown("### 🏢 Dirección")
+            st.write("**Edificio Aramí** (Frente al Edificio España)")
+            st.write("Esq. Farid Rahal y Curupayty")
+            st.write("Ciudad del Este, Paraguay")
+            st.divider()
+            st.markdown(f'''
+                <a href="https://instagram.com/jymasociados" target="_blank" class="btn-notif btn-instagram">
+                    <i class="fa-brands fa-instagram btn-icon"></i> Instagram Oficial
+                </a>
+                <a href="https://wa.me/595991681191" target="_blank" class="btn-notif btn-whatsapp">
+                    <i class="fa-brands fa-whatsapp btn-icon"></i> Contacto WhatsApp
+                </a>
+            ''', unsafe_allow_html=True)
+            
     # --- PESTAÑA RESEÑAS ---
     with tabs[3]:
         with st.form("feedback_new"):
@@ -233,3 +242,4 @@ else:
     if st.button("🚪 SALIR"):
         st.session_state.logged_in = False
         st.rerun()
+
