@@ -2,3 +2,5 @@ streamlit
 pandas
 reportlab
 requests
+plotly fpdf
+streamlit-js-eval
