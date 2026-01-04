@@ -7,126 +7,153 @@ from datetime import datetime
 
 import streamlit as st
 import pandas as pd
+import plotly.express as px
+import datetime
+from fpdf import FPDF
 
 # --- 1. CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="J&M ASOCIADOS - Login", layout="centered")
+st.set_page_config(page_title="J&M ASOCIADOS", layout="wide")
 
-# --- 2. LÓGICA DE SESIÓN (EL BLINDAJE) ---
+# --- 2. GESTIÓN DE ESTADO (BLINDAJE) ---
 if 'autenticado' not in st.session_state:
     st.session_state.autenticado = False
 
-# --- 3. ESTILO CSS "ESTUDIO PRESTIGE" ---
+# --- 3. ESTILO CSS "ROMANO DORADO" ---
 st.markdown("""
 <style>
-    /* Fondo Degradado Bordó a Negro */
+    /* Fondo Degradado Bordó profundo */
     .stApp {
-        background: radial-gradient(circle, #600000 0%, #1a0000 100%);
+        background: radial-gradient(circle, #4A0404 0%, #1A0000 100%);
     }
 
-    /* Contenedor del Login */
-    .login-box {
+    /* Encabezado Principal */
+    .header-container {
         text-align: center;
-        padding: 40px;
-        background: rgba(0, 0, 0, 0.3);
-        border-radius: 20px;
+        margin-bottom: 30px;
     }
-
-    /* Logo J&M Estilo Serigrafía Cursiva */
-    .logo-jm {
-        font-family: 'Playfair Display', serif;
-        font-style: italic;
-        font-size: 70px;
+    .title-jm {
+        font-family: 'Times New Roman', Times, serif;
         color: #D4AF37;
-        text-shadow: 0px 0px 15px rgba(212, 175, 55, 0.6);
+        font-size: 55px;
+        font-weight: bold;
+        letter-spacing: 5px;
         margin-bottom: 0px;
+        text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
     }
-
-    .slogan {
+    .subtitle-jm {
+        font-family: 'Times New Roman', Times, serif;
         color: #D4AF37;
-        font-family: 'Garamond', serif;
-        letter-spacing: 4px;
-        font-size: 14px;
+        font-size: 22px;
+        letter-spacing: 3px;
         margin-top: -10px;
-        text-transform: uppercase;
     }
 
-    /* Candado Dorado */
-    .lock-icon {
-        font-size: 40px;
+    /* Candado y Cuadros Dorados */
+    .lock-style {
+        font-size: 50px;
         color: #D4AF37;
+        text-align: center;
         margin: 20px 0;
     }
 
-    /* Inputs Traslúcidos con Borde Dorado Fino */
+    /* Inputs con bordes dorados finos */
     .stTextInput>div>div>input {
         background-color: rgba(255, 255, 255, 0.05) !important;
         border: 1px solid #D4AF37 !important;
         color: #D4AF37 !important;
-        border-radius: 5px !important;
-        text-align: center;
+        border-radius: 4px !important;
+        font-family: 'Times New Roman', serif;
     }
 
-    /* Botón ENTRAR Bordó Intenso */
+    /* Botón ENTRAR Bordó destacado */
     .stButton>button {
-        background-color: #400000 !important;
+        background-color: #600000 !important;
         color: #D4AF37 !important;
         border: 2px solid #D4AF37 !important;
+        font-family: 'Times New Roman', serif;
         font-weight: bold !important;
-        font-size: 18px !important;
+        font-size: 20px !important;
         width: 100%;
-        height: 50px;
         border-radius: 5px !important;
-        margin-top: 20px;
     }
-    
-    .stButton>button:hover {
-        background-color: #600000 !important;
-        box-shadow: 0px 0px 15px rgba(212, 175, 55, 0.4);
+
+    /* Estilo de Pestañas */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 24px;
+        background-color: transparent;
+    }
+    .stTabs [data-baseweb="tab"] {
+        font-family: 'Times New Roman', serif;
+        color: #D4AF37 !important;
+        font-size: 18px;
     }
 </style>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,900&display=swap" rel="stylesheet">
 """, unsafe_allow_html=True)
 
-# --- 4. CUERPO DEL LOGIN ---
-def pantalla_login():
-    with st.container():
-        # Encabezado
-        st.markdown('<h1 class="logo-jm">J&M</h1>', unsafe_allow_html=True)
-        st.markdown('<p class="slogan">Asociados - Alquiler de Vehículos</p>', unsafe_allow_html=True)
-        
-        # Imagen de autos (opcional, si tienes una URL de imagen real puedes ponerla aquí)
-        # st.image("URL_DE_TU_IMAGEN_AUTOS", use_column_width=True)
-        
-        # Icono de Seguridad
-        st.markdown('<div class="lock-icon">🔒</div>', unsafe_allow_html=True)
+# --- 4. PANTALLA DE LOGIN ---
+def mostrar_login():
+    st.markdown("""
+        <div class="header-container">
+            <p class="title-jm">ACCESO A J&M</p>
+            <p class="subtitle-jm">ALQUILER DE VEHÍCULOS</p>
+        </div>
+        <div class="lock-style">🔒</div>
+    """, unsafe_allow_html=True)
 
-        # Formulario Blindado
-        with st.form("login_form"):
-            usuario = st.text_input("USUARIO / TELÉFONO", placeholder="Ej: 0991681191")
-            clave = st.text_input("CONTRASEÑA", type="password", placeholder="••••••••")
-            
-            submit = st.form_submit_button("ENTRAR")
-            
-            if submit:
-                # AQUÍ defines tu usuario y clave maestros
-                if usuario == "admin" and clave == "2026":
+    col1, col2, col3 = st.columns([1, 1.5, 1])
+    with col2:
+        with st.form("login_prestige"):
+            user = st.text_input("USUARIO / TELÉFONO")
+            pw = st.text_input("CONTRASEÑA", type="password")
+            btn_login = st.form_submit_button("ENTRAR")
+
+            if btn_login:
+                if user == "admin" and pw == "2026":
                     st.session_state.autenticado = True
-                    st.success("Acceso concedido. Cargando sistema...")
                     st.rerun()
-                elif usuario == "" or clave == "":
-                    st.warning("Por favor, complete todos los campos.")
                 else:
-                    st.error("Credenciales incorrectas. Intente de nuevo.")
+                    st.error("Credenciales Incorrectas")
 
-# --- 5. CONTROL DE FLUJO ---
-if not st.session_state.autenticado:
-    pantalla_login()
-else:
-    # Una vez que entra, aquí va el resto de tu App
-    st.markdown('<h2 style="color:#D4AF37;">Bienvenido al Panel de Control J&M</h2>', unsafe_allow_html=True)
-    if st.button("Cerrar Sesión"):
+# --- 5. APLICACIÓN PRINCIPAL (POST-LOGIN) ---
+def mostrar_app():
+    st.markdown('<p class="title-jm" style="font-size:35px;">J&M ASOCIADOS</p>', unsafe_allow_html=True)
+    
+    tab1, tab2, tab3, tab4 = st.tabs(["🚗 CATÁLOGO", "📜 HISTORIAL", "💬 RESEÑAS", "🛡️ PANEL CONTROL"])
+
+    with tab1:
+        st.markdown('<p style="color:#D4AF37; font-family:serif;">Seleccione su flota de alta gama</p>', unsafe_allow_html=True)
+        # Aquí va la lógica de los cuadros blancos de los autos
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.markdown("""
+                <div style="background:white; padding:20px; border-radius:10px; color:black; text-align:center;">
+                    <img src="https://i.ibb.co/Y7ZHY8kX/pngegg.png" width="250">
+                    <h3>Toyota Vitz 2012</h3>
+                    <p>US$ 30 / día | Seguro Internacional | ABS</p>
+                </div>
+            """, unsafe_allow_html=True)
+            if st.button("Reservar Vitz"):
+                st.success("Redirigiendo a Pago PIX...")
+
+    with tab4:
+        st.header("Análisis FODA y Finanzas")
+        if st.checkbox("Ver Estadísticas Diarias"):
+            df = pd.DataFrame({"Día": ["Lun", "Mar", "Mie"], "Ingresos": [1500, 2200, 1800]})
+            fig = px.bar(df, x="Día", y="Ingresos", color_discrete_sequence=['#D4AF37'])
+            st.plotly_chart(fig)
+            
+        if st.button("Exportar Reporte Anual PDF"):
+            st.info("Generando diapositiva expositoria...")
+
+    if st.sidebar.button("Cerrar Sesión"):
         st.session_state.autenticado = False
         st.rerun()
+
+# --- 6. EJECUCIÓN LÓGICA ---
+if not st.session_state.autenticado:
+    mostrar_login()
+else:
+    mostrar_app()
 
 # --- 2. BASE DE DATOS ---
 def init_db():
@@ -281,4 +308,5 @@ else:
             st.download_button("📥 Descargar Excel (CSV)", df_all.to_csv(index=False).encode('utf-8'), "reporte_jm_final.csv")
             
             conn.close()
+
 
