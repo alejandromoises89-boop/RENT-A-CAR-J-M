@@ -4,7 +4,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import urllib.parse
 
-# --- 1. CONFIGURACIÓN Y ESTILO DEGRADADO PREMIUM ---
+# --- 1. CONFIGURACIÓN Y ESTILO JM PREMIUM ---
 st.set_page_config(page_title="JM | Alquiler de Autos", layout="wide")
 
 st.markdown("""
@@ -36,11 +36,21 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. BASE DE DATOS ---
+# --- 2. BASE DE DATOS (ACTUALIZADA CON CAMPOS KYC) ---
 def init_db():
     conn = sqlite3.connect('jm_final_safe.db')
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS usuarios (id INTEGER PRIMARY KEY, nombre TEXT, correo TEXT UNIQUE, password TEXT, tel TEXT)''')
+    # Tabla usuarios con todos los datos del cliente
+    c.execute('''CREATE TABLE IF NOT EXISTS usuarios (
+        id INTEGER PRIMARY KEY, 
+        nombre TEXT, 
+        correo TEXT UNIQUE, 
+        password TEXT, 
+        tel TEXT,
+        doc_tipo TEXT,
+        doc_num TEXT,
+        nacionalidad TEXT,
+        direccion TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS reservas (id INTEGER PRIMARY KEY, cliente TEXT, auto TEXT, monto_ingreso REAL, monto_egreso REAL, inicio TEXT, fin TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS feedback (id INTEGER PRIMARY KEY, cliente TEXT, comentario TEXT, estrellas INTEGER, fecha TEXT)''')
     conn.commit()
@@ -58,19 +68,91 @@ init_db()
 
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 
-# --- 3. ACCESO ---
+# --- 3. ACCESO (LOGIN Y REGISTRO KYC) ---
 if not st.session_state.logged_in:
     st.markdown('<div class="header-jm">JM</div><div class="sub-header">ALQUILER DE VEHÍCULOS</div>', unsafe_allow_html=True)
-    col_l1, col_l2, col_l3 = st.columns([1, 1.5, 1])
+    col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
+    
     with col_l2:
         op = st.radio("Acceso al Portal", ["Ingresar", "Registrarse"], horizontal=True)
+        
         if op == "Ingresar":
             u = st.text_input("Usuario (Email)")
             p = st.text_input("Clave", type="password")
-            if st.button("ENTRAR"):
+            if st.button("ENTRAR AL SISTEMA"):
                 conn = sqlite3.connect('jm_final_safe.db')
                 c = conn.cursor()
                 c.execute("SELECT nombre FROM usuarios WHERE correo=? AND password=?", (u, p))
                 user = c.fetchone()
                 if user:
                     st.session_state.logged_in, st.session_state.user_name = True, user[0]
+                    st.rerun()
+                else: st.error("❌ Credenciales inválidas")
+                conn.close()
+        
+        else:
+            with st.form("reg_completo"):
+                st.markdown("### 📋 Registro de Nuevo Cliente")
+                c1, c2 = st.columns(2)
+                with c1:
+                    n_f = st.text_input("Nombre Completo")
+                    e_f = st.text_input("Correo Electrónico")
+                    t_f = st.text_input("WhatsApp (ej: +595...)")
+                    p_f = st.text_input("Crear Contraseña", type="password")
+                with c2:
+                    d_t = st.selectbox("Tipo de Documento", ["C.I.", "CPF", "RG", "Pasaporte"])
+                    d_n = st.text_input("Nro. de Documento")
+                    nac = st.text_input("Nacionalidad")
+                    dir_c = st.text_input("Dirección / Hotel")
+                
+                if st.form_submit_button("FINALIZAR REGISTRO"):
+                    if n_f and e_f and p_f and d_n:
+                        try:
+                            conn = sqlite3.connect('jm_final_safe.db')
+                            conn.cursor().execute("""INSERT INTO usuarios 
+                                (nombre, correo, password, tel, doc_tipo, doc_num, nacionalidad, direccion) 
+                                VALUES (?,?,?,?,?,?,?,?)""", (n_f, e_f, p_f, t_f, d_t, d_n, nac, dir_c))
+                            conn.commit()
+                            conn.close()
+                            st.success("✅ Cuenta creada con éxito. Ya puede ingresar.")
+                        except: st.error("❌ El correo ya está registrado.")
+                    else: st.warning("⚠️ Complete los campos obligatorios.")
+
+# --- 4. PORTAL JM (POST-LOGIN) ---
+else:
+    st.markdown(f'<h3 style="text-align:center; color:#D4AF37;">Panel de Control | {st.session_state.user_name}</h3>', unsafe_allow_html=True)
+    tabs = st.tabs(["🚗 Alquiler de Flota", "📅 Mi Historial", "📍 Ubicación", "⭐ Reseñas", "⚙️ Panel Master"])
+
+    # --- PESTAÑA: ALQUILER ---
+    with tabs[0]:
+        c_f1, c_f2 = st.columns(2)
+        f_ini = c_f1.date_input("Fecha Entrega", min_value=datetime.now().date())
+        f_fin = c_f2.date_input("Fecha Devolución", min_value=f_ini + timedelta(days=1))
+        dias = (f_fin - f_ini).days
+
+        flota = [
+            {"n": "Toyota Vitz Negro", "p": 195, "eg": 45, "img": "https://a0.anyrgb.com/pngimg/1498/1242/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel-economy-in-automobiles-hybrid-vehicle-frontwheel-drive-minivan.png"},
+            {"n": "Tucson Blanco", "p": 260, "eg": 65, "img": "https://www.iihs.org/cdn-cgi/image/width=636/api/ratings/model-year-images/2098/"},
+            {"n": "Voxy Gris", "p": 240, "eg": 55, "img": "https://i.ibb.co/yFNrttM2/BG160258-2427f0-Photoroom.png"},
+            {"n": "Toyota Vitz Blanco", "p": 195, "eg": 45, "img": "https://i.ibb.co/Y7ZHY8kX/pngegg.png"}
+        ]
+
+        for car in flota:
+            libre = verificar_bloqueo(car['n'], f_ini, f_fin)
+            total = car['p'] * dias
+            with st.container():
+                st.markdown('<div class="card-auto">', unsafe_allow_html=True)
+                col1, col2 = st.columns([1, 2])
+                col1.image(car['img'])
+                with col2:
+                    st.write(f"### {car['n']}")
+                    if libre:
+                        st.markdown(f'<p class="price-tag">{car["p"]} Reales / día</p>', unsafe_allow_html=True)
+                        st.write(f"Total por {dias} días: **{total} Reales**")
+                        if st.button(f"Confirmar Reserva {car['n']}", key=car['n']):
+                            conn = sqlite3.connect('jm_final_safe.db')
+                            conn.cursor().execute("INSERT INTO reservas (cliente, auto, monto_ingreso, monto_egreso, inicio, fin) VALUES (?,?,?,?,?,?)",
+                                                 (st.session_state.user_name, car['n'], total, car['eg']*dias, f_ini.strftime("%Y-%m-%d"), f_fin.strftime("%Y-%m-%d")))
+                            conn.commit()
+                            st.success("✅ Reserva guardada.")
+                            st.image(f"
