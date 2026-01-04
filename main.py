@@ -5,16 +5,22 @@ import urllib.parse
 import requests
 from datetime import datetime
 
-# --- 1. CONFIGURACIÓN ---
-st.set_page_config(page_title="J&M ASOCIADOS", layout="centered")
+# --- 1. CONFIGURACIÓN E INICIALIZACIÓN ---
+st.set_page_config(page_title="JM ASOCIADOS", layout="centered")
 
-# Inicialización de estados
+# Base de datos de usuarios (Simulada en memoria, se guarda durante la sesión)
+if 'db_usuarios' not in st.session_state:
+    # Usuario administrador por defecto
+    st.session_state.db_usuarios = pd.DataFrame([
+        {"usuario": "admin", "clave": "2026", "nombre": "Administrador"}
+    ])
+
 if 'autenticado' not in st.session_state:
     st.session_state.autenticado = False
-if 'mostrar_registro' not in st.session_state:
-    st.session_state.mostrar_registro = False
+if 'vista_actual' not in st.session_state:
+    st.session_state.vista_actual = "login"
 
-# --- 2. ESTILO CSS "ROMANO DORADO & BIOMETRÍA" ---
+# --- 2. ESTILO CSS "ROMANO DORADO" ---
 st.markdown("""
 <style>
     .stApp { background: radial-gradient(circle, #4A0404 0%, #1A0000 100%); }
@@ -28,50 +34,53 @@ st.markdown("""
     .subtitle-jm {
         font-family: 'Times New Roman', serif;
         color: #D4AF37; font-size: 20px; letter-spacing: 3px;
+        text-transform: uppercase;
     }
 
     .lock-style { font-size: 45px; color: #D4AF37; text-align: center; margin: 10px 0; }
     
-    /* Huella Digital */
-    .biometry-icon {
-        font-size: 50px; color: #D4AF37; text-align: center; 
-        cursor: pointer; margin-top: 20px; transition: 0.3s;
-    }
-    .biometry-icon:hover { transform: scale(1.1); filter: drop-shadow(0 0 10px #D4AF37); }
-
     /* Cuadros Dorados */
     .stTextInput>div>div>input {
         background-color: rgba(255, 255, 255, 0.05) !important;
         border: 1px solid #D4AF37 !important;
         color: #D4AF37 !important;
         border-radius: 4px !important;
+        font-family: 'Times New Roman', serif;
     }
 
+    /* Botones Bordó/Dorado */
     .stButton>button {
         background-color: #600000 !important;
         color: #D4AF37 !important;
-        border: 2px solid #D4AF37 !important;
+        border: 1px solid #D4AF37 !important;
         font-family: 'Times New Roman', serif;
         font-weight: bold !important;
-        font-size: 18px !important;
         width: 100%; border-radius: 5px !important;
-    }
-
-    /* Enlaces de registro y recuperación */
-    .link-gold {
-        color: #D4AF37 !important;
-        text-decoration: none;
-        font-size: 14px;
-        font-family: 'Times New Roman', serif;
+        text-transform: uppercase;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 3. LÓGICA DE LOGIN, REGISTRO Y RECUPERACIÓN ---
+# --- 3. FUNCIONES DE LÓGICA ---
+
+def registrar_usuario(datos):
+    st.session_state.db_usuarios = pd.concat([
+        st.session_state.db_usuarios, 
+        pd.DataFrame([datos])
+    ], ignore_index=True)
+
+def validar_login(user, pw):
+    df = st.session_state.db_usuarios
+    filtro = df[(df['usuario'] == user) & (df['clave'] == pw)]
+    return not filtro.empty
+
+# --- 4. PANTALLAS DE ACCESO ---
+
 def pantalla_acceso():
+    # Encabezado corregido
     st.markdown("""
         <div class="header-container">
-            <p class="title-jm">ACCESO A J&M</p>
+            <p class="title-jm">ACCESO A JM</p>
             <p class="subtitle-jm">ALQUILER DE VEHÍCULOS</p>
         </div>
         <div class="lock-style">🔒</div>
@@ -80,76 +89,75 @@ def pantalla_acceso():
     col1, col2, col3 = st.columns([0.5, 2, 0.5])
     
     with col2:
-        if not st.session_state.mostrar_registro:
-            # --- FORMULARIO DE LOGIN ---
-            with st.form("login_prestige"):
-                user = st.text_input("CORREO O TELÉFONO")
-                pw = st.text_input("CONTRASEÑA", type="password")
-                btn_login = st.form_submit_button("ENTRAR")
-
-                if btn_login:
-                    if user == "admin" and pw == "2026":
+        if st.session_state.vista_actual == "login":
+            with st.form("form_login"):
+                u = st.text_input("CORREO O TELÉFONO")
+                p = st.text_input("CONTRASEÑA", type="password")
+                if st.form_submit_button("ENTRAR"):
+                    if validar_login(u, p):
                         st.session_state.autenticado = True
                         st.rerun()
                     else:
                         st.error("Credenciales Incorrectas")
+
+            # Botones secundarios con el mismo estilo
+            if st.button("INGRESAR CON BIOMETRIA"):
+                st.info("Iniciando autenticación biométrica del sistema...")
             
-            # --- SECCIÓN BIOMETRÍA ---
-            st.markdown('<div class="biometry-icon">☝️</div>', unsafe_allow_html=True)
-            if st.button("INGRESAR CON BIOMETRÍA", help="Use su huella digital o FaceID"):
-                st.info("Iniciando escaneo biométrico del dispositivo...")
-
-            # --- ENLACES INFERIORES ---
-            c_left, c_right = st.columns(2)
-            with c_left:
-                if st.button("Crear Cuenta", key="btn_reg"):
-                    st.session_state.mostrar_registro = "nuevo"
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("CREAR CUENTA"):
+                    st.session_state.vista_actual = "registro"
                     st.rerun()
-            with c_right:
-                if st.button("Olvidé mi Clave", key="btn_rec"):
-                    st.session_state.mostrar_registro = "recuperar"
+            with c2:
+                if st.button("OLVIDÉ MI CLAVE"):
+                    st.session_state.vista_actual = "recuperar"
                     st.rerun()
 
-        elif st.session_state.mostrar_registro == "nuevo":
-            # --- FORMULARIO DE REGISTRO ---
-            st.markdown("<h3 style='color:#D4AF37; text-align:center;'>REGISTRO DE CLIENTE</h3>", unsafe_allow_html=True)
-            with st.form("registro_nuevo"):
-                st.text_input("Nombre y Apellido")
-                st.text_input("Correo Electrónico")
-                st.text_input("Teléfono / WhatsApp")
-                st.text_input("Documento (CPF/RG/DNI)")
-                st.text_input("Nueva Contraseña", type="password")
-                if st.form_submit_button("REGISTRARME"):
-                    st.success("Cuenta creada exitosamente")
-                    st.session_state.mostrar_registro = False
-            if st.button("Volver"):
-                st.session_state.mostrar_registro = False
+        elif st.session_state.vista_actual == "registro":
+            st.markdown("<h3 style='color:#D4AF37; text-align:center; font-family:serif;'>REGISTRO DE CLIENTE</h3>", unsafe_allow_html=True)
+            with st.form("form_registro"):
+                nom = st.text_input("Nombre y Apellido")
+                mail = st.text_input("Correo o Teléfono")
+                doc = st.text_input("Documento (DNI/RG/CPF)")
+                passw = st.text_input("Crear Contraseña", type="password")
+                
+                if st.form_submit_button("GUARDAR Y REGISTRAR"):
+                    if nom and mail and passw:
+                        registrar_usuario({"usuario": mail, "clave": passw, "nombre": nom, "doc": doc})
+                        st.success("¡Registro guardado! Ya puede iniciar sesión.")
+                        st.session_state.vista_actual = "login"
+                    else:
+                        st.warning("Complete los campos obligatorios.")
+            
+            if st.button("VOLVER AL LOGIN"):
+                st.session_state.vista_actual = "login"
                 st.rerun()
 
-        elif st.session_state.mostrar_registro == "recuperar":
-            # --- RECUPERACIÓN ---
-            st.markdown("<h3 style='color:#D4AF37; text-align:center;'>RECUPERAR ACCESO</h3>", unsafe_allow_html=True)
-            email_rec = st.text_input("Ingrese su Correo o Teléfono registrado")
-            if st.button("Enviar Código de Recuperación"):
-                st.success(f"Se ha enviado un enlace a {email_rec}")
-            if st.button("Volver"):
-                st.session_state.mostrar_registro = False
+        elif st.session_state.vista_actual == "recuperar":
+            st.markdown("<h3 style='color:#D4AF37; text-align:center; font-family:serif;'>RECUPERAR CLAVE</h3>", unsafe_allow_html=True)
+            mail_rec = st.text_input("Ingrese su Correo o Teléfono")
+            if st.button("ENVIAR ENLACE DE RECUPERACIÓN"):
+                st.success(f"Instrucciones enviadas a: {mail_rec}")
+            if st.button("VOLVER"):
+                st.session_state.vista_actual = "login"
                 st.rerun()
 
-# --- 4. CUERPO DE LA APP (POST-LOGIN) ---
+# --- 5. CUERPO DE LA APP ---
 def pantalla_principal():
-    st.markdown('<p class="title-jm" style="font-size:30px; text-align:left;">J&M ASOCIADOS</p>', unsafe_allow_html=True)
+    st.markdown('<p class="title-jm" style="font-size:30px;">JM ASOCIADOS</p>', unsafe_allow_html=True)
+    st.sidebar.markdown(f"<p style='color:#D4AF37;'>Bienvenido</p>", unsafe_allow_html=True)
     if st.sidebar.button("CERRAR SESIÓN"):
         st.session_state.autenticado = False
         st.rerun()
-    st.write("Bienvenido al sistema de gestión de alta gama.")
+    
+    st.write("Has ingresado al sistema de gestión.")
 
-# --- 5. EJECUCIÓN ---
+# --- 6. EJECUCIÓN ---
 if not st.session_state.autenticado:
     pantalla_acceso()
 else:
     pantalla_principal()
-
 # --- 5. APLICACIÓN PRINCIPAL (POST-LOGIN) ---
 def mostrar_app():
     st.markdown('<p class="title-jm" style="font-size:35px;">JM ASOCIADOS</p>', unsafe_allow_html=True)
@@ -344,6 +352,7 @@ else:
             st.download_button("📥 Descargar Excel (CSV)", df_all.to_csv(index=False).encode('utf-8'), "reporte_jm_final.csv")
             
             conn.close()
+
 
 
 
