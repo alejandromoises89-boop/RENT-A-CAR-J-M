@@ -1,184 +1,213 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
+from datetime import datetime, timedelta
 import urllib.parse
-import requests
-from datetime import datetime
 
-# --- 1. CONFIGURACIÓN Y ESTILOS ---
-st.set_page_config(page_title="J&M ASOCIADOS | PORTAL", layout="wide")
+# --- 1. CONFIGURACIÓN Y ESTILO JM PREMIUM ---
+st.set_page_config(page_title="JM | Alquiler de Autos", layout="wide")
 
 st.markdown("""
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        html { scroll-behavior: smooth; }
-        .stApp { background: linear-gradient(180deg, #4e0b0b 0%, #2b0606 100%); color: white; }
-        .header-jm { text-align: center; color: #D4AF37; margin-bottom: 5px; font-size: 3rem; font-weight: bold; }
-        .sub-header { text-align: center; color: white; font-size: 1.2rem; margin-bottom: 20px; font-weight: 300; letter-spacing: 2px; }
-        .cotizacion-texto { text-align: center; color: #D4AF37; font-weight: bold; border: 1px solid #D4AF37; padding: 10px; border-radius: 10px; background: rgba(255,255,255,0.05); margin-bottom: 15px; }
-        .card-auto { background-color: white; color: black; padding: 25px; border-radius: 15px; margin-bottom: 20px; border: 2px solid #D4AF37; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        
-        /* Botones Redes Sociales y Acción */
-        .btn-notif { display: flex; align-items: center; justify-content: center; padding: 12px; border-radius: 10px; text-decoration: none !important; font-weight: bold; margin-top: 8px; width: 100%; border: none; transition: 0.3s; }
-        .btn-whatsapp { background-color: #25D366; color: white !important; }
-        .btn-instagram { background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color: white !important; }
-        .btn-email { background-color: #D4AF37; color: black !important; }
-        .btn-icon { margin-right: 10px; font-size: 22px; }
-        .btn-notif:hover { transform: scale(1.02); opacity: 0.9; }
+        .stApp { 
+            background: linear-gradient(180deg, #b02121 0%, #3b0a0a 45%, #000000 100%); 
+            color: white; 
+        }
+        .header-jm { text-align: center; color: #D4AF37; font-size: 4.5rem; font-weight: bold; margin-bottom: 0px; text-shadow: 2px 2px 4px #000; }
+        .sub-header { text-align: center; color: white; font-size: 1.2rem; margin-bottom: 40px; letter-spacing: 4px; font-weight: 300; }
+        .card-auto { 
+            background-color: white; 
+            color: #1a1a1a; 
+            padding: 25px; 
+            border-radius: 15px; 
+            border: 2px solid #D4AF37; 
+            margin-bottom: 20px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
+        }
+        .review-card {
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 5px solid #D4AF37;
+            margin-bottom: 10px;
+        }
+        .btn-wa-confirm { background-color: #25D366; color: white !important; padding: 12px; border-radius: 10px; text-decoration: none; font-weight: bold; display: block; text-align: center; margin-top: 10px; }
+        .price-tag { color: #b02121; font-size: 1.4rem; font-weight: bold; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- 2. BASE DE DATOS ---
+# --- 2. BASE DE DATOS Y LÓGICA DE DISPONIBILIDAD ---
 def init_db():
-    conn = sqlite3.connect('jm_asociados.db')
+    conn = sqlite3.connect('jm_final_safe.db')
     c = conn.cursor()
-    c.execute('CREATE TABLE IF NOT EXISTS reservas (id INTEGER PRIMARY KEY, cliente TEXT, auto TEXT, inicio TEXT, fin TEXT, monto_pyg REAL, monto_brl REAL, fecha_registro TEXT)')
-    c.execute('CREATE TABLE IF NOT EXISTS resenas (id INTEGER PRIMARY KEY, cliente TEXT, comentario TEXT, estrellas INTEGER, fecha TEXT)')
+    c.execute('''CREATE TABLE IF NOT EXISTS usuarios (
+        id INTEGER PRIMARY KEY, nombre TEXT, correo TEXT UNIQUE, password TEXT, 
+        tel TEXT, doc_tipo TEXT, doc_num TEXT, nacionalidad TEXT, direccion TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS reservas (
+        id INTEGER PRIMARY KEY, cliente TEXT, auto TEXT, monto_ingreso REAL, 
+        monto_egreso REAL, inicio TEXT, fin TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS feedback (
+        id INTEGER PRIMARY KEY, cliente TEXT, comentario TEXT, estrellas INTEGER, fecha TEXT)''')
     conn.commit()
     conn.close()
 
-def obtener_cotizacion_brl():
-    try:
-        r = requests.get("https://api.exchangerate-api.com/v4/latest/BRL")
-        return round(r.json()['rates']['PYG'])
-    except: return 1450 
+def verificar_disponibilidad(auto, inicio, fin):
+    """
+    Verifica si hay cruces de fechas para un auto específico.
+    Lógica: Una reserva choca si (Inicio_Nuevo < Fin_Existente) Y (Fin_Nuevo > Inicio_Existente)
+    """
+    conn = sqlite3.connect('jm_final_safe.db')
+    c = conn.cursor()
+    c.execute('''SELECT * FROM reservas WHERE auto=? AND (inicio < ? AND fin > ?)''', 
+              (auto, fin.strftime("%Y-%m-%d"), inicio.strftime("%Y-%m-%d")))
+    resultado = c.fetchone()
+    conn.close()
+    return resultado is None # True si está libre, False si está ocupado
 
-cotizacion_hoy = obtener_cotizacion_brl()
 init_db()
-
-# --- 3. FLOTA (ORDEN Y LINKS VERIFICADOS) ---
-flota = [
-    {"nombre": "Toyota Vitz", "color": "Negro", "precio_brl": 195, "img": "https://a0.anyrgb.com/pngimg/1498/1242/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel-economy-in-automobiles-hybrid-vehicle-frontwheel-drive-minivan.png"},
-    {"nombre": "Hyundai Tucson", "color": "Blanco", "precio_brl": 260, "img": "https://www.iihs.org/cdn-cgi/image/width=636/api/ratings/model-year-images/2098/"},
-    {"nombre": "Toyota Voxy", "color": "Gris", "precio_brl": 240, "img": "https://i.ibb.co/yFNrttM2/BG160258-2427f0-Photoroom.png"},
-    {"nombre": "Toyota Vitz", "color": "Blanco", "precio_brl": 195, "img": "https://i.ibb.co/Y7ZHY8kX/pngegg.png"}
-]
 
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
 
-# --- 4. INTERFAZ ---
+# --- 3. ACCESO (LOGIN / REGISTRO) ---
 if not st.session_state.logged_in:
-    st.markdown('<div class="header-jm">J&M</div><div class="sub-header">ACCESO PRIVADO</div>', unsafe_allow_html=True)
-    u = st.text_input("Usuario / Correo")
-    p = st.text_input("Contraseña", type="password")
-    if st.button("INGRESAR AL PORTAL"):
-        if u == "admin@jymasociados.com" and p == "JM2026_MASTER":
-            st.session_state.role, st.session_state.user_name = "admin", "ADMIN_MASTER"
+    st.markdown('<div class="header-jm">JM</div><div class="sub-header">ALQUILER DE VEHÍCULOS</div>', unsafe_allow_html=True)
+    col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
+    with col_l2:
+        op = st.radio("Acceso al Portal", ["Ingresar", "Registrarse"], horizontal=True)
+        if op == "Ingresar":
+            u = st.text_input("Usuario (Email)")
+            p = st.text_input("Clave", type="password")
+            if st.button("ENTRAR AL SISTEMA"):
+                conn = sqlite3.connect('jm_final_safe.db')
+                c = conn.cursor()
+                c.execute("SELECT nombre FROM usuarios WHERE correo=? AND password=?", (u, p))
+                user = c.fetchone()
+                if user:
+                    st.session_state.logged_in, st.session_state.user_name = True, user[0]
+                    st.rerun()
+                else: st.error("❌ Credenciales inválidas")
+                conn.close()
         else:
-            st.session_state.role, st.session_state.user_name = "user", u
-        st.session_state.logged_in = True
-        st.rerun()
-else:
-    st.markdown('<div class="header-jm">J&M</div><div class="sub-header">Alquiler de Vehículos</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="cotizacion-texto">Cotización del día: 1 Real = {cotizacion_hoy:,} PYG</div>', unsafe_allow_html=True)
-    
-    tabs = st.tabs(["🚗 Catálogo", "📅 Mi Historial", "📍 Ubicación & Redes", "⭐ Reseñas", "⚙️ Panel Master"] if st.session_state.role == "admin" else ["🚗 Catálogo", "📅 Mi Historial", "📍 Ubicación & Redes", "⭐ Reseñas"])
+            with st.form("reg_completo"):
+                st.markdown("### 📋 Registro de Nuevo Cliente")
+                c1, c2 = st.columns(2)
+                with c1:
+                    n_f = st.text_input("Nombre Completo")
+                    e_f = st.text_input("Correo Electrónico")
+                    t_f = st.text_input("WhatsApp")
+                    p_f = st.text_input("Crear Contraseña", type="password")
+                with c2:
+                    d_t = st.selectbox("Tipo de Documento", ["C.I.", "CPF", "RG", "Pasaporte"])
+                    d_n = st.text_input("Nro. de Documento")
+                    nac = st.text_input("Nacionalidad")
+                    dir_c = st.text_input("Dirección / Hotel")
+                if st.form_submit_button("FINALIZAR REGISTRO"):
+                    if n_f and e_f and p_f and d_n:
+                        try:
+                            conn = sqlite3.connect('jm_final_safe.db')
+                            conn.cursor().execute("""INSERT INTO usuarios 
+                                (nombre, correo, password, tel, doc_tipo, doc_num, nacionalidad, direccion) 
+                                VALUES (?,?,?,?,?,?,?,?)""", (n_f, e_f, p_f, t_f, d_t, d_n, nac, dir_c))
+                            conn.commit()
+                            conn.close()
+                            st.success("✅ Cuenta creada.")
+                        except: st.error("❌ Error o correo duplicado.")
 
-    # --- TAB 1: CATALOGO ---
+# --- 4. PORTAL JM ---
+else:
+    st.markdown(f'<h3 style="text-align:center; color:#D4AF37;">Bienvenido | {st.session_state.user_name}</h3>', unsafe_allow_html=True)
+    tabs = st.tabs(["🚗 Alquiler", "📅 Mi Historial", "📍 Ubicación", "⭐ Reseñas", "⚙️ Panel Master"])
+
+    # --- PESTAÑA ALQUILER ---
     with tabs[0]:
-        for idx, auto in enumerate(flota):
-            monto_pyg = auto['precio_brl'] * cotizacion_hoy
+        st.subheader("Seleccione sus fechas")
+        c_f1, c_f2 = st.columns(2)
+        f_ini = c_f1.date_input("Fecha Entrega", min_value=datetime.now().date())
+        f_fin = c_f2.date_input("Fecha Devolución", min_value=f_ini + timedelta(days=1))
+        dias = (f_fin - f_ini).days
+
+        flota = [
+            {"n": "Toyota Vitz Negro", "p": 195, "eg": 45, "img": "https://a0.anyrgb.com/pngimg/1498/1242/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel-economy-in-automobiles-hybrid-vehicle-frontwheel-drive-minivan.png"},
+            {"n": "Tucson Blanco", "p": 260, "eg": 65, "img": "https://www.iihs.org/cdn-cgi/image/width=636/api/ratings/model-year-images/2098/"},
+            {"n": "Voxy Gris", "p": 240, "eg": 55, "img": "https://i.ibb.co/yFNrttM2/BG160258-2427f0-Photoroom.png"},
+            {"n": "Toyota Vitz Blanco", "p": 195, "eg": 45, "img": "https://i.ibb.co/Y7ZHY8kX/pngegg.png"}
+        ]
+
+        for car in flota:
+            # Validación de rango de fechas para evitar cruces
+            disponible = verificar_disponibilidad(car['n'], f_ini, f_fin)
+            total = car['p'] * dias
+            
             with st.container():
                 st.markdown('<div class="card-auto">', unsafe_allow_html=True)
-                c1, c2 = st.columns([1, 2])
-                with c1: st.image(auto['img'], use_container_width=True)
-                with c2:
-                    st.subheader(f"{auto['nombre']} {auto['color']}")
-                    st.write(f"Tarifa Diaria: **{auto['precio_brl']} BRL** (Gs. {monto_pyg:,})")
-                    if st.button("Solicitar Reserva", key=f"cat_{idx}"):
-                        conn = sqlite3.connect('jm_asociados.db')
-                        conn.cursor().execute("INSERT INTO reservas (cliente, auto, inicio, fin, monto_pyg, monto_brl, fecha_registro) VALUES (?,?,?,?,?,?,?)",
-                                             (st.session_state.user_name, f"{auto['nombre']} {auto['color']}", "Pendiente", "Pendiente", monto_pyg, auto['precio_brl'], datetime.now().strftime("%Y-%m-%d")))
-                        conn.commit()
-                        st.success("✅ Solicitud enviada. Verifique en 'Mi Historial'")
+                col1, col2 = st.columns([1, 2])
+                col1.image(car['img'])
+                with col2:
+                    st.write(f"### {car['n']}")
+                    if disponible:
+                        st.markdown(f'<p class="price-tag">{car["p"]} Reales / día</p>', unsafe_allow_html=True)
+                        st.write(f"Total por {dias} días: **{total} Reales**")
+                        if st.button(f"Confirmar Reserva: {car['n']}", key=car['n']):
+                            conn = sqlite3.connect('jm_final_safe.db')
+                            conn.cursor().execute("INSERT INTO reservas (cliente, auto, monto_ingreso, monto_egreso, inicio, fin) VALUES (?,?,?,?,?,?)",
+                                                 (st.session_state.user_name, car['n'], total, car['eg']*dias, f_ini.strftime("%Y-%m-%d"), f_fin.strftime("%Y-%m-%d")))
+                            conn.commit()
+                            st.success("✅ Reserva registrada en sistema.")
+                            st.image(f"https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=JM_RESERVA_{total}")
+                            
+                            # MENSAJE DE WHATSAPP ACTUALIZADO
+                            msg = urllib.parse.quote(f"Hola JM, soy {st.session_state.user_name}. Quiero alquilar el {car['n']} del {f_ini} al {f_fin}. Total: {total} Reales.")
+                            st.markdown(f'<a href="https://wa.me/595991681191?text={msg}" class="btn-wa-confirm">ALQUILAR Y NOTIFICAR</a>', unsafe_allow_html=True)
+                    else:
+                        st.markdown('<h4 style="color:#b02121;">🔴 NO DISPONIBLE</h4>', unsafe_allow_html=True)
+                        st.info("Este vehículo ya está reservado para las fechas seleccionadas.")
                 st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- TAB 2: MI HISTORIAL ---
+    # --- PESTAÑA MI HISTORIAL ---
     with tabs[1]:
-        st.subheader(f"Mis Alquileres: {st.session_state.user_name}")
-        conn = sqlite3.connect('jm_asociados.db')
-        df_mine = pd.read_sql_query(f"SELECT auto, inicio, fin, monto_brl, fecha_registro FROM reservas WHERE cliente = '{st.session_state.user_name}'", conn)
-        st.dataframe(df_mine, use_container_width=True)
+        st.subheader("📋 Mis Reservas")
+        conn = sqlite3.connect('jm_final_safe.db')
+        df_h = pd.read_sql_query(f"SELECT auto as Vehículo, inicio as Entrega, fin as Devolución, monto_ingreso as Total FROM reservas WHERE cliente='{st.session_state.user_name}'", conn)
+        st.dataframe(df_h, use_container_width=True) if not df_h.empty else st.info("Sin reservas.")
         conn.close()
 
-    # --- TAB 3: UBICACIÓN & REDES ---
+    # --- PESTAÑA UBICACIÓN (LINK INSTAGRAM CORREGIDO) ---
     with tabs[2]:
-        col_m, col_t = st.columns([2, 1])
-        with col_m:
-            st.markdown("### 📍 Nuestra Oficina Principal")
-            # MAPA ENFOCADO EN FARID RAHAL Y CURUPAYTY, CDE
-            st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3601.4475475143!2d-54.6133!3d-25.5158!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjXCsDMwJzU2LjkiUyA1NMKwMzYnNDcuOSJX!5e0!3m2!1ses!2spy!4v1625678901234!5m2!1ses!2spy" width="100%" height="450" style="border:0; border-radius:15px;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
-        with col_t:
-            st.markdown("### 🏢 Dirección")
-            st.write("**Edificio Aramí** (Frente al Edificio España)")
-            st.write("Esq. Farid Rahal y Curupayty")
-            st.write("Ciudad del Este, Paraguay")
-            st.divider()
-            st.markdown(f'''
-                <a href="https://instagram.com/jymasociados" target="_blank" class="btn-notif btn-instagram">
-                    <i class="fa-brands fa-instagram btn-icon"></i> Instagram Oficial
-                </a>
-                <a href="https://wa.me/595991681191" target="_blank" class="btn-notif btn-whatsapp">
-                    <i class="fa-brands fa-whatsapp btn-icon"></i> Contacto WhatsApp
-                </a>
-            ''', unsafe_allow_html=True)
+        st.subheader("📍 JM ASOCIADOS - Ubicación")
+        c_u1, c_u2 = st.columns([1, 1.5])
+        with c_u1:
+            st.write("**Corporativo:** 0991 681191")
+            st.markdown('<a href="https://wa.me/595991681191" class="btn-wa-confirm">📲 WhatsApp Directo</a>', unsafe_allow_html=True)
+            # LINK DE INSTAGRAM ACTUALIZADO
+            st.markdown('<br><a href="https://www.instagram.com/jm_asociados_consultoria?igsh=djBzYno0MmViYzBo" style="color:#E1306C; font-weight:bold; font-size:1.2rem; text-decoration:none;">📸 Instagram Oficial</a>', unsafe_allow_html=True)
+        with c_u2:
+            st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d3600.9575825227284!2d-54.611158!3d-25.506456!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f685fd04f8f4ed%3A0xd36570e647c7f1b6!2sJ%26M%20ASOCIADOS%20Consultoria!5e0!3m2!1ses!2spy!4v170000000000020" width="100%" height="300" style="border-radius:15px; border:0;"></iframe>', unsafe_allow_html=True)
 
-    # --- TAB 4: RESEÑAS ---
+    # --- PESTAÑA RESEÑAS ---
     with tabs[3]:
-        st.subheader("⭐ Danos tu Calificación")
-        with st.form("form_resena"):
-            coment = st.text_area("¿Qué le pareció nuestro servicio?")
-            estrellas = st.select_slider("Calificación", options=[1, 2, 3, 4, 5], value=5)
-            if st.form_submit_button("Publicar Comentario"):
-                conn = sqlite3.connect('jm_asociados.db')
-                conn.cursor().execute("INSERT INTO resenas (cliente, comentario, estrellas, fecha) VALUES (?,?,?,?)",
-                                     (st.session_state.user_name, coment, estrellas, datetime.now().strftime("%Y-%m-%d")))
+        with st.form("feedback_new"):
+            est = st.select_slider("Estrellas", options=[1,2,3,4,5], value=5)
+            com = st.text_area("Comentario")
+            if st.form_submit_button("Publicar"):
+                conn = sqlite3.connect('jm_final_safe.db')
+                conn.cursor().execute("INSERT INTO feedback (cliente, comentario, estrellas, fecha) VALUES (?,?,?,?)", (st.session_state.user_name, com, est, datetime.now().strftime("%d/%m/%Y")))
                 conn.commit()
-                st.success("¡Gracias por ayudarnos a mejorar!")
+                st.rerun()
+        conn = sqlite3.connect('jm_final_safe.db')
+        for _, r in pd.read_sql_query("SELECT * FROM feedback ORDER BY id DESC", conn).iterrows():
+            st.markdown(f'<div class="review-card"><strong>{r["cliente"]}</strong> (★{r["estrellas"]})<br>{r["comentario"]}</div>', unsafe_allow_html=True)
+        conn.close()
 
-   # --- TAB 5: PANEL MASTER (SOLO ADMIN) ---
-    if st.session_state.role == "admin":
-        with tabs[4]:
-            st.title("⚙️ Administración Central")
-            conn = sqlite3.connect('jm_asociados.db')
-            
-            # --- 1. MÉTRICAS Y GRÁFICOS ---
-            df_all = pd.read_sql_query("SELECT * FROM reservas", conn)
-            df_re = pd.read_sql_query("SELECT * FROM resenas", conn)
-            
-            c1, c2 = st.columns(2)
-            with c1:
-                st.metric("Ingresos Totales (BRL)", f"{df_all['monto_brl'].sum():,} BRL")
-                st.write("Popularidad de la Flota")
-                st.bar_chart(df_all['auto'].value_counts())
-            with c2:
-                st.write("Últimas Reseñas Recibidas")
-                st.dataframe(df_re[['cliente', 'comentario', 'estrellas']].tail(5), use_container_width=True)
-            
-            st.divider()
-
-            # --- 2. GESTIÓN DE REGISTROS (BORRADO DE PRUEBAS) ---
-            st.subheader("🗑️ Gestión de Alquileres")
-            st.write("Utilice esta opción para limpiar las pruebas antes de la exposición.")
-            
-            if not df_all.empty:
-                st.dataframe(df_all, use_container_width=True) # Mostrar tabla completa
-                
-                # Botón de borrado masivo
-                if st.button("BORRAR TODOS LOS ALQUILERES (Limpiar Pruebas)"):
-                    cursor = conn.cursor()
-                    cursor.execute("DELETE FROM reservas")
-                    conn.commit()
-                    st.warning("⚠️ Todos los registros de alquiler han sido eliminados.")
-                    st.rerun()
-            else:
-                st.info("No hay alquileres registrados actualmente.")
-
-            st.divider()
-            
-            # --- 3. EXPORTACIÓN ---
-            st.write("Exportar reporte para balance de metas:")
-            st.download_button("📥 Descargar Excel (CSV)", df_all.to_csv(index=False).encode('utf-8'), "reporte_jm_final.csv")
-            
+    # --- PESTAÑA PANEL MASTER ---
+    with tabs[4]:
+        if st.text_input("PIN Admin", type="password") == "2026":
+            conn = sqlite3.connect('jm_final_safe.db')
+            st.write("### Reservas Activas")
+            st.dataframe(pd.read_sql_query("SELECT * FROM reservas", conn))
+            st.write("### Clientes Registrados")
+            st.dataframe(pd.read_sql_query("SELECT nombre, tel, doc_num FROM usuarios", conn))
             conn.close()
+
+    if st.button("🚪 SALIR"):
+        st.session_state.logged_in = False
+        st.rerun()
