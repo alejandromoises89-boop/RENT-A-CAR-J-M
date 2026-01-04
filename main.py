@@ -18,7 +18,7 @@ if 'autenticado' not in st.session_state:
 # --- 3. ESTILO CSS "ESTUDIO PRESTIGE" ---
 st.markdown("""
 <style>
-    /* Fondo Bordó */
+    /* Fondo Degradado Bordó a Negro */
     .stApp {
         background: radial-gradient(circle, #600000 0%, #1a0000 100%);
     }
@@ -91,7 +91,7 @@ st.markdown("""
 def pantalla_login():
     with st.container():
         # Encabezado
-        st.markdown('<h1 class="logo-jm">JM</h1>', unsafe_allow_html=True)
+        st.markdown('<h1 class="logo-jm">J&M</h1>', unsafe_allow_html=True)
         st.markdown('<p class="slogan">Asociados - Alquiler de Vehículos</p>', unsafe_allow_html=True)
         
         # Imagen de autos (opcional, si tienes una URL de imagen real puedes ponerla aquí)
@@ -128,8 +128,6 @@ else:
         st.session_state.autenticado = False
         st.rerun()
 
-    # Aquí seguirían tus pestañas (Historial, Panel Admin, etc.)
-    # ...
 # --- 2. BASE DE DATOS ---
 def init_db():
     conn = sqlite3.connect('jm_asociados.db')
@@ -283,3 +281,4 @@ else:
             st.download_button("📥 Descargar Excel (CSV)", df_all.to_csv(index=False).encode('utf-8'), "reporte_jm_final.csv")
             
             conn.close()
+
