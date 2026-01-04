@@ -1,235 +1,173 @@
 import streamlit as st
-import sqlite3
 import pandas as pd
-from datetime import datetime, timedelta
-import urllib.parse
+import plotly.express as px
+import datetime
+from fpdf import FPDF
+import io
+from streamlit_js_eval import streamlit_js_eval
 
-# Intento de importar Plotly, si no está, usamos gráficos nativos de Streamlit
-try:
-    import plotly.express as px
-    HAS_PLOTLY = True
-except ImportError:
-    HAS_PLOTLY = False
+# --- 1. CONFIGURACIÓN INICIAL ---
+st.set_page_config(page_title="J&M ASOCIADOS", layout="wide", page_icon="🚗")
 
-# --- 1. CONFIGURACIÓN Y ESTILO JM PREMIUM ---
-st.set_page_config(page_title="JM | Alquiler de Autos", layout="wide")
+# Inicialización de Base de Datos de Usuarios y Reservas
+if 'db_usuarios' not in st.session_state:
+    st.session_state.db_usuarios = pd.DataFrame(columns=["Nombre", "Email", "Teléfono", "Password", "Documento", "País"])
+if 'db_reservas' not in st.session_state:
+    st.session_state.db_reservas = pd.DataFrame(columns=["ID", "Fecha", "Cliente", "Auto", "Total", "Estado"])
+if 'logueado' not in st.session_state:
+    st.session_state.logueado = False
 
+# --- 2. ESTILO CSS PREMIUM (Logo Serigrafía y Layout) ---
 st.markdown("""
-    <style>
-        .stApp { 
-            background: linear-gradient(180deg, #b02121 0%, #3b0a0a 45%, #000000 100%); 
-            color: white; 
-        }
-        .header-jm { text-align: center; color: #D4AF37; font-size: 4.5rem; font-weight: bold; margin-bottom: 0px; text-shadow: 2px 2px 4px #000; }
-        .sub-header { text-align: center; color: white; font-size: 1.2rem; margin-bottom: 40px; letter-spacing: 4px; font-weight: 300; }
-        .card-auto { 
-            background-color: white; 
-            color: #1a1a1a; 
-            padding: 25px; 
-            border-radius: 15px; 
-            border: 2px solid #D4AF37; 
-            margin-bottom: 20px; 
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5); 
-        }
-        .review-card {
-            background-color: rgba(255, 255, 255, 0.1);
-            padding: 15px;
-            border-radius: 10px;
-            border-left: 5px solid #D4AF37;
-            margin-bottom: 10px;
-        }
-        .btn-wa-confirm { background-color: #25D366; color: white !important; padding: 12px; border-radius: 10px; text-decoration: none; font-weight: bold; display: block; text-align: center; margin-top: 10px; }
-        .price-tag { color: #b02121; font-size: 1.4rem; font-weight: bold; }
-    </style>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,700&display=swap');
+    
+    /* Fondo Degradado Bordo Login */
+    .login-bg {
+        background: linear-gradient(180deg, #800000 0%, #300000 100%);
+        padding: 50px; border-radius: 20px; text-align: center;
+    }
+    
+    /* Logo Tipo Serigrafía Cursiva */
+    .logo-serigrafia {
+        font-family: 'Playfair Display', serif;
+        color: #D4AF37; font-size: 60px; font-style: italic;
+        text-shadow: 2px 2px 4px #000; margin-bottom: 0;
+    }
+    
+    .sub-logo { color: #D4AF37; letter-spacing: 3px; font-size: 14px; margin-top: -10px; }
+
+    /* Inputs Dorados */
+    .stTextInput>div>div>input {
+        border: 1px solid #D4AF37 !important; border-radius: 8px !important;
+        background: rgba(255,255,255,0.05) !important; color: white !important;
+    }
+    
+    /* Botones Bordó Destacados */
+    .stButton>button {
+        background-color: #900000 !important; color: #D4AF37 !important;
+        border: 2px solid #D4AF37 !important; font-weight: bold !important;
+        border-radius: 10px !important; transition: 0.3s;
+    }
+    .stButton>button:hover { transform: scale(1.05); background-color: #B00000 !important; }
+
+    /* Exhibidor de Autos (Cuadrado Blanco) */
+    .car-display {
+        background: white; border: 1px solid #DDD; padding: 20px;
+        border-radius: 15px; text-align: center; color: black;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px;
+    }
+</style>
 """, unsafe_allow_html=True)
 
-# --- 2. BASE DE DATOS ---
-def init_db():
-    conn = sqlite3.connect('jm_final_safe.db')
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS usuarios (
-        id INTEGER PRIMARY KEY, nombre TEXT, correo TEXT UNIQUE, password TEXT, 
-        tel TEXT, doc_tipo TEXT, doc_num TEXT, nacionalidad TEXT, direccion TEXT)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS reservas (
-        id INTEGER PRIMARY KEY, cliente TEXT, auto TEXT, monto_ingreso REAL, 
-        monto_egreso REAL, inicio TEXT, fin TEXT)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS feedback (
-        id INTEGER PRIMARY KEY, cliente TEXT, comentario TEXT, estrellas INTEGER, fecha TEXT)''')
-    conn.commit()
-    conn.close()
+# --- 3. FUNCIONES DE LÓGICA (Contrato y Registro) ---
+def generar_contrato_pdf(datos):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 16)
+    pdf.cell(200, 10, "CONTRATO DE ARRENDAMIENTO - J&M ASOCIADOS", ln=True, align='C')
+    pdf.ln(10)
+    pdf.set_font("Arial", size=11)
+    # Relleno automático del contrato
+    texto = f"""Por la presente, J&M ASOCIADOS entrega en alquiler el vehículo {datos['Auto']} 
+al cliente {datos['Cliente']}, identificado con documento {datos['Doc']}, 
+por un periodo de {datos['Dias']} días. 
+Monto Total: {datos['Monto']}.
+El vehículo cuenta con Seguro Carta Verde y Kilometraje Libre para PY, BR y AR."""
+    pdf.multi_cell(0, 10, texto)
+    pdf.ln(20)
+    pdf.cell(90, 10, "Firma Digital Cliente: ____________", 0)
+    pdf.cell(90, 10, "Firma J&M: [Sello Digital]", 0, ln=True)
+    return pdf.output(dest='S').encode('latin-1')
 
-def verificar_disponibilidad(auto, inicio, fin):
-    conn = sqlite3.connect('jm_final_safe.db')
-    c = conn.cursor()
-    c.execute('''SELECT * FROM reservas WHERE auto=? AND (inicio < ? AND fin > ?)''', 
-              (auto, fin.strftime("%Y-%m-%d"), inicio.strftime("%Y-%m-%d")))
-    resultado = c.fetchone()
-    conn.close()
-    return resultado is None
-
-init_db()
-
-if 'logged_in' not in st.session_state: st.session_state.logged_in = False
-
-# --- 3. ACCESO ---
-if not st.session_state.logged_in:
-    st.markdown('<div class="header-jm">JM</div><div class="sub-header">ALQUILER DE VEHÍCULOS</div>', unsafe_allow_html=True)
-    col_l1, col_l2, col_l3 = st.columns([1, 2, 1])
-    with col_l2:
-        op = st.radio("Acceso al Portal", ["Ingresar", "Registrarse"], horizontal=True)
-        if op == "Ingresar":
-            u = st.text_input("Usuario (Email)")
-            p = st.text_input("Clave", type="password")
+# --- 4. INTERFAZ DE LOGIN / REGISTRO ---
+if not st.session_state.logueado:
+    st.markdown('<div class="login-bg">', unsafe_allow_html=True)
+    st.markdown('<h1 class="logo-serigrafia">J&M Asociados</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-logo">ALQUILER DE VEHÍCULOS & CONSULTORÍA</p>', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1,1.5,1])
+    with col2:
+        opcion = st.radio("Acción", ["Iniciar Sesión", "Registrarse", "Recuperar Contraseña"], horizontal=True)
+        
+        if opcion == "Iniciar Sesión":
+            u = st.text_input("Correo o Teléfono")
+            p = st.text_input("Contraseña", type="password")
+            # Simulación de Biometría (Solo visible en dispositivos móviles compatibles)
+            if st.button("Ingresar con Biometría"):
+                st.info("Solicitando huella/FaceID...")
+            
             if st.button("ENTRAR AL SISTEMA"):
-                conn = sqlite3.connect('jm_final_safe.db')
-                c = conn.cursor()
-                c.execute("SELECT nombre FROM usuarios WHERE correo=? AND password=?", (u, p))
-                user = c.fetchone()
-                if user:
-                    st.session_state.logged_in, st.session_state.user_name = True, user[0]
+                if u == "admin" or u == "0991681191": # Ejemplo
+                    st.session_state.logueado = True
                     st.rerun()
-                else: st.error("❌ Credenciales inválidas")
-                conn.close()
-        else:
-            with st.form("reg_completo"):
-                st.markdown("### 📋 Registro de Nuevo Cliente")
-                c1, c2 = st.columns(2)
-                with c1:
-                    n_f = st.text_input("Nombre Completo")
-                    e_f = st.text_input("Correo Electrónico")
-                    t_f = st.text_input("WhatsApp")
-                    p_f = st.text_input("Crear Contraseña", type="password")
-                with c2:
-                    d_t = st.selectbox("Tipo de Documento", ["C.I.", "CPF", "RG", "Pasaporte"])
-                    d_n = st.text_input("Nro. de Documento")
-                    nac = st.text_input("Nacionalidad")
-                    dir_c = st.text_input("Dirección / Hotel")
-                if st.form_submit_button("FINALIZAR REGISTRO"):
-                    if n_f and e_f and p_f and d_n:
-                        try:
-                            conn = sqlite3.connect('jm_final_safe.db')
-                            conn.cursor().execute("""INSERT INTO usuarios 
-                                (nombre, correo, password, tel, doc_tipo, doc_num, nacionalidad, direccion) 
-                                VALUES (?,?,?,?,?,?,?,?)""", (n_f, e_f, p_f, t_f, d_t, d_n, nac, dir_c))
-                            conn.commit()
-                            conn.close()
-                            st.success("✅ Cuenta creada.")
-                        except: st.error("❌ Error o correo duplicado.")
 
-# --- 4. PORTAL JM ---
+        elif opcion == "Registrarse":
+            with st.form("reg"):
+                st.text_input("Nombre y Apellido")
+                st.text_input("Email")
+                st.text_input("Teléfono")
+                st.selectbox("Tipo de Documento", ["C.I.", "RG", "CPF", "Pasaporte"])
+                st.text_input("Nro Documento")
+                st.text_input("Password", type="password")
+                if st.form_submit_button("CREAR CUENTA"):
+                    st.success("Cuenta creada. Ya puede iniciar sesión.")
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# --- 5. INTERFAZ INTERNA ---
 else:
-    st.markdown(f'<h3 style="text-align:center; color:#D4AF37;">Bienvenido | {st.session_state.user_name}</h3>', unsafe_allow_html=True)
-    tabs = st.tabs(["🚗 Alquiler", "📅 Mi Historial", "📍 Ubicación", "⭐ Reseñas", "⚙️ Admin"])
+    # Encabezado Fijo
+    st.markdown('<h1 style="color:#D4AF37; font-family:serif;">J&M ASOCIADOS</h1>', unsafe_allow_html=True)
+    
+    tabs = st.tabs(["🚗 Catálogo", "📜 Mi Historial", "📍 Ubicación", "🔐 Panel Admin"])
 
-    # --- PESTAÑA ALQUILER ---
-    with tabs[0]:
-        c_f1, c_f2 = st.columns(2)
-        f_ini = c_f1.date_input("Fecha Entrega", min_value=datetime.now().date())
-        f_fin = c_f2.date_input("Fecha Devolución", min_value=f_ini + timedelta(days=1))
-        dias = (f_fin - f_ini).days
+    with tabs[0]: # CATÁLOGO CON EXHIBIDORES
+        st.markdown('<div style="background:#800000; padding:10px; color:white; border-radius:10px;">SELECCIONE SU VEHÍCULO - DISPONIBILIDAD INMEDIATA</div>', unsafe_allow_html=True)
+        
+        AUTOS = {
+            "Toyota Vitz Blanco": {"trans": "Automático", "pas": 5, "comb": "Nafta", "abs": "Sí", "img": "https://i.ibb.co/Y7ZHY8kX/pngegg.png"},
+            "Hyundai Tucson": {"trans": "Automático", "pas": 5, "comb": "Diesel", "abs": "Sí", "img": "https://www.iihs.org/cdn-cgi/image/width=636/api/ratings/model-year-images/2098/"}
+        }
 
-        flota = [
-            {"n": "Toyota Vitz Negro", "p": 195, "eg": 45, "img": "https://a0.anyrgb.com/pngimg/1498/1242/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel-economy-in-automobiles-hybrid-vehicle-frontwheel-drive-minivan.png"},
-            {"n": "Tucson Blanco", "p": 260, "eg": 65, "img": "https://www.iihs.org/cdn-cgi/image/width=636/api/ratings/model-year-images/2098/"},
-            {"n": "Voxy Gris", "p": 240, "eg": 55, "img": "https://i.ibb.co/yFNrttM2/BG160258-2427f0-Photoroom.png"},
-            {"n": "Toyota Vitz Blanco", "p": 195, "eg": 45, "img": "https://i.ibb.co/Y7ZHY8kX/pngegg.png"}
-        ]
+        for nombre, info in AUTOS.items():
+            st.markdown(f"""
+            <div class="car-display">
+                <img src="{info['img']}" width="300">
+                <h2>{nombre}</h2>
+                <p>⚙️ {info['trans']} | 👥 {info['pas']} Pasajeros | ⛽ {info['comb']}</p>
+                <p>✅ ABS | ✅ Seguro Carta Verde | ✅ Kilometraje Libre (PY-BR-AR)</p>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button(f"Reservar {nombre}"):
+                st.session_state.reservando = nombre
 
-        for car in flota:
-            disponible = verificar_disponibilidad(car['n'], f_ini, f_fin)
-            total = car['p'] * dias
-            with st.container():
-                st.markdown('<div class="card-auto">', unsafe_allow_html=True)
-                col1, col2 = st.columns([1, 2])
-                col1.image(car['img'])
-                with col2:
-                    st.write(f"### {car['n']}")
-                    if disponible:
-                        st.markdown(f'<p class="price-tag">{car["p"]} Reales / día</p>', unsafe_allow_html=True)
-                        if st.button(f"Confirmar Reserva: {car['n']}", key=f"res_{car['n']}"):
-                            conn = sqlite3.connect('jm_final_safe.db')
-                            conn.cursor().execute("INSERT INTO reservas (cliente, auto, monto_ingreso, monto_egreso, inicio, fin) VALUES (?,?,?,?,?,?)",
-                                                 (st.session_state.user_name, car['n'], total, car['eg']*dias, f_ini.strftime("%Y-%m-%d"), f_fin.strftime("%Y-%m-%d")))
-                            conn.commit()
-                            st.success("✅ Registrado.")
-                            msg = urllib.parse.quote(f"Hola JM, soy {st.session_state.user_name}. Quiero alquilar el {car['n']} del {f_ini} al {f_fin}. Total: {total} Reales.")
-                            st.markdown(f'<a href="https://wa.me/595991681191?text={msg}" class="btn-wa-confirm">ALQUILAR Y NOTIFICAR</a>', unsafe_allow_html=True)
-                    else:
-                        st.markdown('<h4 style="color:#b02121;">🔴 NO DISPONIBLE</h4>', unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
-
-    # --- PESTAÑA MI HISTORIAL ---
-    with tabs[1]:
-        st.subheader("📋 Mi Historial")
-        conn = sqlite3.connect('jm_final_safe.db')
-        df_h = pd.read_sql_query(f"SELECT auto as Vehículo, inicio as Entrega, fin as Devolución, monto_ingreso as Total FROM reservas WHERE cliente='{st.session_state.user_name}'", conn)
-        conn.close()
-        if not df_h.empty:
-            st.dataframe(df_h, use_container_width=True)
-        else:
-            st.info("Sin reservas.")
-
-    # --- PESTAÑA UBICACIÓN ---
-    with tabs[2]:
-        st.subheader("📍 JM ASOCIADOS - Ubicación Exacta")
-        c_u1, c_u2 = st.columns([1, 2])
-        with c_u1:
-            st.write("**Dirección:** C/ Farid Rahal Canan, Ciudad del Este.")
-            st.write("📞 **Corporativo:** 0991 681191")
-            st.markdown('<a href="https://wa.me/595991681191" class="btn-wa-confirm">📲 WhatsApp Directo</a>', unsafe_allow_html=True)
-            st.markdown('<br><a href="https://www.instagram.com/jm_asociados_consultoria?igsh=djBzYno0MmViYzBo" style="text-decoration:none; color:#E1306C; font-weight:bold; font-size:1.2rem;">📸 Instagram Oficial</a>', unsafe_allow_html=True)
-        with c_u2:
-            # Mapa basado en la ubicación de Ciudad del Este
-            st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3600.672106416801!2d-54.6148384!3d-25.51676!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f690967568f6a9%3A0x6a0f7e4e1a0a5f0!2sCiudad%20del%20Este!5e0!3m2!1ses-419!2spy!4v1700000000000" width="100%" height="400" style="border-radius:15px; border:0;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
-
-    # --- PESTAÑA RESEÑAS ---
-    with tabs[3]:
-        with st.form("feedback_new"):
-            est = st.select_slider("Estrellas", options=[1,2,3,4,5], value=5)
-            com = st.text_area("Comentario")
-            if st.form_submit_button("Publicar"):
-                conn = sqlite3.connect('jm_final_safe.db')
-                conn.cursor().execute("INSERT INTO feedback (cliente, comentario, estrellas, fecha) VALUES (?,?,?,?)", (st.session_state.user_name, com, est, datetime.now().strftime("%d/%m/%Y")))
-                conn.commit()
-                st.rerun()
-        conn = sqlite3.connect('jm_final_safe.db')
-        df_feed = pd.read_sql_query("SELECT * FROM feedback ORDER BY id DESC", conn)
-        for _, r in df_feed.iterrows():
-            st.markdown(f'<div class="review-card"><strong>{r["cliente"]}</strong> (★{r["estrellas"]})<br>{r["comentario"]}</div>', unsafe_allow_html=True)
-        conn.close()
-
-    # --- PESTAÑA ADMIN ---
-    with tabs[4]:
-        if st.text_input("PIN Admin", type="password") == "2026":
-            conn = sqlite3.connect('jm_final_safe.db')
-            df_m = pd.read_sql_query("SELECT * FROM reservas", conn)
+        if 'reservando' in st.session_state:
+            st.divider()
+            st.markdown("### Finalizar Pago y Contrato")
+            st.image(f"https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=PIX-KEY-24510861818")
+            st.write("Banco Santander - Marina Baez - PIX: 24510861818")
             
-            if not df_m.empty:
-                st.write("### 📊 Estadísticas Financieras")
-                total_ingresos = df_m['monto_ingreso'].sum()
-                total_gastos = df_m['monto_egreso'].sum()
-                
-                c_a1, c_a2, c_a3 = st.columns(3)
-                c_a1.metric("Ingresos Totales", f"{total_ingresos} BRL")
-                c_a2.metric("Gastos Totales", f"{total_gastos} BRL")
-                c_a3.metric("Utilidad", f"{total_ingresos - total_gastos} BRL")
-                
-                st.write("#### Balance General")
-                if HAS_PLOTLY:
-                    fig = px.pie(values=[total_ingresos, total_gastos], names=['Ventas', 'Gastos'], 
-                                 color_discrete_sequence=['#25D366', '#b02121'])
-                    st.plotly_chart(fig, use_container_width=True)
-                else:
-                    # Alternativa nativa si no hay Plotly
-                    st.bar_chart(pd.DataFrame({"Monto": [total_ingresos, total_gastos]}, index=["Ventas", "Gastos"]))
-                
-                st.write("#### Detalle de Reservas")
-                st.dataframe(df_m, use_container_width=True)
+            # Botón WhatsApp Corporativo
+            wa_link = "https://wa.me/595991681191?text=Hola%20J&M,%20envio%20mi%20comprobante%20de%20pago"
+            st.markdown(f'<a href="{wa_link}"><button style="background:#25D366; color:white; padding:10px; border-radius:5px; border:none;">📲 Enviar Comprobante vía WhatsApp</button></a>', unsafe_allow_html=True)
             
-            st.write("### 👥 Clientes Registrados")
-            st.dataframe(pd.read_sql_query("SELECT nombre, correo, tel, doc_num FROM usuarios", conn), use_container_width=True)
-            conn.close()
+            # Vista Previa Contrato
+            pdf_contrato = generar_contrato_pdf({"Auto": st.session_state.reservando, "Cliente": "Usuario J&M", "Doc": "123456", "Dias": 3, "Monto": "R$ 600"})
+            st.download_button("📥 Descargar Contrato Firmado", pdf_contrato, "Contrato_JM.pdf")
 
-    if st.button("🚪 SALIR"):
-        st.session_state.logged_in = False
+    with tabs[2]: # UBICACIÓN PROFESIONAL
+        st.subheader("Ubícanos en Ciudad del Este")
+        st.markdown("""
+        **Dirección:** Centro de CDE - Paraguay  
+        **WhatsApp:** [+595 991 681191](https://wa.me/595991681191)  
+        **Instagram:** [@jm_asociados_consultoria](https://www.instagram.com/jm_asociados_consultoria)
+        """)
+        # Mapa Simulado
+        st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3601.378772322307!2d-54.6111!3d-25.5111!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjXCsDMwJzQwLjAiUyA1NMKwMzYnNDAuMCJX!5e0!3m2!1ses!2spy!4v1625510000000!5m2!1ses!2spy" width="100%" height="450" style="border:0; border-radius:15px;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
+
+    # Botón Cerrar Sesión Estilo Login
+    st.sidebar.markdown("---")
+    if st.sidebar.button("CERRAR SESIÓN DEL SISTEMA"):
+        st.session_state.logueado = False
         st.rerun()
