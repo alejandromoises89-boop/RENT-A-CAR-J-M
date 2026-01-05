@@ -204,7 +204,7 @@ else:
         else: st.info("No tienes reservas.")
 
 # --- TAB 6: RESERVAS ---
-with tabs[0]:
+with tabs[1]:
     st.subheader("Seleccione su Vehículo")
     cols = st.columns(4)
     for i, (nombre, info) in enumerate(AUTOS.items()):
@@ -355,4 +355,5 @@ with tabs[2]:
             st.download_button("📥 Descargar Excel (CSV)", df_all.to_csv(index=False).encode('utf-8'), "reporte_jm_final.csv")
             
             conn.close()
+
 
