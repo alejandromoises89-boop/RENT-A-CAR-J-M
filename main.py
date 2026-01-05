@@ -253,7 +253,7 @@ with tabs[0]:
                         st.download_button("Descargar Contrato PDF", pdf_bytes, "contrato_jm.pdf")
                     with col_p2:
                         st.info("📱 Pago PIX")
-                        pix = f"0002
+                        pix = f"0002"
                         
 # --- TAB 3: UBICACIÓN & REDES ---
 with tabs[2]:
@@ -355,3 +355,4 @@ with tabs[2]:
             st.download_button("📥 Descargar Excel (CSV)", df_all.to_csv(index=False).encode('utf-8'), "reporte_jm_final.csv")
             
             conn.close()
+
