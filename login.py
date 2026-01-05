@@ -108,4 +108,3 @@ if not st.session_state.autenticado:
             if st.button("VOLVER"):
                 st.session_state.vista_login = "inicio"
                 st.rerun()
-
