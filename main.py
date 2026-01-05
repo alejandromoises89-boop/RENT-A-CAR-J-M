@@ -206,9 +206,9 @@ else:
             
 # --- TAB 6: RESERVAS ---
     with tabs[1]:
-    aplicar_estilo_app()
-    st.markdown('<div class="header-app"><h1>JM ASOCIADOS - Alquiler de Vehiculos </h1></div>', unsafe_allow_html=True)
-    tabs = st.tabs(["🚗 Catálogo", "📅 Mis Alquileres", "📍 Localización", "⭐ Reseñas", "🛡️ Panel Master"])
+        aplicar_estilo_app()
+        st.markdown('<div class="header-app"><h1>JM ASOCIADOS - Alquiler de Vehiculos </h1></div>', unsafe_allow_html=True)
+        tabs = st.tabs(["🚗 Catálogo", "📅 Mis Alquileres", "📍 Localización", "⭐ Reseñas", "🛡️ Panel Master"])
 
     with tabs[0]:
         st.info(f"💰 Cotización BRL/PYG: {cotizacion_hoy}")
@@ -338,5 +338,6 @@ with tabs[2]:
             st.download_button("📥 Descargar Excel (CSV)", df_all.to_csv(index=False).encode('utf-8'), "reporte_jm_final.csv")
             
             conn.close()
+
 
 
