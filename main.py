@@ -179,7 +179,7 @@ else:
                     c1, c2 = st.columns(2)
                     f_i = c1.date_input("Inicio", min_value=date.today(), key=f"i_{auto['nombre']}")
                     f_f = c2.date_input("Fin", min_value=f_i, key=f"f_{auto['nombre']}")
-                    if st.button(f"Verificar Disponibilidad", key=f"btn_{auto['nombre']}"):
+                    if st.button(f"ALQUILAR", key=f"btn_{auto['nombre']}"):
                         if check_disponibilidad(auto['nombre'], f_i, f_f):
                             total = ((f_f - f_i).days + 1) * auto['precio']
                             st.success(f"Disponible! Total: R$ {total}")
@@ -191,7 +191,6 @@ else:
                         else:
                             st.error("Fechas no disponibles")
 
-    # El resto de las pestañas (Mis Alquileres, Localización, Reseñas, Admin) permanecen funcionales como en el original
     with tabs[1]:
         st.subheader("📋 Mis Contratos y Reservas")
         conn = sqlite3.connect('jm_asociados.db')
@@ -207,6 +206,59 @@ else:
     with with tabs[2]:
         col_m, col_t = st.columns([2, 1])
         with col_m:
+
+# --- TAB 6: RESERVAS ---
+with tabs[0]:
+    st.subheader("Seleccione su Vehículo")
+    cols = st.columns(4)
+    for i, (nombre, info) in enumerate(AUTOS.items()):
+        with cols[i]:
+            st.markdown(f'<div class="car-card"><img src="{info["img"]}" width="100%"><br><b>{nombre}</b></div>', unsafe_allow_html=True)
+            if st.button(f"Alquilar {info['color']}", key=f"btn_{i}"):
+                st.session_state.auto_sel = nombre
+
+    if "auto_sel" in st.session_state:
+        st.divider()
+        with st.form("form_reserva"):
+            st.markdown(f"### Detalle de Reserva: {st.session_state.auto_sel}")
+            c1, c2 = st.columns(2)
+            nombre_c = c1.text_input("Nombre y Apellido")
+            whatsapp = c2.text_input("WhatsApp (con código de país)")
+            f_entrega = c1.date_input("Fecha Inicio", datetime.date.today())
+            dias_alq = c2.number_input("Días de alquiler", min_value=1, value=1)
+            tipo_doc = c1.selectbox("Documento", ["CPF", "RG", "C.I.", "DNI", "Pasaporte"])
+            num_doc = c2.text_input("Número de Documento")
+            mail = c1.text_input("Correo Electrónico")
+            
+            f_fin_calc = f_entrega + datetime.timedelta(days=dias_alq)
+            total_r = AUTOS[st.session_state.auto_sel]['precio'] * dias_alq
+            st.markdown(f"#### Total a pagar: R$ {total_r}")
+
+            if st.form_submit_button("✅ VERIFICAR DISPONIBILIDAD Y RESERVAR"):
+                if not nombre_c or not num_doc:
+                    st.error("Por favor complete Nombre y Documento.")
+                elif verificar_disponibilidad(st.session_state.auto_sel, f_entrega, f_fin_calc):
+                    # Guardar reserva
+                    nueva_res = pd.DataFrame([{
+                        "Inicio": pd.to_datetime(f_entrega), "Fin": pd.to_datetime(f_fin_calc),
+                        "Cliente": nombre_c, "WhatsApp": whatsapp, "Doc_Tipo": tipo_doc,
+                        "Doc_Num": num_doc, "Email": mail, "Auto": st.session_state.auto_sel,
+                        "Monto": total_r, "Tipo": "Ingreso"
+                    }])
+                    st.session_state.db_reservas = pd.concat([st.session_state.db_reservas, nueva_res], ignore_index=True)
+                    
+                    st.success("✅ ¡Vehículo Disponible! Reserva registrada.")
+                    
+                    # Mostrar QR y Contrato
+                    col_p1, col_p2 = st.columns(2)
+                    with col_p1:
+                        st.info("📄 Vista Previa Contrato")
+                        pdf_bytes = generar_pdf_contrato(nueva_res.iloc[0].to_dict())
+                        st.download_button("Descargar Contrato PDF", pdf_bytes, "contrato_jm.pdf")
+                    with col_p2:
+                        st.info("📱 Pago PIX")
+                        pix = f"0002
+            
             st.markdown("### 📍 Nuestra Oficina Principal")
             # MAPA ENFOCADO EN FARID RAHAL Y CURUPAYTY, CDE
             st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3601.4475475143!2d-54.6133!3d-25.5158!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjXCsDMwJzU2LjkiUyA1NMKwMzYnNDcuOSJX!5e0!3m2!1ses!2spy!4v1625678901234!5m2!1ses!2spy" width="100%" height="450" style="border:0; border-radius:15px;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
@@ -243,7 +295,7 @@ else:
     if st.sidebar.button("Cerrar Sesión"):
         st.session_state.autenticado = False
         st.rerun()
-# --- TAB 6: PANEL MASTER (SOLO ADMIN) ---
+# --- TAB 7: PANEL MASTER (SOLO ADMIN) ---
     if st.session_state.role == "admin":
         with tabs[4]:
             st.title("⚙️ Administración Central")
@@ -288,3 +340,4 @@ else:
             st.download_button("📥 Descargar Excel (CSV)", df_all.to_csv(index=False).encode('utf-8'), "reporte_jm_final.csv")
             
             conn.close()
+
