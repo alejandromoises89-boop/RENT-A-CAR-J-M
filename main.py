@@ -186,8 +186,7 @@ with tabs[2]:
                 text-align: center;
                 font-weight: bold;
                 color: white !important;
-                transition: 0.3s;
-            }
+                transition: 0.3s;}
             .btn-instagram { background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); }
             .btn-whatsapp { background-color: #25D366; }
             .btn-social:hover { transform: scale(1.02); opacity: 0.9; }
@@ -264,5 +263,3 @@ with tabs[2]:
             st.download_button("📥 Descargar Excel (CSV)", df_all.to_csv(index=False).encode('utf-8'), "reporte_jm_final.csv")
             
             conn.close()
-
-
