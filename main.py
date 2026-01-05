@@ -128,7 +128,7 @@ else:
                     st.write(f"Estado: {row['estado']}")
                     pdf_data = generar_contrato(row['cliente'], row['auto'], row['inicio'], row['fin'], row['monto_brl'])
                     st.download_button("📄 PDF", data=pdf_data, file_name=f"Contrato_{row['id']}.pdf", key=f"dl_{row['id']}")
-        else: st.info("Sin reservas.")
+else: st.info("Sin reservas.")
             
 # --- TAB 6: RESERVAS ---
 else:
@@ -169,7 +169,7 @@ else:
                         conn.close()
                         st.success("✅ ¡Reserva registrada!")
                         st.info(f"PIX: 0002")
-                    else:
+else:
                         st.error("No disponible.")
                         
 # --- TAB 3: UBICACIÓN & REDES ---
@@ -219,7 +219,7 @@ with tabs[2]:
         ''', unsafe_allow_html=True)
         
 # --- TAB 8: PANEL MASTER (SOLO ADMIN) ---
-    if st.session_state.role == "admin":
+if st.session_state.role == "admin":
         with tabs[4]:
             st.title("⚙️ Administración Central")
             conn = sqlite3.connect('jm_asociados.db')
@@ -253,7 +253,7 @@ with tabs[2]:
                     conn.commit()
                     st.warning("⚠️ Todos los registros de alquiler han sido eliminados.")
                     st.rerun()
-            else:
+                else:
                 st.info("No hay alquileres registrados actualmente.")
 
             st.divider()
@@ -263,3 +263,4 @@ with tabs[2]:
             st.download_button("📥 Descargar Excel (CSV)", df_all.to_csv(index=False).encode('utf-8'), "reporte_jm_final.csv")
             
             conn.close()
+
