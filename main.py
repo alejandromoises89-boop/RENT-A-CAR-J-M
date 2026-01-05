@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.express as px
 import requests
 from datetime import datetime, date
-from fpdf import FPDF  # <--- ASEGÚRATE DE TENER ESTO
+from fpdf import FPDF
 import io
 
 # --- 1. CONFIGURACIÓN INICIAL ---
@@ -138,7 +138,7 @@ else:
                         else:
                             st.error("Fechas no disponibles")
 
-    # TAB 2: MIS ALQUILERES (CONTRATOS CLIENTE)
+    # TAB 6: MIS ALQUILERES (CONTRATOS CLIENTE)
     with tabs[1]:
         st.subheader("📋 Mis Contratos y Reservas")
         conn = sqlite3.connect('jm_asociados.db')
@@ -152,7 +152,42 @@ else:
         else:
             st.info("No tienes reservas.")
 
-    # TAB 5: PANEL MASTER (ADMIN)
+    # --- TAB 7: UBICACIÓN & REDES ---
+    with tabs[2]:
+        col_m, col_t = st.columns([2, 1])
+        with col_m:
+            st.markdown("### 📍 Nuestra Oficina Principal")
+            # MAPA ENFOCADO EN FARID RAHAL Y CURUPAYTY, CDE
+            st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3601.4475475143!2d-54.6133!3d-25.5158!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjXCsDMwJzU2LjkiUyA1NMKwMzYnNDcuOSJX!5e0!3m2!1ses!2spy!4v1625678901234!5m2!1ses!2spy" width="100%" height="450" style="border:0; border-radius:15px;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
+        with col_t:
+            st.markdown("### 🏢 Dirección")
+            st.write("**Edificio Aramí** (Frente al Edificio España)")
+            st.write("Esq. Farid Rahal y Curupayty")
+            st.write("Ciudad del Este, Paraguay")
+            st.divider()
+            st.markdown(f'''
+                <a href="https://instagram.com/jymasociados" target="_blank" class="btn-notif btn-instagram">
+                    <i class="fa-brands fa-instagram btn-icon"></i> Instagram Oficial
+                </a>
+                <a href="https://wa.me/595991681191" target="_blank" class="btn-notif btn-whatsapp">
+                    <i class="fa-brands fa-whatsapp btn-icon"></i> Contacto WhatsApp
+                </a>
+            ''', unsafe_allow_html=True)
+
+    # --- TAB 8: RESEÑAS ---
+    with tabs[3]:
+        st.subheader("⭐ Danos tu Calificación")
+        with st.form("form_resena"):
+            coment = st.text_area("¿Qué le pareció nuestro servicio?")
+            estrellas = st.select_slider("Calificación", options=[1, 2, 3, 4, 5], value=5)
+            if st.form_submit_button("Publicar Comentario"):
+                conn = sqlite3.connect('jm_asociados.db')
+                conn.cursor().execute("INSERT INTO resenas (cliente, comentario, estrellas, fecha) VALUES (?,?,?,?)",
+                                     (st.session_state.user_name, coment, estrellas, datetime.now().strftime("%Y-%m-%d")))
+                conn.commit()
+                st.success("¡Gracias por ayudarnos a mejorar!")
+
+    # TAB 9: PANEL MASTER (ADMIN)
     with tabs[4]:
         if st.text_input("PIN Maestro", type="password") == "2026":
             conn = sqlite3.connect('jm_asociados.db')
