@@ -55,12 +55,12 @@ def init_db():
     
     if c.execute("SELECT count(*) FROM flota").fetchone()[0] == 0:
         autos = [
-            ("Hyundai Tucson", 260.0, "https://i.postimg.cc/9Fm8mXmS/tucson.png", "Disponible", "TUC-7721", "AA-123", "Gris", "2012"),
-            ("Toyota Vitz Blanco", 195.0, "https://i.postimg.cc/qM6m4pP2/vitz-blanco.png", "Disponible", "VTZ-001", "BCC-445", "Blanco", "2010"),
-            ("Toyota Vitz Negro", 195.0, "https://i.postimg.cc/mD8T7m8r/vitz-negro.png", "Disponible", "VTZ-998", "XAM-990", "Negro", "2011"),
-            ("Toyota Voxy", 240.0, "https://i.postimg.cc/vH8vM8Hn/voxy.png", "Disponible", "VOX-556", "HHP-112", "Perla", "2009")
+            ("Hyundai Tucson", 260.0, "https://www.iihs.org/cdn-cgi/image/width=636/api/ratings/model-year-images/2098/", "Disponible", "TUC-7721", "AA-123", "Gris", "2012"),
+            ("Toyota Vitz Blanco", 195.0, "https://i.ibb.co/Y7ZHY8kX/pngegg.png", "Disponible", "VTZ-001", "BCC-445", "Blanco", "2010"),
+            ("Toyota Vitz Negro", 195.0, "https://a0.anyrgb.com/pngimg/1498/1242/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel-economy-in-automobiles-hybrid-vehicle-frontwheel-drive-minivan.png", "Disponible", "VTZ-998", "XAM-990", "Negro", "2011"),
+            ("Toyota Voxy", 240.0, "https://i.ibb.co/yFNrttM2/BG160258-2427f0-Photoroom.png", "Disponible", "VOX-556", "HHP-112", "Perla", "2009")
         ]
-        c.executemany("INSERT INTO flota (nombre, precio_brl, img, estado, chasis, chapa, color, ano) VALUES (?,?,?,?,?,?,?,?)", autos)
+
     conn.commit()
     conn.close()
 
@@ -202,3 +202,4 @@ else:
                     conn.execute("UPDATE flota SET estado=? WHERE id=?", (st_nuevo, r['id']))
                     conn.commit()
                     st.rerun()
+
