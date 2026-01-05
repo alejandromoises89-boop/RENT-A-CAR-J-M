@@ -55,7 +55,7 @@ flota = [
     {"nombre": "Toyota Vitz 2012", "precio": 195, "specs": "Automático | Nafta | ABS | Carta Verde", "img": "https://i.ibb.co/Y7ZHY8kX/pngegg.png"},
     {"nombre": "Hyundai Tucson 2012", "precio": 260, "specs": "Automático | Diesel | Cuero | Carta Verde", "img": "https://www.iihs.org/cdn-cgi/image/width=636/api/ratings/model-year-images/2098/"},
     {"nombre": "Toyota Voxy 2009", "precio": 240, "specs": "Secuencial | 7 Pasajeros | Cámara | Carta Verde", "img": "https://i.ibb.co/yFNrttM2/BG160258-2427f0-Photoroom.png"}
-    {"nombre": "Toyota Vitz 2012", "precio": 195, "Automático | Nafta | ABS | Carta Verde", "https://a0.anyrgb.com/pngimg/1498/1242/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel-economy-in-automobiles-hybrid-vehicle-frontwheel-drive-minivan.png"}
+    {"nombre": "Toyota Vitz 2012", "precio": 195, "specs": "Automático | Nafta | ABS | Carta Verde", "https://a0.anyrgb.com/pngimg/1498/1242/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel-economy-in-automobiles-hybrid-vehicle-frontwheel-drive-minivan.png"}
 
 # --- 4. LÓGICA DE ACCESO ---
 if 'logged_in' not in st.session_state: st.session_state.logged_in = False
@@ -176,3 +176,4 @@ else:
     if st.sidebar.button("CERRAR SESIÓN"):
         st.session_state.logged_in = False
         st.rerun()
+
