@@ -100,4 +100,50 @@ else:
                         
                         dias = (f_f - f_i).days
                         total = dias * a['precio']
-                        st.subheader(f"Total: R
+                        st.subheader(f"Total: R$ {total}")
+
+                        if st.button("Confirmar Reserva", key=f"btn{a['nombre']}"):
+                            if firma == "":
+                                st.error("Por favor, firme el contrato antes de continuar.")
+                            else:
+                                conn = sqlite3.connect('jm_rent_pro_v2.db')
+                                conn.execute("INSERT INTO reservas (cliente, auto, inicio, fin, h_entrega, h_devolucion, total, tipo) VALUES (?,?,?,?,?,?,?,?)",
+                                             (st.session_state.user, a['nombre'], f_i, f_f, str(h_i), str(h_f), total, "Ingreso"))
+                                conn.commit(); conn.close()
+                                st.success("¡Reserva guardada con éxito!")
+                                
+                                # Botón WhatsApp
+                                msg = f"Reserva JM: {a['nombre']}. Cliente: {st.session_state.user}. Entrega: {f_i} {h_i}. Firma: {firma}"
+                                st.markdown(f'<a href="https://wa.me/595991681191?text={urllib.parse.quote(msg)}" class="btn-wa">Enviar a WhatsApp Corporativo</a>', unsafe_allow_html=True)
+
+    # --- TAB 2: UBICACIÓN ---
+    with tab[1]:
+        st.subheader("Nuestra Ubicación Central")
+        # Mapa embebido directo para que sea visible en cualquier dispositivo
+        map_url = "https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d14400.0!2d-54.61!3d-25.51!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1ses!2spy!4v123456789"
+        st.markdown(f'<iframe src="{map_url}" width="100%" height="450" style="border:0;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
+
+    # --- TAB 3: PANEL MÁSTER (ADMIN) ---
+    with tab[2]:
+        if st.session_state.role == "admin":
+            st.title("🛡️ Panel Administrativo Finanzas")
+            conn = sqlite3.connect('jm_rent_pro_v2.db')
+            df_res = pd.read_sql_query("SELECT * FROM reservas", conn)
+            
+            # Métricas visibles en móvil
+            ingresos_totales = df_res['total'].sum()
+            st.metric("INGRESOS TOTALES", f"R$ {ingresos_totales:,.2f}")
+            
+            # Gráfico de barras
+            if not df_res.empty:
+                fig = px.bar(df_res, x="auto", y="total", color="auto", title="Rentabilidad por Vehículo")
+                st.plotly_chart(fig, use_container_width=True)
+            
+            st.subheader("📋 Registro de Alquileres")
+            st.dataframe(df_res, use_container_width=True)
+            
+            if st.button("🗑️ Borrar Historial (Solo Admin)"):
+                st.warning("Acción protegida por PIN")
+            conn.close()
+        else:
+            st.warning("Acceso restringido solo para Administradores con PIN secreto.")
