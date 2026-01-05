@@ -257,7 +257,7 @@ with tabs[1]:
                         
 # --- TAB 3: UBICACIÓN & REDES ---
 with tabs[2]:
-    # Definimos estilos específicos para los botones de esta pestaña
+    # Estilos específicos para botones sociales
     st.markdown("""
         <style>
             .btn-social {
@@ -271,16 +271,9 @@ with tabs[2]:
                 color: white !important;
                 transition: 0.3s;
             }
-            .btn-instagram {
-                background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
-            }
-            .btn-whatsapp {
-                background-color: #25D366;
-            }
-            .btn-social:hover {
-                transform: scale(1.02);
-                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            }
+            .btn-instagram { background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); }
+            .btn-whatsapp { background-color: #25D366; }
+            .btn-social:hover { transform: scale(1.02); opacity: 0.9; }
         </style>
     """, unsafe_allow_html=True)
 
@@ -288,25 +281,24 @@ with tabs[2]:
     
     with col_m:
         st.markdown("### 📍 Nuestra Oficina Principal")
-        # Iframe corregido con ubicación en Ciudad del Este
-        
+        # Iframe con coordenadas reales de la zona mencionada en CDE
+        st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d900.2285141203064!2d-54.61217757082352!3d-25.507850298980843!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f6908556557879%3A0xc6651915993e5473!2sFarid%20Rahal%2C%20Ciudad%20del%20Este!5e0!3m2!1ses!2spy!4v1709912345678" width="100%" height="450" style="border:0; border-radius:15px;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
+    
     with col_t:
         st.markdown("### 🏢 Dirección")
-        st.info("**Edificio Aramí** (Frente al Edificio España)")
-        st.write("📍 Esq. Farid Rahal y Curupayty")
-        st.write("🇵🇾 Ciudad del Este, Paraguay")
-        st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3600.6322345091216!2d-54.6138618!3d-25.5172421!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f685731304505f%3A0x3446002f23293e36!2sEdificio%20Arami!5e0!3m2!1ses!2spy!4v1700000000000" width="100%" height="450" style="border:0; border-radius:15px;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
-            
+        st.write("**Edificio Aramí** (Frente al Edificio España)")
+        st.write("Esq. Farid Rahal y Curupayty")
+        st.write("Ciudad del Este, Paraguay")
+        
         st.divider()
         
-        st.markdown("### 📱 Contacto Directo")
-        # Botones con clases CSS personalizadas
+        st.markdown("### 📱 Redes Sociales")
         st.markdown(f'''
             <a href="https://instagram.com/jymasociados" target="_blank" class="btn-social btn-instagram">
-                <i class="fa-brands fa-instagram"></i> Instagram Oficial
+                📸 Instagram Oficial
             </a>
             <a href="https://wa.me/595991681191" target="_blank" class="btn-social btn-whatsapp">
-                <i class="fa-brands fa-whatsapp"></i> Contacto WhatsApp
+                💬 Contacto WhatsApp
             </a>
         ''', unsafe_allow_html=True)
         
@@ -355,5 +347,6 @@ with tabs[2]:
             st.download_button("📥 Descargar Excel (CSV)", df_all.to_csv(index=False).encode('utf-8'), "reporte_jm_final.csv")
             
             conn.close()
+
 
 
