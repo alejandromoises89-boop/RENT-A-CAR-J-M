@@ -50,7 +50,7 @@ def init_db():
     
     # Datos iniciales si la flota está vacía
     if c.execute("SELECT count(*) FROM flota").fetchone()[0] == 0:
-        autos = [
+        flota = [
             ("Hyundai Tucson", 260.0, "https://www.iihs.org/cdn-cgi/image/width=636/api/ratings/model-year-images/2098/", "Disponible", "TUC-7721", "AA-123", "Gris", "2012"),
             ("Toyota Vitz Blanco", 195.0, "https://i.ibb.co/Y7ZHY8kX/pngegg.png", "Disponible", "VTZ-001", "BCC-445", "Blanco", "2010"),
             ("Toyota Vitz Negro", 195.0, "https://a0.anyrgb.com/pngimg/1498/1242/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel-economy-in-automobiles-hybrid-vehicle-frontwheel-drive-minivan.png", "Disponible", "VTZ-998", "XAM-990", "Negro", "2011"),
@@ -200,3 +200,4 @@ else:
                     st.rerun()
             else:
                 st.warning("Ingrese el PIN correcto para ver finanzas.")
+
