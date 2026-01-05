@@ -127,4 +127,77 @@ else:
         st.session_state.autenticado = False
         st.rerun()
 
-    tabs = st.tabs(["🚗 Catálogo", "📅 Mi Reserva", "📍
+    tabs = st.tabs(["🚗 Catálogo", "📅 Mi Reserva", "📍 Ubicación y Contacto", "🛡️ Panel Máster"])
+
+    # TAB CATALOGO
+    with tabs[0]:
+        conn = sqlite3.connect('jm_final_v3.db')
+        flota = pd.read_sql_query("SELECT * FROM flota", conn)
+        for _, a in flota.iterrows():
+            with st.container():
+                st.markdown(f'''<div class="card-auto">
+                    <img src="{a['img']}" width="100%" style="max-width:300px; border-radius:10px;">
+                    <h3>{a['nombre']}</h3>
+                    <p>{a['color']} | {a['año']} | Chapa: {a['chapa']}</p>
+                    <h3 style="color:#D4AF37;">R$ {a['precio']} / día</h3>
+                    <p><b>Estado: {a['estado']}</b></p>
+                </div>''', unsafe_allow_html=True)
+                
+                bloq = obtener_fechas_bloqueadas(a['nombre'])
+                
+                if a['estado'] == "Disponible":
+                    with st.expander(f"Alquilar {a['nombre']}"):
+                        f_ini = st.date_input("Fecha Inicio", date.today(), key=f"i{a['nombre']}")
+                        f_fin = st.date_input("Fecha Devolución", f_ini + timedelta(days=1), key=f"f{a['nombre']}")
+                        
+                        if f_ini in bloq or f_fin in bloq:
+                            st.error("⚠️ Fechas no disponibles para este vehículo.")
+                        else:
+                            h_e = st.time_input("Hora Entrega", time(9,0), key=f"he{a['nombre']}")
+                            h_d = st.time_input("Hora Devolución", time(9,0), key=f"hd{a['nombre']}")
+                            total = (f_fin - f_ini).days * a['precio']
+                            
+                            st.info(f"🏦 **DATOS PIX PARA PAGO:**\n\nChave PIX: **JMASOCIADOS2026**\nBanco: JM Bank")
+                            st.subheader(f"Total: R$ {total}")
+                            
+                            if st.button(f"Confirmar Reserva {a['nombre']}"):
+                                conn = sqlite3.connect('jm_final_v3.db')
+                                conn.execute("INSERT INTO reservas (cliente, auto, inicio, fin, h_entrega, h_devolucion, total) VALUES (?,?,?,?,?,?,?)",
+                                             (st.session_state.user, a['nombre'], f_ini, f_fin, str(h_e), str(h_d), total))
+                                conn.commit(); conn.close()
+                                st.success("¡Reserva confirmada!")
+                                
+                                # Botón Contrato
+                                pdf = crear_pdf_contrato({'cliente':st.session_state.user, 'auto':a['nombre'], 'chapa':a['chapa'], 'inicio':f_ini, 'fin':f_fin, 'total':total})
+                                st.download_button("📄 Descargar Contrato PDF", pdf, f"Contrato_{a['nombre']}.pdf")
+                                
+                                # WhatsApp
+                                msg = f"Reserva JM: {a['nombre']}. Cliente: {st.session_state.user}. Total: R$ {total}"
+                                st.markdown(f'<a href="https://wa.me/595991681191?text={urllib.parse.quote(msg)}" class="btn-custom btn-wa">Enviar Comprobante por WhatsApp</a>', unsafe_allow_html=True)
+
+    # TAB UBICACION Y CONTACTO
+    with tabs[2]:
+        st.markdown("### 📍 Nuestra Ubicación")
+        st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3601.234567!2d-54.612345!3d-25.512345!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjXCsDMwJzQ0LjQiUyA1NMKwMzYnNDQuNCJX!5e0!3m2!1ses!2spy!4v1620000000000" width="100%" height="400" frameborder="0" style="border:0;" allowfullscreen></iframe>', unsafe_allow_html=True)
+        
+        st.markdown(f'<a href="https://wa.me/595991681191" class="btn-custom btn-wa">💬 WhatsApp Corporativo</a>', unsafe_allow_html=True)
+        st.markdown(f'<a href="https://www.instagram.com/jm_asociados_consultoria?igsh=djBzYno0MmViYzBo" class="btn-custom btn-ig">📸 Nuestro Instagram</a>', unsafe_allow_html=True)
+
+    # TAB PANEL MASTER (ADMIN)
+    with tabs[3]:
+        if st.session_state.role == "admin":
+            st.title("🛡️ Panel Administrativo")
+            conn = sqlite3.connect('jm_final_v3.db')
+            df_res = pd.read_sql_query("SELECT * FROM reservas", conn)
+            
+            # Finanzas
+            st.metric("INGRESOS TOTALES", f"R$ {df_res['total'].sum():,}")
+            fig = px.bar(df_res, x="auto", y="total", title="Ingresos por Vehículo")
+            st.plotly_chart(fig, use_container_width=True)
+            
+            st.dataframe(df_res, use_container_width=True)
+            if st.button("LIMPIAR REGISTROS (PIN 0000)"):
+                st.warning("Ingrese PIN para borrar")
+            conn.close()
+        else:
+            st.warning("⚠️ Acceso denegado. Solo para administradores.")
