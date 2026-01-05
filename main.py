@@ -5,7 +5,7 @@ from datetime import datetime, date, timedelta
 import urllib.parse
 
 # --- 1. CONFIGURACIÓN ---
-st.set_page_config(page_title="JM ASOCIADOS | SISTEMA", layout="wide")
+st.set_page_config(page_title="JM |ALQUILER DE VEHICULOS", layout="wide")
 
 if 'autenticado' not in st.session_state: st.session_state.autenticado = False
 if 'user_name' not in st.session_state: st.session_state.user_name = ""
@@ -45,7 +45,7 @@ st.markdown("""<style>
 
 # --- 5. LÓGICA DE LOGIN ---
 if not st.session_state.autenticado:
-    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>JM ASOCIADOS</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center; color:#D4AF37;'>JM ALQUILER DE VEHICULOS</h1>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
         u = st.text_input("USUARIO / TELÉFONO")
@@ -83,7 +83,7 @@ else:
                 total = dias * AUTOS[st.session_state.auto_sel]['precio']
                 
                 st.markdown(f"### Total: R$ {total}")
-                st.info("🏦 **DATOS PARA PAGO PIX:**\n\nChave PIX: **JMASOCIADOS2026PIX**\nBanco: JM Bank")
+                st.info("🏦 **DATOS PARA PAGO PIX:**\n\nChave PIX: **24510861818**\Banco Santander: Marina Baez")
                 
                 if st.form_submit_button("CONFIRMAR RESERVA"):
                     conn = sqlite3.connect('jm_asociados.db')
