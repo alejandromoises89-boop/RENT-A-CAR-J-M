@@ -146,7 +146,7 @@ if not st.session_state.autenticado:
 
 else:
     aplicar_estilo_app()
-    st.markdown('<div class="header-app"><h1>JM ASOCIADOS - GESTIÓN DE FLOTA</h1></div>', unsafe_allow_html=True)
+    st.markdown('<div class="header-app"><h1>JM ASOCIADOS - Alquiler de Vehiculos </h1></div>', unsafe_allow_html=True)
     
     tabs = st.tabs(["🚗 Catálogo", "📅 Mis Alquileres", "📍 Localización", "⭐ Reseñas", "🛡️ Panel Master"])
 
@@ -204,16 +204,26 @@ else:
                     st.download_button("📄 Descargar PDF", data=pdf_data, file_name=f"Contrato_JM_{row['id']}.pdf", key=f"dl_{row['id']}")
         else: st.info("No tienes reservas.")
 
-    with tabs[2]:
+    with with tabs[2]:
         col_m, col_t = st.columns([2, 1])
         with col_m:
-            st.markdown("### 📍 Oficina Principal")
-            st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d3601.234567!2d-54.6111!3d-25.5097!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1ses!2spy!4v1700000000000" width="100%" height="400" style="border:0; border-radius:15px;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
+            st.markdown("### 📍 Nuestra Oficina Principal")
+            # MAPA ENFOCADO EN FARID RAHAL Y CURUPAYTY, CDE
+            st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3601.4475475143!2d-54.6133!3d-25.5158!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjXCsDMwJzU2LjkiUyA1NMKwMzYnNDcuOSJX!5e0!3m2!1ses!2spy!4v1625678901234!5m2!1ses!2spy" width="100%" height="450" style="border:0; border-radius:15px;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
         with col_t:
             st.markdown("### 🏢 Dirección")
-            st.write("**Edificio Aramí** | Ciudad del Este")
+            st.write("**Edificio Aramí** (Frente al Edificio España)")
+            st.write("Esq. Farid Rahal y Curupayty")
+            st.write("Ciudad del Este, Paraguay")
             st.divider()
-            st.write("WhatsApp: +595 991 681 191")
+            st.markdown(f'''
+                <a href="https://instagram.com/jymasociados" target="_blank" class="btn-notif btn-instagram">
+                    <i class="fa-brands fa-instagram btn-icon"></i> Instagram Oficial
+                </a>
+                <a href="https://wa.me/595991681191" target="_blank" class="btn-notif btn-whatsapp">
+                    <i class="fa-brands fa-whatsapp btn-icon"></i> Contacto WhatsApp
+                </a>
+            ''', unsafe_allow_html=True)
 
     with tabs[3]:
         st.subheader("⭐ Reseñas")
@@ -233,3 +243,48 @@ else:
     if st.sidebar.button("Cerrar Sesión"):
         st.session_state.autenticado = False
         st.rerun()
+# --- TAB 6: PANEL MASTER (SOLO ADMIN) ---
+    if st.session_state.role == "admin":
+        with tabs[4]:
+            st.title("⚙️ Administración Central")
+            conn = sqlite3.connect('jm_asociados.db')
+            
+            # --- 1. MÉTRICAS Y GRÁFICOS ---
+            df_all = pd.read_sql_query("SELECT * FROM reservas", conn)
+            df_re = pd.read_sql_query("SELECT * FROM resenas", conn)
+            
+            c1, c2 = st.columns(2)
+            with c1:
+                st.metric("Ingresos Totales (BRL)", f"{df_all['monto_brl'].sum():,} BRL")
+                st.write("Popularidad de la Flota")
+                st.bar_chart(df_all['auto'].value_counts())
+            with c2:
+                st.write("Últimas Reseñas Recibidas")
+                st.dataframe(df_re[['cliente', 'comentario', 'estrellas']].tail(5), use_container_width=True)
+            
+            st.divider()
+
+            # --- 2. GESTIÓN DE REGISTROS (BORRADO DE PRUEBAS) ---
+            st.subheader("🗑️ Gestión de Alquileres")
+            st.write("Utilice esta opción para limpiar las pruebas antes de la exposición.")
+            
+            if not df_all.empty:
+                st.dataframe(df_all, use_container_width=True) # Mostrar tabla completa
+                
+                # Botón de borrado masivo
+                if st.button("BORRAR TODOS LOS ALQUILERES (Limpiar Pruebas)"):
+                    cursor = conn.cursor()
+                    cursor.execute("DELETE FROM reservas")
+                    conn.commit()
+                    st.warning("⚠️ Todos los registros de alquiler han sido eliminados.")
+                    st.rerun()
+            else:
+                st.info("No hay alquileres registrados actualmente.")
+
+            st.divider()
+            
+            # --- 3. EXPORTACIÓN ---
+            st.write("Exportar reporte para balance de metas:")
+            st.download_button("📥 Descargar Excel (CSV)", df_all.to_csv(index=False).encode('utf-8'), "reporte_jm_final.csv")
+            
+            conn.close()
