@@ -192,68 +192,59 @@ else:
                             st.error("Fechas no disponibles")
 
     with tabs[1]:
-        st.subheader("📋 Mis Contratos y Reservas")
+        st.subheader("📋 Mis Contratos")
         conn = sqlite3.connect('jm_asociados.db')
         df_c = pd.read_sql_query("SELECT * FROM reservas WHERE cliente = ?", conn, params=(st.session_state.user_name,))
         conn.close()
         if not df_c.empty:
             for _, row in df_c.iterrows():
-                with st.expander(f"Contrato #{row['id']} - {row['auto']}"):
+                with st.expander(f"Reserva {row['auto']} ({row['inicio']})"):
+                    st.write(f"Estado: {row['estado']}")
                     pdf_data = generar_contrato(row['cliente'], row['auto'], row['inicio'], row['fin'], row['monto_brl'])
-                    st.download_button("📄 Descargar PDF", data=pdf_data, file_name=f"Contrato_JM_{row['id']}.pdf", key=f"dl_{row['id']}")
-        else: st.info("No tienes reservas.")
-
-# --- TAB 6: RESERVAS ---
-with tabs[0]:
-    st.subheader("Seleccione su Vehículo")
-    cols = st.columns(4)
-    for i, (nombre, info) in enumerate(AUTOS.items()):
-        with cols[i]:
-            st.markdown(f'<div class="car-card"><img src="{info["img"]}" width="100%"><br><b>{nombre}</b></div>', unsafe_allow_html=True)
-            if st.button(f"Alquilar {info['color']}", key=f"btn_{i}"):
-                st.session_state.auto_sel = nombre
-
-    if "auto_sel" in st.session_state:
-        st.divider()
-        with st.form("form_reserva"):
-            st.markdown(f"### Detalle de Reserva: {st.session_state.auto_sel}")
-            c1, c2 = st.columns(2)
-            nombre_c = c1.text_input("Nombre y Apellido")
-            whatsapp = c2.text_input("WhatsApp (con código de país)")
-            f_entrega = c1.date_input("Fecha Inicio", datetime.date.today())
-            dias_alq = c2.number_input("Días de alquiler", min_value=1, value=1)
-            tipo_doc = c1.selectbox("Documento", ["CPF", "RG", "C.I.", "DNI", "Pasaporte"])
-            num_doc = c2.text_input("Número de Documento")
-            mail = c1.text_input("Correo Electrónico")
+                    st.download_button("📄 PDF", data=pdf_data, file_name=f"Contrato_{row['id']}.pdf", key=f"dl_{row['id']}")
+        else: st.info("Sin reservas.")
             
-            f_fin_calc = f_entrega + datetime.timedelta(days=dias_alq)
-            total_r = AUTOS[st.session_state.auto_sel]['precio'] * dias_alq
-            st.markdown(f"#### Total a pagar: R$ {total_r}")
+# --- TAB 6: RESERVAS ---
+else:
+    aplicar_estilo_app()
+    st.markdown('<div class="header-app"><h1>JM ASOCIADOS - Alquiler de Vehiculos </h1></div>', unsafe_allow_html=True)
+    tabs = st.tabs(["🚗 Catálogo", "📅 Mis Alquileres", "📍 Localización", "⭐ Reseñas", "🛡️ Panel Master"])
 
-            if st.form_submit_button("✅ VERIFICAR DISPONIBILIDAD Y RESERVAR"):
-                if not nombre_c or not num_doc:
-                    st.error("Por favor complete Nombre y Documento.")
-                elif verificar_disponibilidad(st.session_state.auto_sel, f_entrega, f_fin_calc):
-                    # Guardar reserva
-                    nueva_res = pd.DataFrame([{
-                        "Inicio": pd.to_datetime(f_entrega), "Fin": pd.to_datetime(f_fin_calc),
-                        "Cliente": nombre_c, "WhatsApp": whatsapp, "Doc_Tipo": tipo_doc,
-                        "Doc_Num": num_doc, "Email": mail, "Auto": st.session_state.auto_sel,
-                        "Monto": total_r, "Tipo": "Ingreso"
-                    }])
-                    st.session_state.db_reservas = pd.concat([st.session_state.db_reservas, nueva_res], ignore_index=True)
-                    
-                    st.success("✅ ¡Vehículo Disponible! Reserva registrada.")
-                    
-                    # Mostrar QR y Contrato
-                    col_p1, col_p2 = st.columns(2)
-                    with col_p1:
-                        st.info("📄 Vista Previa Contrato")
-                        pdf_bytes = generar_pdf_contrato(nueva_res.iloc[0].to_dict())
-                        st.download_button("Descargar Contrato PDF", pdf_bytes, "contrato_jm.pdf")
-                    with col_p2:
-                        st.info("📱 Pago PIX")
-                        pix = f"0002"
+    with tabs[0]:
+        st.info(f"💰 Cotización BRL/PYG: {cotizacion_hoy}")
+        st.subheader("Seleccione su Vehículo")
+        cols = st.columns(4)
+        for i, (nombre, info) in enumerate(AUTOS.items()):
+            with cols[i]:
+                st.markdown(f'<div class="card-auto" style="padding:10px; text-align:center;"><img src="{info["img"]}" width="100%"><br><b>{nombre}</b></div>', unsafe_allow_html=True)
+                if st.button(f"Alquilar {info['color']}", key=f"btn_cat_{i}"):
+                    st.session_state.auto_sel = nombre
+
+        if "auto_sel" in st.session_state:
+            st.divider()
+            with st.form("form_reserva"):
+                st.markdown(f"### Detalle de Reserva: {st.session_state.auto_sel}")
+                c1, c2 = st.columns(2)
+                nombre_c = c1.text_input("Nombre y Apellido")
+                whatsapp = c2.text_input("WhatsApp")
+                f_entrega = c1.date_input("Fecha Inicio", date.today())
+                dias_alq = c2.number_input("Días", min_value=1, value=1)
+                
+                f_fin_calc = f_entrega + timedelta(days=dias_alq)
+                total_r = AUTOS[st.session_state.auto_sel]['precio'] * dias_alq
+                st.markdown(f"#### Total a pagar: R$ {total_r}")
+
+                if st.form_submit_button("✅ RESERVAR"):
+                    if check_disponibilidad(st.session_state.auto_sel, f_entrega, f_fin_calc):
+                        conn = sqlite3.connect('jm_asociados.db')
+                        conn.cursor().execute("INSERT INTO reservas (cliente, auto, inicio, fin, monto_brl, estado) VALUES (?,?,?,?,?,?)",
+                                     (nombre_c, st.session_state.auto_sel, f_entrega, f_fin_calc, total_r, "Pendiente"))
+                        conn.commit()
+                        conn.close()
+                        st.success("✅ ¡Reserva registrada!")
+                        st.info(f"PIX: 0002")
+                    else:
+                        st.error("No disponible.")
                         
 # --- TAB 3: UBICACIÓN & REDES ---
 with tabs[2]:
@@ -347,7 +338,4 @@ with tabs[2]:
             st.download_button("📥 Descargar Excel (CSV)", df_all.to_csv(index=False).encode('utf-8'), "reporte_jm_final.csv")
             
             conn.close()
-
-
-
 
