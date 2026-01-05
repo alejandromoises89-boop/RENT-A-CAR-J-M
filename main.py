@@ -156,6 +156,7 @@ else:
             {"nombre": "Hyundai Tucson 2012", "precio": 260, "specs": "4x2 | Diesel | Confort", "img": "https://www.iihs.org/cdn-cgi/image/width=636/api/ratings/model-year-images/2098/"},
             {"nombre": "Toyota Voxy 2009", "precio": 240, "specs": "Familiar | 7 Pasajeros | Amplio", "img": "https://i.ibb.co/yFNrttM2/BG160258-2427f0-Photoroom.png"},
             {"nombre": "Toyota Vitz 2012 (Blanco)", "precio": 195, "specs": "Automático | Aire Full | Carta Verde", "img": "https://i.ibb.co/Y7ZHY8kX/pngegg.png"}
+        ]
         
         for auto in flota:
             with st.container():
@@ -333,4 +334,5 @@ with tabs[1]:
             st.download_button("📥 Descargar Excel (CSV)", df_all.to_csv(index=False).encode('utf-8'), "reporte_jm_final.csv")
             
             conn.close()
+
 
