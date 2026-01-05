@@ -1,164 +1,91 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
-import plotly.express as px
 import requests
-from datetime import datetime, date
+from datetime import datetime, date, timedelta # Corregido: añadido timedelta
 from fpdf import FPDF
 import io
 
-# --- 1. CONFIGURACIÓN INICIAL ---
-st.set_page_config(page_title="JM ASOCIADOS | ALQUILER DE VEHICULOS", layout="wide")
+# --- 1. CONFIGURACIÓN ---
+st.set_page_config(page_title="JM ASOCIADOS | ALQUILER", layout="wide")
 
-# --- 2. GESTIÓN DE ESTADOS ---
-if 'autenticado' not in st.session_state:
-    st.session_state.autenticado = False
-if 'vista_login' not in st.session_state:
-    st.session_state.vista_login = "inicio"
-if 'user_name' not in st.session_state:
-    st.session_state.user_name = ""
-if 'role' not in st.session_state:
-    st.session_state.role = "user"
+if 'autenticado' not in st.session_state: st.session_state.autenticado = False
+if 'vista_login' not in st.session_state: st.session_state.vista_login = "inicio"
+if 'user_name' not in st.session_state: st.session_state.user_name = ""
+if 'role' not in st.session_state: st.session_state.role = "user"
 
-# --- 3. FUNCIONES CORE ---
+# --- 2. BASE DE DATOS ---
 def init_db():
     conn = sqlite3.connect('jm_asociados.db')
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS reservas 
-                (id INTEGER PRIMARY KEY, cliente TEXT, auto TEXT, inicio DATE, fin DATE, monto_brl REAL, estado TEXT)''')
+    c.execute('CREATE TABLE IF NOT EXISTS reservas (id INTEGER PRIMARY KEY, cliente TEXT, auto TEXT, inicio DATE, fin DATE, monto_brl REAL, estado TEXT)')
     c.execute('CREATE TABLE IF NOT EXISTS resenas (id INTEGER PRIMARY KEY, cliente TEXT, comentario TEXT, estrellas INTEGER, fecha TEXT)')
-    c.execute('''CREATE TABLE IF NOT EXISTS egresos 
-                (id INTEGER PRIMARY KEY, tipo TEXT, monto REAL, fecha DATE, descripcion TEXT)''')
     conn.commit()
     conn.close()
 
-def check_disponibilidad(auto, f_inicio, f_fin):
+def check_disponibilidad(auto, f_i, f_f):
     conn = sqlite3.connect('jm_asociados.db')
     query = "SELECT * FROM reservas WHERE auto = ? AND NOT (fin < ? OR inicio > ?)"
-    df = pd.read_sql_query(query, conn, params=(auto, f_inicio, f_fin))
+    df = pd.read_sql_query(query, conn, params=(auto, str(f_i), str(f_f)))
     conn.close()
     return df.empty
 
-def obtener_cotizacion_brl():
-    try:
-        r = requests.get("https://api.exchangerate-api.com/v4/latest/BRL")
-        return round(r.json()['rates']['PYG'])
-    except: return 1450 
-
-def generar_contrato(cliente, auto, inicio, fin, total):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", 'B', 16)
-    pdf.cell(200, 10, "CONTRATO DE ALQUILER - JM ASOCIADOS", ln=True, align='C')
-    pdf.ln(10)
-    pdf.set_font("Arial", size=12)
-    pdf.multi_cell(0, 10, f"""
-    Vehiculo: {auto}
-    Arrendatario: {cliente}
-    Desde: {inicio} | Hasta: {fin}
-    Costo Total: R$ {total}
-
-    El arrendatario declara recibir el vehiculo en condiciones optimas. 
-    Se compromete a la devolucion en fecha y hora pactada.  
-    Firmado digitalmente por JM ASOCIADOS y el Cliente.
-    """)
-    return pdf.output(dest='S').encode('latin-1')
-
 init_db()
-cotizacion_hoy = obtener_cotizacion_brl()
 
-# --- 4. DISEÑOS CSS ---
+# --- 3. ESTILOS ---
 def aplicar_estilo_login():
-    st.markdown("""
-    <style>
+    st.markdown("""<style>
         .stApp { background: radial-gradient(circle, #4A0404 0%, #1A0000 100%); color: white; }
-        .title-jm { font-family: 'Times New Roman', serif; color: #D4AF37; font-size: 50px; font-weight: bold; text-align: center; letter-spacing: 5px; margin-bottom:0px; }
-        .subtitle-jm { font-family: 'Times New Roman', serif; color: #D4AF37; font-size: 18px; text-align: center; text-transform: uppercase; letter-spacing: 3px; }
-        .stTextInput>div>div>input { background-color: rgba(255,255,255,0.05)!important; border: 1px solid #D4AF37!important; color: #D4AF37!important; }
-        .stButton>button { background-color: #600000!important; color: #D4AF37!important; border: 1px solid #D4AF37!important; font-family: 'Times New Roman', serif; font-weight: bold; width: 100%; border-radius: 5px; height: 3em; }
-    </style>
-    """, unsafe_allow_html=True)
+        .title-jm { font-family: 'Times New Roman'; color: #D4AF37; font-size: 45px; text-align: center; font-weight: bold; }
+        .stButton>button { background-color: #600000!important; color: #D4AF37!important; border: 1px solid #D4AF37!important; width: 100%; }
+    </style>""", unsafe_allow_html=True)
 
 def aplicar_estilo_app():
-    st.markdown("""
-    <style>
+    st.markdown("""<style>
         .stApp { background-color: #4A0404; color: white; }
-        .header-app { background-color: #300000; padding: 25px; color: #D4AF37; text-align: center; border-bottom: 5px solid #D4AF37; margin-bottom: 30px; }
-        .card-auto { background-color: white; color: black; padding: 25px; border-radius: 15px; border: 3px solid #D4AF37; margin-bottom: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
-        .spec-label { background: #f0f0f0; padding: 5px 10px; border-radius: 5px; font-weight: bold; font-size: 0.9em; color: #4A0404; margin-bottom: 10px; display: inline-block; }
-        .stTabs [data-baseweb="tab-list"] { background-color: rgba(255,255,255,0.1); border-radius: 10px; }
-        .stTabs [data-baseweb="tab"] { color: #D4AF37 !important; }
-    </style>
-    """, unsafe_allow_html=True)
+        .card-auto { background-color: white; color: black; padding: 20px; border-radius: 15px; border: 2px solid #D4AF37; margin-bottom: 10px; }
+        .spec-label { background: #f0f0f0; padding: 3px 8px; border-radius: 5px; font-weight: bold; color: #4A0404; }
+    </style>""", unsafe_allow_html=True)
 
-# --- 5. LÓGICA DE NAVEGACIÓN ---
+# --- 4. LÓGICA DE LOGIN ---
 if not st.session_state.autenticado:
     aplicar_estilo_login()
-    st.markdown('<p class="title-jm">ACCESO A JM</p><p class="subtitle-jm">ALQUILER DE VEHÍCULOS</p>', unsafe_allow_html=True)
-    
+    st.markdown('<p class="title-jm">JM ASOCIADOS</p>', unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 1.5, 1])
     with col2:
         if st.session_state.vista_login == "inicio":
-            u = st.text_input("USUARIO / TELÉFONO")
+            u = st.text_input("USUARIO")
             p = st.text_input("CONTRASEÑA", type="password")
-            
-            c1, c2 = st.columns(2)
-            if c1.button("INGRESAR"):
-                if (u == "admin" and p == "2026") or (u != "" and p != ""):
-                    st.session_state.autenticado = True
-                    st.session_state.user_name = u
-                    st.rerun()
-            if c2.button("BIOMETRÍA 👤"):
-                st.info("Iniciando escaneo de huella/rostro...")
-                
-            st.divider()
-            col_a, col_b = st.columns(2)
-            if col_a.button("CREAR CUENTA"):
+            if st.button("INGRESAR"):
+                if u == "admin" and p == "2026": st.session_state.role = "admin"
+                st.session_state.autenticado = True
+                st.session_state.user_name = u
+                st.rerun()
+            if st.button("CREAR CUENTA"): 
                 st.session_state.vista_login = "registro"
                 st.rerun()
-            if col_b.button("¿OLVIDÓ CLAVE?"):
-                st.session_state.vista_login = "recuperar"
-                st.rerun()
-
         elif st.session_state.vista_login == "registro":
-            st.subheader("REGISTRAR NUEVA CUENTA")
-            st.text_input("Nombre Completo")
-            st.text_input("Teléfono / WhatsApp")
-            st.text_input("Documento / RG/CPF/C.I/Pasaporte")
-            st.text_input("Nueva Contraseña", type="password")
-            if st.button("FINALIZAR REGISTRO Y GUARDAR"):
-                st.success("Cuenta creada con éxito")
-                st.session_state.vista_login = "inicio"
-                st.rerun()
-            if st.button("ATRÁS"):
-                st.session_state.vista_login = "inicio"
-                st.rerun()
-        
-        elif st.session_state.vista_login == "recuperar":
-            st.subheader("RECUPERAR ACCESO")
-            st.text_input("Ingrese su Teléfono Registrado")
-            if st.button("ENVIAR CÓDIGO SMS"):
-                st.success("Código enviado.")
-            if st.button("ATRÁS"):
+            st.subheader("REGISTRO")
+            st.text_input("Nombre")
+            if st.button("GUARDAR"): 
                 st.session_state.vista_login = "inicio"
                 st.rerun()
 
+# --- 5. APLICACIÓN PRINCIPAL ---
 else:
     aplicar_estilo_app()
-    st.markdown('<div class="header-app"><h1>JM ASOCIADOS - Alquiler de Vehiculos </h1></div>', unsafe_allow_html=True)
-    tabs = st.tabs(["🚗 Catálogo", "📅 Mis Alquileres", "📍 Localización", "⭐ Reseñas", "🛡️ Panel Master"])
-    
+    tabs = st.tabs(["🚗 Catálogo", "📅 Mis Alquileres", "📍 Ubicación", "🛡️ Admin"])
+
     with tabs[0]:
-        st.info(f"💰 Cotización BRL/PYG: {cotizacion_hoy}")
-        
+        st.subheader("Nuestra Flota")
         flota = [
-            {"nombre": "Toyota Vitz 2012 (Negro)", "precio": 195, "specs": "Automático | Nafta | Económico", "img": "https://a0.anyrgb.com/pngimg/1498/1242/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel-economy-in-automobiles-hybrid-vehicle-frontwheel-drive-minivan.png"},
-            {"nombre": "Hyundai Tucson 2012", "precio": 260, "specs": "4x2 | Diesel | Confort", "img": "https://www.iihs.org/cdn-cgi/image/width=636/api/ratings/model-year-images/2098/"},
-            {"nombre": "Toyota Voxy 2009", "precio": 240, "specs": "Familiar | 7 Pasajeros | Amplio", "img": "https://i.ibb.co/yFNrttM2/BG160258-2427f0-Photoroom.png"},
-            {"nombre": "Toyota Vitz 2012 (Blanco)", "precio": 195, "specs": "Automático | Aire Full | Carta Verde", "img": "https://i.ibb.co/Y7ZHY8kX/pngegg.png"}
+            {"nombre": "Toyota Vitz 2012 (Negro)", "precio": 195, "specs": "Auto | Nafta", "img": "https://i.ibb.co/Y7ZHY8kX/pngegg.png"},
+            {"nombre": "Hyundai Tucson 2012", "precio": 260, "specs": "Diesel | 4x2", "img": "https://www.iihs.org/cdn-cgi/image/width=636/api/ratings/model-year-images/2098/"},
+            {"nombre": "Toyota Voxy 2009", "precio": 240, "specs": "7 Pasajeros", "img": "https://i.ibb.co/yFNrttM2/BG160258-2427f0-Photoroom.png"}
+            {"nombre": "Toyota Vitz (Blanco)", "precio":195 "specs": "Auto | Nafta", "https://i.ibb.co/Y7ZHY8kX/pngegg.png
         ]
-        
-        for auto in flota:
+
+       for auto in flota:
             with st.container():
                 # Cuadro Blanco para el auto
                 st.markdown(f'''
@@ -187,6 +114,7 @@ else:
                                          (st.session_state.user_name, auto['nombre'], f_i, f_f, total, "Pendiente"))
                             conn.commit()
                             conn.close()
+                        else:
                             st.error("Fechas no disponibles")
 
     with tabs[1]:
@@ -203,10 +131,10 @@ else:
         else: st.info("Sin reservas.")
             
 # --- TAB 6: RESERVAS ---
-    with tabs[1]:
-        aplicar_estilo_app()
-        st.markdown('<div class="header-app"><h1>JM ASOCIADOS - Alquiler de Vehiculos </h1></div>', unsafe_allow_html=True)
-        tabs = st.tabs(["🚗 Catálogo", "📅 Mis Alquileres", "📍 Localización", "⭐ Reseñas", "🛡️ Panel Master"])
+else:
+    aplicar_estilo_app()
+    st.markdown('<div class="header-app"><h1>JM ASOCIADOS - Alquiler de Vehiculos </h1></div>', unsafe_allow_html=True)
+    tabs = st.tabs(["🚗 Catálogo", "📅 Mis Alquileres", "📍 Localización", "⭐ Reseñas", "🛡️ Panel Master"])
 
     with tabs[0]:
         st.info(f"💰 Cotización BRL/PYG: {cotizacion_hoy}")
@@ -241,10 +169,11 @@ else:
                         conn.close()
                         st.success("✅ ¡Reserva registrada!")
                         st.info(f"PIX: 0002")
+                    else:
                         st.error("No disponible.")
                         
 # --- TAB 3: UBICACIÓN & REDES ---
-with tabs[1]:
+with tabs[2]:
     # Estilos específicos para botones sociales
     st.markdown("""
         <style>
@@ -257,7 +186,8 @@ with tabs[1]:
                 text-align: center;
                 font-weight: bold;
                 color: white !important;
-                transition: 0.3s;}
+                transition: 0.3s;
+            }
             .btn-instagram { background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); }
             .btn-whatsapp { background-color: #25D366; }
             .btn-social:hover { transform: scale(1.02); opacity: 0.9; }
@@ -287,7 +217,7 @@ with tabs[1]:
             <a href="https://wa.me/595991681191" target="_blank" class="btn-social btn-whatsapp">
                 💬 Contacto WhatsApp
             </a>
-            ''', unsafe_allow_html=True)
+        ''', unsafe_allow_html=True)
         
 # --- TAB 8: PANEL MASTER (SOLO ADMIN) ---
     if st.session_state.role == "admin":
@@ -334,5 +264,3 @@ with tabs[1]:
             st.download_button("📥 Descargar Excel (CSV)", df_all.to_csv(index=False).encode('utf-8'), "reporte_jm_final.csv")
             
             conn.close()
-
-
