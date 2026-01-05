@@ -255,43 +255,61 @@ with tabs[0]:
                         st.info("📱 Pago PIX")
                         pix = f"0002
                         
-# --- TAB 7: UBICACION Y REDES ---
-            st.markdown("### 📍 Nuestra Oficina Principal")
-            # MAPA ENFOCADO EN FARID RAHAL Y CURUPAYTY, CDE
-            st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3601.4475475143!2d-54.6133!3d-25.5158!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjXCsDMwJzU2LjkiUyA1NMKwMzYnNDcuOSJX!5e0!3m2!1ses!2spy!4v1625678901234!5m2!1ses!2spy" width="100%" height="450" style="border:0; border-radius:15px;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
-        with col_t:
-            st.markdown("### 🏢 Dirección")
-            st.write("**Edificio Aramí** (Frente al Edificio España)")
-            st.write("Esq. Farid Rahal y Curupayty")
-            st.write("Ciudad del Este, Paraguay")
-            st.divider()
-            st.markdown(f'''
-                <a href="https://instagram.com/jymasociados" target="_blank" class="btn-notif btn-instagram">
-                    <i class="fa-brands fa-instagram btn-icon"></i> Instagram Oficial
-                </a>
-                <a href="https://wa.me/595991681191" target="_blank" class="btn-notif btn-whatsapp">
-                    <i class="fa-brands fa-whatsapp btn-icon"></i> Contacto WhatsApp
-                </a>
-            ''', unsafe_allow_html=True)
+# --- TAB 3: UBICACIÓN & REDES ---
+with tabs[2]:
+    # Definimos estilos específicos para los botones de esta pestaña
+    st.markdown("""
+        <style>
+            .btn-social {
+                display: block;
+                padding: 15px;
+                margin: 10px 0;
+                border-radius: 10px;
+                text-decoration: none;
+                text-align: center;
+                font-weight: bold;
+                color: white !important;
+                transition: 0.3s;
+            }
+            .btn-instagram {
+                background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+            }
+            .btn-whatsapp {
+                background-color: #25D366;
+            }
+            .btn-social:hover {
+                transform: scale(1.02);
+                box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            }
+        </style>
+    """, unsafe_allow_html=True)
 
-    with tabs[3]:
-        st.subheader("⭐ Reseñas")
-        with st.form("form_resena"):
-            coment = st.text_area("Comentario")
-            estrellas = st.select_slider("Estrellas", options=[1,2,3,4,5], value=5)
-            if st.form_submit_button("Publicar"):
-                st.success("¡Gracias!")
-
-    with tabs[4]:
-        if st.text_input("PIN Admin", type="password") == "2026":
-            conn = sqlite3.connect('jm_asociados.db')
-            df_all = pd.read_sql_query("SELECT * FROM reservas", conn)
-            st.dataframe(df_all, use_container_width=True)
-            conn.close()
-
-    if st.sidebar.button("Cerrar Sesión"):
-        st.session_state.autenticado = False
-        st.rerun()
+    col_m, col_t = st.columns([2, 1])
+    
+    with col_m:
+        st.markdown("### 📍 Nuestra Oficina Principal")
+        # Iframe corregido con ubicación en Ciudad del Este
+        
+    with col_t:
+        st.markdown("### 🏢 Dirección")
+        st.info("**Edificio Aramí** (Frente al Edificio España)")
+        st.write("📍 Esq. Farid Rahal y Curupayty")
+        st.write("🇵🇾 Ciudad del Este, Paraguay")
+        st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3600.6322345091216!2d-54.6138618!3d-25.5172421!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f685731304505f%3A0x3446002f23293e36!2sEdificio%20Arami!5e0!3m2!1ses!2spy!4v1700000000000" width="100%" height="450" style="border:0; border-radius:15px;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
+            
+        st.divider()
+        
+        st.markdown("### 📱 Contacto Directo")
+        # Botones con clases CSS personalizadas
+        st.markdown(f'''
+            <a href="https://instagram.com/jymasociados" target="_blank" class="btn-social btn-instagram">
+                <i class="fa-brands fa-instagram"></i> Instagram Oficial
+            </a>
+            <a href="https://wa.me/595991681191" target="_blank" class="btn-social btn-whatsapp">
+                <i class="fa-brands fa-whatsapp"></i> Contacto WhatsApp
+            </a>
+        ''', unsafe_allow_html=True)
+        
 # --- TAB 8: PANEL MASTER (SOLO ADMIN) ---
     if st.session_state.role == "admin":
         with tabs[4]:
@@ -337,6 +355,3 @@ with tabs[0]:
             st.download_button("📥 Descargar Excel (CSV)", df_all.to_csv(index=False).encode('utf-8'), "reporte_jm_final.csv")
             
             conn.close()
-
-
-
