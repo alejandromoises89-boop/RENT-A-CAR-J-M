@@ -124,4 +124,4 @@ if not st.session_state.autenticado:
                 if u == "admin" and p == "8899": st.session_state.role = "admin"
                 st.session_state.autenticado = True; st.session_state.user_name = u; st.rerun()
             if st.button("Crear Cuenta"): st.session_state.vista = "registro"; st.rerun()
-            st.button("Olvidé mi contraseña
+            st.button("Olvidé mi contraseña"
