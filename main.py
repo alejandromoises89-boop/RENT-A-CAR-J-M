@@ -1,7 +1,7 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
-import plotly.express as px # Nueva librería para los gráficos
+import plotly.express as px
 from datetime import datetime, date, timedelta, time
 from fpdf import FPDF
 import urllib.parse
@@ -182,11 +182,24 @@ else:
                                              (st.session_state.u_name, a['nombre'], d_i, d_f, str(h_e), str(h_d), total, pdf))
                                 conn.commit(); conn.close()
                                 st.success("✅ Reserva y Contrato guardados.")
-                                msg = f"Reserva JM: {a['nombre']} - R$ {total}"
+                                
+                                # MENSAJE DE WHATSAPP FORMAL CON DATOS PIX
+                                msg = (f"Hola, un saludo cordial de JM ALQUILER DE VEHÍCULOS. 👋\n\n"
+                                       f"Me presento, soy el sistema de reservas de JM. He registrado su solicitud con éxito:\n"
+                                       f"🚗 Vehículo: {a['nombre']}\n"
+                                       f"📅 Periodo: {d_i} al {d_f}\n"
+                                       f"💰 Total a pagar: R$ {total}\n\n"
+                                       f"📍 DATOS PARA EL PAGO (PIX):\n"
+                                       f"🔹 Llave Pix: 24510861818\n"
+                                       f"🔹 Banco: Santander\n"
+                                       f"🔹 Titular: Marina Baez\n\n"
+                                       f"Por favor, adjunte su comprobante de pago por este medio para validar su reserva definitiva. ¡Gracias por elegirnos!")
+                                
                                 st.markdown(f'<a href="https://wa.me/595991681191?text={urllib.parse.quote(msg)}" class="btn-contact wa">📤 ENVIAR COMPROBANTE WHATSAPP</a>', unsafe_allow_html=True)
 
     with tabs[1]:
-        st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3601.373449336153!2d-54.6152336!3d-25.5259167!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f68ff114298d0f%3A0x7d6b38c035670860!2sCiudad%20del%20Este!5e0!3m2!1ses!2spy!4v1700000000000" width="100%" height="400" style="border:1px solid #D4AF37; border-radius:15px;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
+        # MAPA CORREGIDO APUNTANDO A J&M ASOCIADOS
+        st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d3600.957544066063!2d-54.6103998!3d-25.5170969!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f68fbd64f8f4ed%3A0x336570e64f07f1b6!2sJ%26M%20ASOCIADOS%20Consultoria!5e0!3m2!1ses-419!2spy!4v1715600000000!5m2!1ses-419!2spy" width="100%" height="400" style="border:1px solid #D4AF37; border-radius:15px;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
         st.markdown(f'<a href="https://wa.me/595991681191" class="btn-contact wa">💬 WhatsApp Corporativo</a>', unsafe_allow_html=True)
         st.markdown(f'<a href="https://www.instagram.com/jm_asociados_consultoria?igsh=djBzYno0MmViYzBo" class="btn-contact ig">📸 Instagram Oficial</a>', unsafe_allow_html=True)
 
@@ -198,7 +211,6 @@ else:
             conn.close()
 
             if not df_r.empty:
-                # --- SECCIÓN FINANZAS ---
                 st.markdown("#### 📊 Análisis de Ingresos")
                 col_m1, col_m2, col_m3 = st.columns(3)
                 total_ingresos = df_r['total'].sum()
@@ -209,9 +221,7 @@ else:
                 col_m2.metric("Nº de Reservas", total_reservas)
                 col_m3.metric("Ticket Promedio", f"R$ {promedio_reserva:,.2f}")
 
-                # Gráficos
                 col_g1, col_g2 = st.columns(2)
-                
                 with col_g1:
                     fig_auto = px.bar(df_r.groupby('auto')['total'].sum().reset_index(), 
                                       x='auto', y='total', title="Ingresos por Vehículo",
@@ -227,7 +237,6 @@ else:
                 
                 st.divider()
 
-                # --- SECCIÓN CONTRATOS ---
                 st.markdown("#### 📄 Gestión de Contratos")
                 for _, r in df_r.iterrows():
                     with st.container():
@@ -239,7 +248,6 @@ else:
             else:
                 st.info("Aún no hay datos financieros para mostrar.")
 
-            # --- SECCIÓN DE BORRADO ---
             st.markdown("#### 🗑️ Zona de Seguridad")
             pin = st.text_input("PIN Maestro para Eliminar Datos", type="password")
             if st.button("LIMPIAR TODOS LOS REGISTROS"):
