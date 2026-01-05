@@ -59,8 +59,7 @@ def generar_contrato(cliente, auto, inicio, fin, total):
     Costo Total: R$ {total}
 
     El arrendatario declara recibir el vehiculo en condiciones optimas. 
-    Se compromete a la devolucion en fecha y hora pactada.
-    
+    Se compromete a la devolucion en fecha y hora pactada.  
     Firmado digitalmente por JM ASOCIADOS y el Cliente.
     """)
     return pdf.output(dest='S').encode('latin-1')
@@ -147,9 +146,8 @@ if not st.session_state.autenticado:
 else:
     aplicar_estilo_app()
     st.markdown('<div class="header-app"><h1>JM ASOCIADOS - Alquiler de Vehiculos </h1></div>', unsafe_allow_html=True)
-    
     tabs = st.tabs(["🚗 Catálogo", "📅 Mis Alquileres", "📍 Localización", "⭐ Reseñas", "🛡️ Panel Master"])
-
+    
     with tabs[0]:
         st.info(f"💰 Cotización BRL/PYG: {cotizacion_hoy}")
         flota = [
@@ -157,7 +155,6 @@ else:
             {"nombre": "Hyundai Tucson 2012", "precio": 260, "specs": "4x2 | Diesel | Confort", "img": "https://www.iihs.org/cdn-cgi/image/width=636/api/ratings/model-year-images/2098/"},
             {"nombre": "Toyota Voxy 2009", "precio": 240, "specs": "Familiar | 7 Pasajeros | Amplio", "img": "https://i.ibb.co/yFNrttM2/BG160258-2427f0-Photoroom.png"},
             {"nombre": "Toyota Vitz 2012 (Blanco)", "precio": 195, "specs": "Automático | Aire Full | Carta Verde", "img": "https://i.ibb.co/Y7ZHY8kX/pngegg.png"}
-        ]
         
         for auto in flota:
             with st.container():
@@ -188,7 +185,6 @@ else:
                                          (st.session_state.user_name, auto['nombre'], f_i, f_f, total, "Pendiente"))
                             conn.commit()
                             conn.close()
-                        else:
                             st.error("Fechas no disponibles")
 
     with tabs[1]:
@@ -243,7 +239,6 @@ else:
                         conn.close()
                         st.success("✅ ¡Reserva registrada!")
                         st.info(f"PIX: 0002")
-                    else:
                         st.error("No disponible.")
                         
 # --- TAB 3: UBICACIÓN & REDES ---
@@ -260,8 +255,7 @@ with tabs[1]:
                 text-align: center;
                 font-weight: bold;
                 color: white !important;
-                transition: 0.3s;
-            }
+                transition: 0.3s;}
             .btn-instagram { background: linear-gradient(45deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888); }
             .btn-whatsapp { background-color: #25D366; }
             .btn-social:hover { transform: scale(1.02); opacity: 0.9; }
@@ -291,7 +285,7 @@ with tabs[1]:
             <a href="https://wa.me/595991681191" target="_blank" class="btn-social btn-whatsapp">
                 💬 Contacto WhatsApp
             </a>
-        ''', unsafe_allow_html=True)
+            ''', unsafe_allow_html=True)
         
 # --- TAB 8: PANEL MASTER (SOLO ADMIN) ---
     if st.session_state.role == "admin":
