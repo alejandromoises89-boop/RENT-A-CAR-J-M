@@ -254,7 +254,8 @@ with tabs[0]:
                     with col_p2:
                         st.info("📱 Pago PIX")
                         pix = f"0002
-            
+                        
+# --- TAB 7: UBICACION Y REDES ---
             st.markdown("### 📍 Nuestra Oficina Principal")
             # MAPA ENFOCADO EN FARID RAHAL Y CURUPAYTY, CDE
             st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3601.4475475143!2d-54.6133!3d-25.5158!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjXCsDMwJzU2LjkiUyA1NMKwMzYnNDcuOSJX!5e0!3m2!1ses!2spy!4v1625678901234!5m2!1ses!2spy" width="100%" height="450" style="border:0; border-radius:15px;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
@@ -291,7 +292,7 @@ with tabs[0]:
     if st.sidebar.button("Cerrar Sesión"):
         st.session_state.autenticado = False
         st.rerun()
-# --- TAB 7: PANEL MASTER (SOLO ADMIN) ---
+# --- TAB 8: PANEL MASTER (SOLO ADMIN) ---
     if st.session_state.role == "admin":
         with tabs[4]:
             st.title("⚙️ Administración Central")
@@ -336,5 +337,6 @@ with tabs[0]:
             st.download_button("📥 Descargar Excel (CSV)", df_all.to_csv(index=False).encode('utf-8'), "reporte_jm_final.csv")
             
             conn.close()
+
 
 
