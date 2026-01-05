@@ -203,10 +203,6 @@ else:
                     st.download_button("📄 Descargar PDF", data=pdf_data, file_name=f"Contrato_JM_{row['id']}.pdf", key=f"dl_{row['id']}")
         else: st.info("No tienes reservas.")
 
-    with with tabs[2]:
-        col_m, col_t = st.columns([2, 1])
-        with col_m:
-
 # --- TAB 6: RESERVAS ---
 with tabs[0]:
     st.subheader("Seleccione su Vehículo")
@@ -340,4 +336,5 @@ with tabs[0]:
             st.download_button("📥 Descargar Excel (CSV)", df_all.to_csv(index=False).encode('utf-8'), "reporte_jm_final.csv")
             
             conn.close()
+
 
