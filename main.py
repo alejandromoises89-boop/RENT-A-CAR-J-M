@@ -99,35 +99,34 @@ with t_res:
                     c_d = st.text_input("CI / Documento", key=f"d{v['nombre']}")
                     c_w = st.text_input("WhatsApp", key=f"w{v['nombre']}")
                     
-                    # Cálculo de valores
                     dias = max(1, (dt_f - dt_i).days)
                     total_r = dias * v['precio']
                     total_gs = total_r * COTIZACION_DIA
                     precio_dia_gs = total_gs / dias
 
                     if c_n and c_d and c_w:
-                        st.warning("⚠️ **ATENCIÓN:** Es obligatorio leer el contrato antes de pagar.")
+                        st.warning("⚠️ **ATENCIÓN:** Antes de proceder al pago, es obligatorio leer el contrato de alquiler.")
                         
-                        st.markdown("### 📄 PREVISUALIZACIÓN DEL CONTRATO")
-                        # AQUÍ INTEGRAMOS TUS VARIABLES DENTRO DEL TEXTO DEL CONTRATO
-                        contrato_texto = f"""
-                        <div style="background-color: #2b0606; color: #f1f1f1; padding: 20px; border: 1px solid #D4AF37; border-radius: 10px; height: 300px; overflow-y: scroll; font-size: 12px; font-family: sans-serif; line-height: 1.5;">
-                            <center><b>CONTRATO DE ALQUILER DE VEHÍCULO</b></center><br>
-                            <b>ARRENDADOR:</b> JM ASOCIADOS | R.U.C. 1.702.076-0<br>
-                            <b>ARRENDATARIO:</b> {c_n.upper()} | Doc: {c_d}<br><br>
-                            <b>OBJETO:</b> Alquiler de {v['nombre']} (Placa: {v['placa']}) Color: {v['color']}.<br>
-                            <b>DURACIÓN:</b> {dias} días. Desde {dt_i.strftime('%d/%m/%Y %H:%M')} hasta {dt_f.strftime('%d/%m/%Y %H:%M')}.<br>
-                            <b>PRECIO:</b> Gs. {precio_dia_gs:,.0f} por día. TOTAL: Gs. {total_gs:,.0f}.<br><br>
-                            <b>CLÁUSULAS PRINCIPALES:</b><br>
-                            1. Uso exclusivo en Paraguay y MERCOSUR.<br>
-                            2. Depósito de Gs. 5.000.000 en caso de siniestro.<br>
-                            3. Límite de 200km/día. Excedente: 100.000 Gs.<br>
-                            4. Responsabilidad Civil y Penal a cargo del arrendatario.<br>
-                            5. El vehículo se entrega con soporte técnico en video.<br><br>
-                            <i>Al confirmar la reserva, usted acepta los términos del contrato.</i>
+                        st.markdown("### 📄 CONTRATO DE ALQUILER (LECTURA OBLIGATORIA)")
+                        contrato_html = f"""
+                        <div style="background-color: #2b0606; color: #f1f1f1; padding: 20px; border: 1px solid #D4AF37; border-radius: 10px; height: 350px; overflow-y: scroll; font-size: 13px; line-height: 1.6; font-family: sans-serif;">
+                            <center><h4 style="color:#D4AF37;">CONTRATO DE ALQUILER Y AUTORIZACIÓN PARA CONDUCIR</h4></center>
+                            <b>ARRENDADOR:</b> JM ASOCIADOS | C.I. 1.702.076-0 | Domicilio: CURUPAYTU ESQUINA FARID RAHAL<br>
+                            <b>ARRENDATARIO:</b> {c_n.upper()} | C.I./Documento: {c_d}<br><br>
+                            <b>PRIMERA - OBJETO:</b> Se alquila el vehículo {v['nombre']} (Chapa: {v['placa']}) en perfecto estado.<br>
+                            <b>SEGUNDA - DURACIÓN:</b> {dias} días. Desde {dt_i.strftime('%d/%m/%Y %H:%M')} hasta {dt_f.strftime('%d/%m/%Y %H:%M')}.<br>
+                            <b>TERCERA - PRECIO:</b> Gs. {precio_dia_gs:,.0f} por día. <b>TOTAL: Gs. {total_gs:,.0f}</b>.<br>
+                            <b>CUARTA - DEPÓSITO:</b> Gs. 5.000.000 en caso de accidente.<br>
+                            <b>QUINTA - CONDICIONES:</b> El arrendatario es responsable PENAL y CIVIL de todo lo ocurrido dentro del vehículo.<br>
+                            <b>SEXTA - KILOMETRAJE:</b> Límite 200km/día. Exceso: 100.000 Gs adicionales.<br>
+                            <b>SÉPTIMA - SEGURO:</b> Cuenta con seguro básico contra terceros y rastreo satelital.<br>
+                            <b>OCTAVA:</b> Mantenimiento de agua, combustible y limpieza a cargo del cliente.<br>
+                            <b>NOVENA:</b> Devolución en misma condición. Retrasos generan penalización.<br>
+                            <b>DÉCIMA:</b> Jurisdicción Tribunales del Alto Paraná, Paraguay.<br><br>
+                            <i>Al confirmar y subir el comprobante, usted declara haber leído y aceptado todas las cláusulas.</i>
                         </div>
                         """
-                        st.markdown(contrato_texto, unsafe_allow_html=True)
+                        st.markdown(contrato_html, unsafe_allow_html=True)
                         
                         st.markdown(f'<div class="pix-box"><b>PAGO PIX: R$ {total_r}</b><br>Llave: 24510861818<br>Marina Baez - Santander</div>', unsafe_allow_html=True)
                         foto = st.file_uploader("Adjuntar Comprobante", type=['jpg', 'png'], key=f"f{v['nombre']}")
@@ -138,44 +137,50 @@ with t_res:
                                 conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante) VALUES (?,?,?,?,?,?,?,?)", 
                                              (c_n, c_d, c_w, v['nombre'], dt_i, dt_f, total_r, foto.read()))
                                 conn.commit(); conn.close()
-                                st.success("¡Reserva Guardada!")
                                 
-                                msj_wa = f"# MENSAJE WHATSAPP PROFESIONAL
-                                msj_wa = (
-                                    f"Hola JM, soy {c_n}.\n\n"
-                                    f"📄 Mis datos: \n"
-                                    f"Documento/CPF: {c_d}\n\n"
-                                    f"🚗 Detalles del Alquiler: \n"
-                                    f"Vehículo: {v['nombre']}\n"
-                                    f"🗓️ Desde: {dt_i.strftime('%d/%m/%Y %H:%M')}\n"
-                                    f"🗓️ Hasta: {dt_f.strftime('%d/%m/%Y %H:%M')}\n\n"
-                                    f"💰 Monto Pagado: R$ {total}\n\n"
-                                    f"Aquí mi comprobante de pago. Favor confirmar recepción. ¡Muchas gracias!"
-                                link_wa = f"https://wa.me/595991681191?text={urllib.parse.quote(msj_wa)}"
-                                st.markdown(f'<a href="{link_wa}" target="_blank" style="text-decoration:none;"><div style="background-color:#25D366; color:white; padding:15px; border-radius:12px; text-align:center; font-weight:bold;">📲 ENVIAR COMPROBANTE AL WHATSAPP</div></a>', unsafe_allow_html=True)
+                                st.success("¡Reserva Guardada con Éxito!")
+
+                                # MENSAJE WHATSAPP CON TRIPLE COMILLA (SIN ERROR)
+                                msj_wa = f"""Hola JM, soy {c_n}. 
+He leído el contrato y acepto los términos. 
+🚗 Vehículo: {v['nombre']}
+🗓️ Periodo: {dt_i.strftime('%d/%m/%Y')} al {dt_f.strftime('%d/%m/%Y')}
+💰 Total: R$ {total_r}
+Adjunto mi comprobante de pago."""
+                                
+                                texto_url = urllib.parse.quote(msj_wa)
+                                link_wa = f"https://wa.me/595991681191?text={texto_url}"
+                                
+                                st.markdown(f'''
+                                    <a href="{link_wa}" target="_blank" style="text-decoration:none;">
+                                        <div style="background-color:#25D366; color:white; padding:15px; border-radius:12px; text-align:center; font-weight:bold; font-size:18px;">
+                                            📲 ENVIAR COMPROBANTE AL WHATSAPP
+                                        </div>
+                                    </a>
+                                ''', unsafe_allow_html=True)
                             else:
-                                st.error("Debe adjuntar el comprobante.")
+                                st.warning("Por favor, adjunte la foto del comprobante.")
                 else:
                     st.error("Vehículo no disponible para estas fechas.")
 
-# --- SECCIONES RESTANTES IGUAL ---
 with t_ubi:
     st.markdown("<h3>NUESTRA UBICACIÓN</h3>", unsafe_allow_html=True)
-    st.markdown('<div style="border: 2px solid #D4AF37; border-radius: 20px; overflow: hidden;"><iframe src="https://www.google.com/maps/embed?pb=!1m17!1m12!1m3!1d3600.613528221598!2d-54.6025215!3d-25.5179536!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m2!1m1!2zMjXCsDMxJzA0LjYiUyA1NMKwMzYnMDkuMSJX!5e0!3m2!1ses!2spy!4v1715801234567" width="100%" height="450" style="border:0;" allowfullscreen="" loading="lazy"></iframe></div>', unsafe_allow_html=True)
+    st.markdown('''
+        <div style="border: 2px solid #D4AF37; border-radius: 20px; overflow: hidden;">
+            <iframe src="http://googleusercontent.com/maps.google.com/9" width="100%" height="450" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
+        </div>
+    ''', unsafe_allow_html=True)
 
 with t_adm:
     clave = st.text_input("Clave Admin", type="password")
     if clave == "8899":
         conn = sqlite3.connect(DB_NAME)
         res_df = pd.read_sql_query("SELECT * FROM reservas", conn)
-        st.title("📊 BALANCE")
-        ing = res_df['total'].sum() if not res_df.empty else 0
-        st.metric("INGRESOS TOTALES", f"R$ {ing:,.2f}")
+        st.metric("INGRESOS", f"R$ {res_df['total'].sum():,.2f}" if not res_df.empty else "R$ 0.00")
         
-        st.subheader("📑 RESERVAS ACTIVAS")
         for _, r in res_df.iterrows():
-            with st.expander(f"{r['cliente']} - {r['auto']}"):
-                if r['comprobante']: st.image(r['comprobante'], width=300)
+            with st.expander(f"Reserva #{r['id']} - {r['cliente']}"):
+                if r['comprobante']: st.image(r['comprobante'], width=200)
                 if st.button("🗑️ BORRAR", key=f"del{r['id']}"):
                     conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],)); conn.commit(); st.rerun()
         conn.close()
