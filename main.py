@@ -7,6 +7,20 @@ from fpdf import FPDF
 import urllib.parse
 import styles  # Asegúrate de tener styles.py con la función aplicar_estilo_premium()
 
+# --- FUNCIÓN DE COTIZACIÓN EN LÍNEA ---
+def obtener_cotizacion_pyg():
+    """Obtiene la cotización del Real a Guaraníes (Aprox)"""
+    try:
+        # Usamos una API gratuita o un valor de referencia estable si falla la red
+        url = "https://open.er-api.com/v6/latest/BRL"
+        data = requests.get(url).json()
+        cambio = data['rates']['PYG']
+        return round(cambio, 2)
+    except:
+        return 1450.0  # Valor de respaldo en caso de error de red
+
+COTIZACION_BRL_PYG = obtener_cotizacion_pyg()
+
 # --- CONFIGURACIÓN VISUAL ---
 st.set_page_config(page_title="JM ASOCIADOS", layout="wide")
 st.markdown(styles.aplicar_estilo_premium(), unsafe_allow_html=True)
