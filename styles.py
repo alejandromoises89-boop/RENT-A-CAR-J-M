@@ -7,7 +7,7 @@ from fpdf import FPDF
 import urllib.parse
 
 # --- 1. CONFIGURACIÓN VISUAL ESTILO "DASHBOARD PREMIUM" ---
-st.set_page_config(page_title="J&M ASOCIADOS | Premium", layout="wide")
+st.set_page_config(page_title="JM ASOCIADOS | Alquile de Vehiculos", layout="wide")
 
 def aplicar_estilo_imagen():
     st.markdown("""
@@ -85,7 +85,7 @@ def aplicar_estilo_imagen():
     </style>
     
     <div class="header-jm">
-        <h1>J&M ASOCIADOS</h1>
+        <h1>JM ASOCIADOS</h1>
         <p style="color: #D4AF37; margin:0;">CONCESIONARIA & RENT-A-CAR CORPORATIVO</p>
     </div>
     """, unsafe_allow_html=True)
