@@ -66,7 +66,7 @@ def esta_disponible(auto, t_inicio, t_fin):
     conn.close(); return ocupado == 0
 
 # --- INTERFAZ ---
-st.markdown("<h1>J&M ASOCIADOS</h1>", unsafe_allow_html=True)
+st.markdown("<h1>JM ASOCIADOS</h1>", unsafe_allow_html=True)
 t_res, t_ubi, t_adm = st.tabs(["📋 RESERVAS", "📍 UBICACIÓN", "🛡️ ADMINISTRADOR"])
 
 with t_res:
@@ -100,7 +100,42 @@ with t_res:
                             conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante) VALUES (?,?,?,?,?,?,?,?)", (c_n, c_d, c_w, v['nombre'], dt_i, dt_f, total, foto.read()))
                             conn.commit(); conn.close()
                             st.success("¡Reserva Guardada!")
-                            msg = f"Hola J&M, soy {c_n}. Acabo de pagar R$ {total} por el {v['nombre']}."
+                            msg = f"# --- REEMPLAZA EL BLOQUE DEL BOTÓN DE WHATSAPP CON ESTO ---
+
+if st.button("CONFIRMAR RESERVA", key=f"btn{v['nombre']}") and foto:
+    conn = sqlite3.connect(DB_NAME)
+    conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante) VALUES (?,?,?,?,?,?,?,?)", 
+                 (c_n, c_d, c_w, v['nombre'], dt_i, dt_f, total, foto.read()))
+    conn.commit()
+    conn.close()
+    
+    st.success("¡Reserva Guardada con éxito!")
+    
+    # Mensaje Profesional Estructurado
+    mensaje_wa = (
+        f"Hola JM, soy *{c_n}*.\n\n"
+        f"📄 *Mis datos:* \n"
+        f"Documento/CPF: {c_d}\n"
+        f"WhatsApp: {c_w}\n\n"
+        f"🚗 *Detalles del Alquiler:* \n"
+        f"Vehículo: {v['nombre']}\n"
+        f"🗓️ Desde: {dt_i.strftime('%d/%m/%Y %H:%M')}\n"
+        f"🗓️ Hasta: {dt_f.strftime('%d/%m/%Y %H:%M')}\n\n"
+        f"💰 *Monto Pagado:* R$ {total}\n\n"
+        f"Adjunto mi comprobante de pago. Favor confirmar recepción. ¡Muchas gracias!"
+    )
+    
+    # Codificar mensaje para URL
+    texto_url = urllib.parse.quote(mensaje_wa)
+    link_wa = f"https://wa.me/595991681191?text={texto_url}"
+    
+    st.markdown(f"""
+        <a href="{link_wa}" target="_blank" style="text-decoration:none;">
+            <div style="background-color:#25D366; color:white; padding:15px; border-radius:12px; text-align:center; font-weight:bold; font-size:18px; box-shadow: 0 4px 15px rgba(37, 211, 102, 0.4);">
+                📲 ENVIAR DATOS Y COMPROBANTE AL WHATSAPP
+            </div>
+        </a>
+    """, unsafe_allow_html=True)
                             st.markdown(f'<a href="https://wa.me/595991681191?text={urllib.parse.quote(msg)}" target="_blank" style="text-decoration:none;"><div class="btn-wa">📲 ENVIAR COMPROBANTE AL WHATSAPP</div></a>', unsafe_allow_html=True)
                 else: st.error("No disponible.")
 
