@@ -190,4 +190,45 @@ with t_res:
                             
                             msj_wa = f"Hola JM, soy {c_n}. Alquiler {v['nombre']} por R$ {total}. Adjunto comprobante."
                             link_wa = f"https://wa.me/595991681191?text={urllib.parse.quote(msj_wa)}"
-                            st.markdown(f'<a href="{link_wa}" target="_blank" style="text-decoration:none;"><div style="background-color:#25
+                            st.markdown(f'<a href="{link_wa}" target="_blank" style="text-decoration:none;"><div style="background-color:#25D366; color:white; padding:15px; border-radius:12px; text-align:center; font-weight:bold;">📲 ENVIAR A WHATSAPP</div></a>', unsafe_allow_html=True)
+
+with t_ubi:
+    st.markdown("<h3>NUESTRA UBICACIÓN</h3>", unsafe_allow_html=True)
+    st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m17!1m12!1m3!1d3601.551980310243!2d-54.6152019!3d-25.5532881!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m2!1m1!2zMjXCsDMzJzExLjgiUyA1NMKwMzYnNTQuNyJX!5e0!3m2!1ses!2spy!4v1715800000000!5m2!1ses!2spy" width="100%" height="450" style="border:0;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
+
+with t_adm:
+    if st.text_input("Clave Admin", type="password") == "8899":
+        conn = sqlite3.connect(DB_NAME)
+        res_df = pd.read_sql_query("SELECT * FROM reservas", conn)
+        egr_df = pd.read_sql_query("SELECT * FROM egresos", conn)
+        
+        c_f1, c_f2, c_f3 = st.columns(3)
+        ing = res_df['total'].sum() if not res_df.empty else 0
+        egr = egr_df['monto'].sum() if not egr_df.empty else 0
+        c_f1.metric("INGRESOS", f"R$ {ing:,.2f}")
+        c_f2.metric("GASTOS", f"R$ {egr:,.2f}")
+        c_f3.metric("NETO", f"R$ {ing - egr:,.2f}")
+        
+        st.subheader("🛠️ FLOTA")
+        flota_adm = pd.read_sql_query("SELECT * FROM flota", conn)
+        for _, f in flota_adm.iterrows():
+            col_b1, col_b2 = st.columns([3, 1])
+            col_b1.write(f"{f['nombre']} - ({f['estado']})")
+            if col_b2.button("TALLER / DISP", key=f"sw{f['nombre']}"):
+                nuevo = "No Disponible" if f['estado'] == "Disponible" else "Disponible"
+                conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo, f['nombre']))
+                conn.commit(); st.rerun()
+
+        st.subheader("📑 REGISTROS")
+        for _, r in res_df.iterrows():
+            with st.expander(f"Reserva #{r['id']} - {r['cliente']}"):
+                v_res = pd.read_sql_query(f"SELECT * FROM flota WHERE nombre='{r['auto']}'", conn).iloc[0]
+                r['inicio'] = datetime.fromisoformat(r['inicio'])
+                r['fin'] = datetime.fromisoformat(r['fin'])
+                
+                pdf = FPDF(); pdf.add_page(); pdf.set_font("Arial", size=10)
+                pdf.multi_cell(0, 7, obtener_texto_contrato(r, v_res).encode('latin-1', 'replace').decode('latin-1'))
+                st.download_button(f"📥 PDF {r['cliente']}", pdf.output(dest='S').encode('latin-1'), f"Contrato_{r['id']}.pdf")
+                if st.button("🗑️ BORRAR", key=f"del{r['id']}"):
+                    conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],)); conn.commit(); st.rerun()
+        conn.close()
