@@ -286,8 +286,7 @@ with t_adm:
                 ca, cb = st.columns(2)
                 if r['comprobante']: ca.image(r['comprobante'], width=200)
                 f_d = conn.execute("SELECT placa, color FROM flota WHERE nombre=?", (r['auto'],)).fetchone()
-                pdf = generar_contrato_pdf(r, f_d[0], f_d[1])
-                cb.download_button("📥 CONTRATO PDF", pdf, f"Contrato_{r['cliente']}.pdf", key=f"pdf{r['id']}")
+                
                 if cb.button("🗑️ BORRAR", key=f"del{r['id']}"):
                     conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],)); conn.commit(); st.rerun()
         conn.close()
