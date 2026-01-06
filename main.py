@@ -4,7 +4,7 @@ import plotly.express as px
 from datetime import datetime, date, timedelta, time
 from fpdf import FPDF
 import urllib.parse
-import styles  # Asegúrate de tener styles.py con la función aplicar_estilo_premium()
+import styles  
 
 # --- CONFIGURACIÓN VISUAL ---
 st.set_page_config(page_title="JM ASOCIADOS", layout="wide")
