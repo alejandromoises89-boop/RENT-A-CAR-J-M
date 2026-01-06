@@ -8,11 +8,7 @@ from fpdf import FPDF
 import urllib.parse
 
 # --- CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(
-    page_title="JM ASOCIADOS",
-    layout="wide",
-    page_icon="https://i.ibb.co/PzsvxYrM/JM-Asociados-Logotipo-02.png" 
-)
+st.set_page_config(page_title="JM ASOCIADOS", layout="wide", page_icon="https://i.ibb.co/PzsvxYrM/JM-Asociados-Logotipo-02.png")
 
 # --- ESTILO PREMIUM BORDO Y DORADO ---
 st.markdown("""
@@ -33,19 +29,9 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- LÓGICA DE COTIZACIÓN ---
-def obtener_cotizacion():
-    try:
-        url = "https://open.er-api.com/v6/latest/BRL"
-        data = requests.get(url, timeout=5).json()
-        return round(data['rates']['PYG'], 0)
-    except:
-        return 1450.0
-
-COTIZACION_DIA = obtener_cotizacion()
 DB_NAME = 'jm_corporativo_permanente.db'
 
-# --- BASE DE DATOS ---
+# --- LÓGICA DE BASE DE DATOS ---
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -53,6 +39,7 @@ def init_db():
     c.execute('CREATE TABLE IF NOT EXISTS egresos (id INTEGER PRIMARY KEY, concepto TEXT, monto REAL, fecha DATE)')
     c.execute('CREATE TABLE IF NOT EXISTS flota (nombre TEXT PRIMARY KEY, precio REAL, img TEXT, estado TEXT, placa TEXT, color TEXT, chasis TEXT, anio TEXT, marca TEXT)')
     
+    # Datos iniciales de la flota
     autos = [
         ("Hyundai Tucson", 260.0, "https://i.ibb.co/23tKv88L/Whats-App-Image-2026-01-06-at-14-12-35-1.png", "Disponible", "AAVI502", "Gris", "KMHJU81VBAU040691", "2010", "HYUNDAI"),
         ("Toyota Vitz Blanco", 195.0, "https://i.ibb.co/Y7ZHY8kX/pngegg.png", "Disponible", "AAVP719", "Blanco", "NSP1352032141", "2015", "TOYOTA"),
@@ -60,189 +47,116 @@ def init_db():
         ("Toyota Voxy", 240.0, "https://i.ibb.co/7hYR0RC/BG160258-2427f0-Photoroom-1.png", "Disponible", "AAUG465", "Gris", "ZRR700415383", "2011", "TOYOTA")
     ]
     for a in autos:
-        c.execute("INSERT OR REPLACE INTO flota VALUES (?,?,?,?,?,?,?,?,?)", a)
+        # Usamos INSERT IGNORE o similar para no sobreescribir el estado 'Taller' si ya existe
+        c.execute("INSERT OR IGNORE INTO flota VALUES (?,?,?,?,?,?,?,?,?)", a)
     conn.commit()
     conn.close()
 
 init_db()
 
 # --- FUNCIONES DE SOPORTE ---
-def parse_date(dt):
-    if isinstance(dt, str):
-        try: return datetime.fromisoformat(dt)
-        except: return datetime.now()
-    return dt
-
-def esta_disponible(auto, t_inicio, t_fin):
+def esta_disponible(auto_nombre, t_inicio, t_fin):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute("SELECT estado FROM flota WHERE nombre=?", (auto,))
-    flota_res = c.fetchone()
-    if flota_res and flota_res[0] != "Disponible":
-        conn.close(); return False, "Vehículo en Taller/No Disponible"
+    # 1. Verificar si el admin lo puso en Taller
+    c.execute("SELECT estado FROM flota WHERE nombre=?", (auto_nombre,))
+    res_estado = c.fetchone()
+    if res_estado and res_estado[0] == "Taller":
+        conn.close()
+        return False, "⚠️ VEHÍCULO EN TALLER / MANTENIMIENTO"
+    
+    # 2. Verificar si hay choques de fechas con otras reservas
     q = "SELECT COUNT(*) FROM reservas WHERE auto = ? AND NOT (fin <= ? OR inicio >= ?)"
-    c.execute(q, (auto, t_inicio.isoformat(), t_fin.isoformat()))
+    c.execute(q, (auto_nombre, t_inicio.isoformat(), t_fin.isoformat()))
     ocupado = c.fetchone()[0]
     conn.close()
-    return (ocupado == 0), "Fechas ocupadas"
+    if ocupado > 0:
+        return False, "❌ YA RESERVADO EN ESAS FECHAS"
+    return True, ""
 
-# --- CONTRATO LEGAL ---
 def obtener_texto_contrato(res, v):
-    ini = parse_date(res['inicio'])
-    fin = parse_date(res['fin'])
-    dias = max(1, (fin - ini).days)
-    total_gs = float(res['total']) * COTIZACION_DIA
-    precio_dia_gs = total_gs / dias
-    return f"""CONTRATO DE ALQUILER DE VEHÍCULO - JM ASOCIADOS
---------------------------------------------------------------
-ARRENDADOR: JM ASOCIADOS (RUC 1.702.076-0)
-ARRENDATARIO: {res['cliente']} | CI/RG: {res['ci']}
-DOMICILIO: {res['domicilio']} | CELULAR: {res['celular']}
-
-VEHÍCULO: {v['marca']} {v['nombre']} | CHASIS: {v['chasis']}
-COLOR: {v['color']} | PLACA: {v['placa']}
-
-DURACIÓN: {dias} días
-DESDE: {ini.strftime('%d/%m/%Y %H:%M')} hs
-HASTA: {fin.strftime('%d/%m/%Y %H:%M')} hs
-
-PRECIO TOTAL: R$ {res['total']} | Gs. {total_gs:,.0f}
---------------------------------------------------------------
-EL ARRENDADOR AUTORIZA AL ARRENDATARIO A CONDUCIR EL 
-VEHÍCULO EN TODO EL TERRITORIO PARAGUAYO Y EL MERCOSUR.
-
-FIRMA CLIENTE: {res['firma']}
-FECHA: {datetime.now().strftime('%d/%m/%Y')}"""
+    # Asegurar que las fechas sean objetos datetime
+    ini = datetime.fromisoformat(res['inicio']) if isinstance(res['inicio'], str) else res['inicio']
+    fin = datetime.fromisoformat(res['fin']) if isinstance(res['fin'], str) else res['fin']
+    return f"CONTRATO JM ASOCIADOS\nCliente: {res['cliente']}\nAuto: {v['nombre']}\nDesde: {ini}\nHasta: {fin}\nFirma: {res['firma']}"
 
 # --- INTERFAZ ---
-st.markdown("<h1>JM ASOCIADOS | SISTEMA CORPORATIVO</h1>", unsafe_allow_html=True)
-t_res, t_adm = st.tabs(["📋 RESERVAS Y PAGO", "🛡️ ADMINISTRADOR"])
+st.title("JM ASOCIADOS | SISTEMA 2026")
+t_res, t_adm = st.tabs(["📋 RESERVAS", "🛡️ ADMIN"])
 
 with t_res:
     conn = sqlite3.connect(DB_NAME)
-    flota = pd.read_sql_query("SELECT * FROM flota", conn); conn.close()
+    flota = pd.read_sql_query("SELECT * FROM flota", conn)
+    conn.close()
+    
     cols = st.columns(2)
     for i, (_, v) in enumerate(flota.iterrows()):
         with cols[i % 2]:
-            st.markdown(f'<div class="card-auto"><h3>{v["nombre"]}</h3><img src="{v["img"]}" width="180"><p>R$ {v["precio"]} / día</p></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="card-auto"><h3>{v["nombre"]}</h3><img src="{v["img"]}" width="180"><p><b>{v["estado"]}</b></p></div>', unsafe_allow_html=True)
+            
             with st.expander(f"RESERVAR {v['nombre']}"):
                 c1, c2 = st.columns(2)
-                f_ini = c1.date_input("Fecha Inicio", key=f"fi{v['nombre']}")
-                h_ini = c1.time_input("Hora Inicio", time(9,0), key=f"hi{v['nombre']}")
-                f_fin = c2.date_input("Fecha Fin", key=f"ff{v['nombre']}")
-                h_fin = c2.time_input("Hora Fin", time(10,0), key=f"hf{v['nombre']}")
+                f_i = c1.date_input("Inicio", key=f"fi_{v['nombre']}")
+                h_i = c1.time_input("Hora", time(9,0), key=f"hi_{v['nombre']}")
+                f_f = c2.date_input("Fin", key=f"ff_{v['nombre']}")
+                h_f = c2.time_input("Hora", time(10,0), key=f"hf_{v['nombre']}")
                 
-                dt_i = datetime.combine(f_ini, h_ini)
-                dt_f = datetime.combine(f_fin, h_fin)
+                dt_i, dt_f = datetime.combine(f_i, h_i), datetime.combine(f_f, h_f)
                 
-                disp, motivo = esta_disponible(v['nombre'], dt_i, dt_f)
-                if not disp:
-                    st.error(f"❌ {motivo}")
+                # VALIDACIÓN DE ESTADO REAL
+                disponible, motivo = esta_disponible(v['nombre'], dt_i, dt_f)
+                
+                if not disponible:
+                    st.error(motivo)
                 else:
-                    c_n = st.text_input("Nombre Completo", key=f"n{v['nombre']}")
-                    c_ci = st.text_input("Documento / CPF", key=f"ci{v['nombre']}")
-                    c_dom = st.text_input("Domicilio", key=f"d{v['nombre']}")
-                    c_tel = st.text_input("WhatsApp", key=f"t{v['nombre']}")
-                    c_fir = st.text_input("Firma Digital (Escriba su nombre)", key=f"f{v['nombre']}")
+                    st.success("✅ Disponible")
+                    nombre = st.text_input("Nombre", key=f"n_{v['nombre']}")
+                    ci = st.text_input("Documento", key=f"ci_{v['nombre']}")
+                    firma = st.text_input("Firma Digital", key=f"f_{v['nombre']}")
+                    foto = st.file_uploader("Comprobante PIX", type=['jpg','png'], key=f"p_{v['nombre']}")
                     
-                    dias_calc = max(1, (f_fin - f_ini).days)
-                    monto_total = dias_calc * v['precio']
-                    
-                    if c_n and c_ci and c_fir:
-                        res_temp = {'cliente':c_n, 'ci':c_ci, 'domicilio':c_dom, 'celular':c_tel, 'inicio':dt_i, 'fin':dt_f, 'total':monto_total, 'firma':c_fir}
-                        st.subheader("1. Previsualizar Contrato")
-                        st.text_area("Términos:", obtener_texto_contrato(res_temp, v), height=150)
+                    if st.button("CONFIRMAR RESERVA", key=f"b_{v['nombre']}") and foto:
+                        conn = sqlite3.connect(DB_NAME)
+                        conn.execute("INSERT INTO reservas (cliente, ci, auto, inicio, fin, total, comprobante, firma) VALUES (?,?,?,?,?,?,?,?)",
+                                    (nombre, ci, v['nombre'], dt_i.isoformat(), dt_f.isoformat(), v['precio'], foto.read(), firma))
+                        conn.commit()
+                        conn.close()
                         
-                        st.subheader("2. Pago PIX")
-                        st.info(f"Monto: R$ {monto_total} | Llave PIX: 24510861818")
-                        foto = st.file_uploader("Subir Comprobante", type=['jpg','png','jpeg'], key=f"foto{v['nombre']}")
-                        
-                        if st.button("CONFIRMAR RESERVA", key=f"btn{v['nombre']}") and foto:
-                            conn = sqlite3.connect(DB_NAME)
-                            conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante, firma, domicilio) VALUES (?,?,?,?,?,?,?,?,?,?)", 
-                                        (c_n, c_ci, c_tel, v['nombre'], dt_i.isoformat(), dt_f.isoformat(), monto_total, foto.read(), c_fir, c_dom))
-                            conn.commit(); conn.close()
-                            
-                            # MENSAJE WHATSAPP EXACTO
-                            mensaje = (f"Hola JM, soy {c_n.upper()}.\n\n"
-                                      f"📄 Mis datos:\nDocumento/CPF: {c_ci}\n\n"
-                                      f"🚗 Detalles del Alquiler:\nVehículo: {v['nombre']}\n"
-                                      f"📅 Desde: {dt_i.strftime('%d/%m/%Y %H:%M')}\n"
-                                      f"📅 Hasta: {dt_f.strftime('%d/%m/%Y %H:%M')}\n\n"
-                                      f"💰 Monto Pagado: R$ {monto_total}\n\n"
-                                      f"Aquí mi comprobante de pago. Favor confirmar recepción. ¡Muchas gracias!")
-                            
-                            url_wa = f"https://wa.me/595991681191?text={urllib.parse.quote(mensaje)}"
-                            st.markdown(f'<a href="{url_wa}" target="_blank" class="whatsapp-btn">📲 ENVIAR COMPROBANTE WHATSAPP</a>', unsafe_allow_html=True)
-                            st.success("✅ Reserva registrada correctamente.")
+                        # WHATSAPP
+                        msg = f"Hola JM, soy {nombre}.\nVehículo: {v['nombre']}\nDesde: {dt_i}\nHasta: {dt_f}\nComprobante adjunto."
+                        st.markdown(f'<a href="https://wa.me/595991681191?text={urllib.parse.quote(msg)}" target="_blank" class="whatsapp-btn">📲 ENVIAR A WHATSAPP</a>', unsafe_allow_html=True)
 
 with t_adm:
-    if st.text_input("Clave Admin", type="password") == "8899":
+    if st.text_input("Password", type="password") == "8899":
         conn = sqlite3.connect(DB_NAME)
         
-        # --- BLOQUEO TALLER ---
-        st.subheader("🛠️ Gestión de Flota (Taller)")
-        f_adm = pd.read_sql_query("SELECT nombre, estado FROM flota", conn)
-        for _, f in f_adm.iterrows():
-            c1, c2 = st.columns([3,1])
-            c1.write(f"**{f['nombre']}** - Estado: {f['estado']}")
-            if c2.button("CAMBIAR ESTADO", key=f"block_{f['nombre']}"):
-                nuevo = "Taller" if f['estado'] == "Disponible" else "Disponible"
-                conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo, f['nombre']))
-                conn.commit(); st.rerun()
-
-        # --- GASTOS / EGRESOS CON OPCIÓN DE BORRAR ---
-        st.subheader("💸 Registro de Egresos")
-        egr_df = pd.read_sql_query("SELECT * FROM egresos", conn)
+        st.subheader("🛠️ GESTIÓN DE FLOTA (BLOQUEO TALLER)")
+        # Forzar lectura fresca de la DB
+        flota_adm = pd.read_sql_query("SELECT nombre, estado FROM flota", conn)
         
-        # Mostrar gastos actuales con botón de borrar
-        for _, eg in egr_df.iterrows():
-            col_e1, col_e2 = st.columns([4, 1])
-            col_e1.write(f"📌 {eg['concepto']} - R$ {eg['monto']} ({eg['fecha']})")
-            if col_e2.button("🗑️", key=f"del_eg_{eg['id']}"):
-                conn.execute("DELETE FROM egresos WHERE id=?", (eg['id'],))
-                conn.commit(); st.rerun()
-
-        with st.expander("➕ Cargar Gasto Nuevo"):
-            concepto = st.text_input("Concepto")
-            monto_eg = st.number_input("Monto R$", min_value=0.0)
-            if st.button("Guardar Gasto"):
-                conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (concepto, monto_eg, date.today().isoformat()))
-                conn.commit(); st.rerun()
-
-        # --- ESTADÍSTICAS ---
-        st.subheader("📊 Balance de Ingresos y Egresos")
-        df_in = pd.read_sql_query("SELECT total as monto, inicio as fecha FROM reservas", conn)
-        df_eg = pd.read_sql_query("SELECT monto, fecha FROM egresos", conn)
-        
-        if not df_in.empty:
-            df_in['Tipo'] = 'Ingreso'; df_eg['Tipo'] = 'Egreso'
-            df_balance = pd.concat([df_in, df_eg])
-            df_balance['mes'] = pd.to_datetime(df_balance['fecha']).dt.strftime('%b')
-            fig = px.bar(df_balance, x='mes', y='monto', color='Tipo', barmode='group', 
-                         color_discrete_map={'Ingreso':'#D4AF37', 'Egreso':'#4A0404'})
-            st.plotly_chart(fig, use_container_width=True)
-
-        # --- RESERVAS CON OPCIÓN DE BORRAR ---
-        st.subheader("📑 Reservas y Contratos PDF")
-        res_all = pd.read_sql_query("SELECT * FROM reservas", conn)
-        for _, r in res_all.iterrows():
-            # Usamos columnas para poner el botón de borrar al lado del expander
-            col_r1, col_r2 = st.columns([5, 1])
-            with col_r1:
-                with st.expander(f"ID: {r['id']} | Cliente: {r['cliente']} - {r['auto']}"):
-                    v_res = pd.read_sql_query(f"SELECT * FROM flota WHERE nombre='{r['auto']}'", conn).iloc[0]
-                    pdf = FPDF()
-                    pdf.add_page()
-                    pdf.set_font("Arial", size=10)
-                    txt = obtener_texto_contrato(r, v_res).encode('latin-1', 'replace').decode('latin-1')
-                    pdf.multi_cell(0, 10, txt)
-                    st.download_button(f"Descargar PDF {r['id']}", pdf.output(dest='S').encode('latin-1'), f"Contrato_JM_{r['id']}.pdf")
+        for _, f in flota_adm.iterrows():
+            c1, c2 = st.columns([3, 1])
+            color_estado = "🔴" if f['estado'] == "Taller" else "🟢"
+            c1.write(f"{color_estado} **{f['nombre']}** - Actualmente: {f['estado']}")
             
-            # Botón de borrar reserva
-            if col_r2.button("❌ Borrar", key=f"del_res_{r['id']}"):
-                conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],))
-                conn.commit(); st.rerun()
+            # El secreto es usar el nombre del auto en la clave del botón y disparar rerun
+            if c2.button(f"CAMBIAR A {'DISPONIBLE' if f['estado'] == 'Taller' else 'TALLER'}", key=f"btn_flip_{f['nombre']}"):
+                nuevo_estado = "Disponible" if f['estado'] == "Taller" else "Taller"
+                conn.execute("UPDATE flota SET estado = ? WHERE nombre = ?", (nuevo_estado, f['nombre']))
+                conn.commit()
+                conn.close() # Cerrar antes de recargar
+                st.rerun() # RECARGA LA PÁGINA PARA MOSTRAR EL CAMBIO
+
+        st.divider()
+        st.subheader("📑 ELIMINAR REGISTROS")
         
-        st.download_button("📥 Descargar Reporte CSV", res_all.to_csv().encode('utf-8'), "reporte_jm.csv")
-        conn.close()
+        # Eliminar Reservas
+        res_df = pd.read_sql_query("SELECT id, cliente, auto FROM reservas", conn)
+        for _, r in res_df.iterrows():
+            col1, col2 = st.columns([4, 1])
+            col1.write(f"Reserva {r['id']}: {r['cliente']} ({r['auto']})")
+            if col2.button("Borrar", key=f"del_res_{r['id']}"):
+                conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],))
+                conn.commit(); conn.close(); st.rerun()
+        
+        conn.close()v
