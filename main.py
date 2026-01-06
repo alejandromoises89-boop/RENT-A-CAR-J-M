@@ -2,16 +2,25 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 import requests
-import urllib.parse
 import plotly.express as px
-from datetime import datetime, date, time
+from datetime import datetime, date, timedelta, time
 from fpdf import FPDF
+import urllib.parse
+import styles
 
 # --- CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="JM ASOCIADOS | SISTEMA", layout="wide", page_icon="https://i.ibb.co/PzsvxYrM/JM-Asociados-Logotipo-02.png")
+st.set_page_config(
+    page_title="JM ASOCIADOS",
+    layout="wide",
+    page_icon="https://i.ibb.co/PzsvxYrM/JM-Asociados-Logotipo-02.png" 
+)
+try:
+    st.markdown(styles.aplicar_estilo_premium(), unsafe_allow_html=True)
+except:
+    pass
 
 # --- LÓGICA DE COTIZACIÓN ---
-def obtener_cotizacion_real():
+def obtener_cotizacion_real_guarani():
     try:
         url = "https://open.er-api.com/v6/latest/BRL"
         data = requests.get(url, timeout=5).json()
@@ -19,211 +28,205 @@ def obtener_cotizacion_real():
     except:
         return 1450.0
 
-COTIZACION_DIA = obtener_cotizacion_real()
-
-# --- ESTILO ELEGANTE JM (BORDO PROFUNDO Y LETRAS DORADAS) ---
-st.markdown(f"""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@300;400;700&display=swap');
-
-    .stApp {{ background-color: #4A0404; }}
-    
-    h1, h2, h3 {{ 
-        color: #D4AF37 !important; 
-        font-family: 'Playfair Display', serif !important; 
-        letter-spacing: 2px;
-    }}
-    
-    p, span, label, div {{ 
-        color: #D4AF37 !important; 
-        font-family: 'Montserrat', sans-serif !important; 
-    }}
-
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {{ background-color: #310202; border-radius: 10px; }}
-    .stTabs [data-baseweb="tab"] {{ color: #D4AF37 !important; font-size: 16px; }}
-    .stTabs [aria-selected="true"] {{ border-bottom: 3px solid #D4AF37 !important; background-color: #5a0505 !important; }}
-
-    /* Cards de Autos */
-    .card-auto {{ 
-        background-color: #4A0404; 
-        padding: 25px; 
-        border-radius: 20px; 
-        border: 1px solid #D4AF37; 
-        text-align: center;
-        margin-bottom: 20px;
-    }}
-    
-    /* Botones JM */
-    .stButton>button {{ 
-        background-color: #4A0404 !important; 
-        color: #D4AF37 !important; 
-        border: 1px solid #D4AF37 !important;
-        font-family: 'Montserrat', sans-serif;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }}
-    .stButton>button:hover {{ background-color: #D4AF37 !important; color: #4A0404 !important; }}
-
-    /* Inputs */
-    .stTextInput>div>div>input, .stTextArea>div>div>textarea {{
-        background-color: #310202 !important;
-        color: #D4AF37 !important;
-        border: 1px solid #D4AF37 !important;
-    }}
-
-    .metric-box {{
-        background-color: #310202;
-        padding: 15px;
-        border-radius: 10px;
-        border-left: 5px solid #D4AF37;
-        text-align: center;
-    }}
-    </style>
-    """, unsafe_allow_html=True)
-
-DB_NAME = 'jm_corporativo_permanente.db'
-
-# --- TEXTO LEGAL COMPLETO ---
-def obtener_texto_contrato(res, v):
-    ini = res['inicio'] if isinstance(res['inicio'], datetime) else datetime.fromisoformat(res['inicio'])
-    fin = res['fin'] if isinstance(res['fin'], datetime) else datetime.fromisoformat(res['fin'])
-    total_gs = float(res['total']) * COTIZACION_DIA
-    return f"""CONTRATO DE ALQUILER Y AUTORIZACIÓN PARA CONDUCIR - JM ASOCIADOS
-------------------------------------------------------------------------------------
-ARRENDADOR: JM ASOCIADOS | CI: 1.702.076-0
-ARRENDATARIO: {res['cliente']} | CI/RG: {res['ci']} | TEL: {res['celular']}
-
-VEHÍCULO: {v['marca']} {v['nombre']} | AÑO: {v['anio']}
-COLOR: {v['color']} | PLACA: {v['placa']} | CHASIS: {v['chasis']}
-
-PERIODO: DESDE {ini.strftime('%d/%m/%Y %H:%M')} HASTA {fin.strftime('%d/%m/%Y %H:%M')}
-COSTO TOTAL: R$ {res['total']} (Cotización Gs. {COTIZACION_DIA:,.0f} | Total Gs. {total_gs:,.0f})
-
-CLAUSULAS PRINCIPALES:
-1. El vehículo se entrega en perfecto estado visual y mecánico.
-2. EL ARRENDADOR AUTORIZA AL ARRENDATARIO A CONDUCIR EN TODO EL MERCOSUR.
-3. El arrendatario es responsable penal y civil de todo lo ocurrido dentro del vehículo.
-4. Depósito de siniestro de Gs. 5.000.000 en caso de accidente.
-
-FIRMA CONFORMIDAD: {res['firma']}
-FECHA: {datetime.now().strftime('%d/%m/%Y')}
-------------------------------------------------------------------------------------"""
+COTIZACION_DIA = obtener_cotizacion_real_guarani()
 
 # --- BASE DE DATOS ---
+DB_NAME = 'jm_corporativo_permanente.db'
+
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute('CREATE TABLE IF NOT EXISTS reservas (id INTEGER PRIMARY KEY, cliente TEXT, ci TEXT, celular TEXT, auto TEXT, inicio TIMESTAMP, fin TIMESTAMP, total REAL, comprobante BLOB, firma TEXT, domicilio TEXT)')
+    c.execute('CREATE TABLE IF NOT EXISTS reservas (id INTEGER PRIMARY KEY, cliente TEXT, ci TEXT, celular TEXT, auto TEXT, inicio TIMESTAMP, fin TIMESTAMP, total REAL, comprobante BLOB)')
     c.execute('CREATE TABLE IF NOT EXISTS egresos (id INTEGER PRIMARY KEY, concepto TEXT, monto REAL, fecha DATE)')
-    c.execute('CREATE TABLE IF NOT EXISTS flota (nombre TEXT PRIMARY KEY, precio REAL, img TEXT, estado TEXT, placa TEXT, color TEXT, chasis TEXT, anio TEXT, marca TEXT)')
+    c.execute('CREATE TABLE IF NOT EXISTS flota (nombre TEXT PRIMARY KEY, precio REAL, img TEXT, estado TEXT, placa TEXT, color TEXT)')
     
     autos = [
-        ("Hyundai Tucson", 260.0, "https://i.ibb.co/23tKv88L/Whats-App-Image-2026-01-06-at-14-12-35-1.png", "Disponible", "AAVI502", "Gris", "KMHJU81VBAU040691", "2010", "HYUNDAI"),
-        ("Toyota Vitz Blanco", 195.0, "https://i.ibb.co/Y7ZHY8kX/pngegg.png", "Disponible", "AAVP719", "Blanco", "NSP1352032141", "2015", "TOYOTA"),
-        ("Toyota Vitz Negro", 195.0, "https://i.ibb.co/rKFwJNZg/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel.png", "Disponible", "AAOR725", "Negro", "NSP1302097964", "2012", "TOYOTA"),
-        ("Toyota Voxy", 240.0, "https://i.ibb.co/7hYR0RC/BG160258-2427f0-Photoroom-1.png", "Disponible", "AAUG465", "Gris", "ZRR700415383", "2011", "TOYOTA")
+        ("Hyundai Tucson Blanco", 260.0, "https://i.ibb.co/23tKv88L/Whats-App-Image-2026-01-06-at-14-12-35-1.png", "Disponible", "AAVI502", "Blanco"),
+        ("Toyota Vitz Blanco", 195.0, "https://i.ibb.co/Y7ZHY8kX/pngegg.png", "Disponible", "AAVP719", "Blanco"),
+        ("Toyota Vitz Negro", 195.0, "https://i.ibb.co/rKFwJNZg/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel.png", "Disponible", "AAOR725", "Negro"),
+        ("Toyota Voxy Gris", 240.0, "https://i.ibb.co/7hYR0RC/BG160258-2427f0-Photoroom-1.png", "Disponible", "AAUG465", "Gris")
     ]
     for a in autos:
-        c.execute("INSERT OR IGNORE INTO flota VALUES (?,?,?,?,?,?,?,?,?)", a)
+        c.execute("INSERT OR IGNORE INTO flota VALUES (?,?,?,?,?,?)", a)
     conn.commit()
     conn.close()
 
 init_db()
 
+# --- FUNCIONES ---
+def generar_contrato_pdf(res, placa, color):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 15)
+    pdf.cell(200, 10, "CONTRATO DE ALQUILER - JM ASOCIADOS", ln=True, align='C')
+    pdf.ln(5)
+    pdf.set_font("Arial", size=10)
+    total_gs = float(res['total']) * COTIZACION_DIA
+    
+    cuerpotexto = f"""En Ciudad del Este, a {datetime.now().strftime('%d/%m/%Y')}, JM ASOCIADOS (Locador) y {res['cliente']} (Locatario) con CI {res['ci']}, nacionalidad {res.get('nacionalidad', 'N/A')} y domicilio en {res.get('direccion', 'N/A')}, acuerdan:
+
+1. OBJETO: Alquiler del vehículo {res['auto']}, Placa: {placa}, Color: {color}.
+2. PLAZO: Desde {res['inicio']} hasta {res['fin']}.
+3. PRECIO: R$ {res['total']} (Equivalente a Gs. {total_gs:,.0f}).
+4. RESPONSABILIDAD: El Locatario asume responsabilidad civil y penal total por accidentes.
+5. COMBUSTIBLE: Debe devolverse con el mismo nivel recibido.
+6. MULTAS: Las infracciones son cargo exclusivo del Locatario.
+7. PROHIBICIONES: Prohibido subarrendar o conducir bajo efectos de sustancias.
+8. MANTENIMIENTO: El Locatario debe cuidar el vehículo como propio.
+9. SEGURO: Daños fuera de póliza o deducibles corren por el Locatario.
+10. LÍMITE: Prohibida la salida del país sin permiso escrito.
+11. RESCISIÓN: El incumplimiento anula el contrato de inmediato.
+12. JURISDICCIÓN: Se somete a los tribunales de Ciudad del Este.
+
+Firmas:
+Locador: JM ASOCIADOS                    Locatario: {res['cliente']}"""
+    
+    pdf.multi_cell(0, 7, cuerpotexto)
+    return pdf.output(dest='S').encode('latin-1')
+
+def esta_disponible(auto, t_inicio, t_fin):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT estado FROM flota WHERE nombre=?", (auto,))
+    res = c.fetchone()
+    if res and res[0] == "No Disponible":
+        conn.close(); return False
+    q = "SELECT COUNT(*) FROM reservas WHERE auto = ? AND NOT (fin <= ? OR inicio >= ?)"
+    c.execute(q, (auto, t_inicio, t_fin))
+    ocupado = c.fetchone()[0]
+    conn.close(); return ocupado == 0
+
 # --- INTERFAZ ---
-st.markdown(f"<h1>J&M ASOCIADOS 🚗 <span style='font-size:15px; color:white;'>Cotización Hoy: 1 R$ = {COTIZACION_DIA:,.0f} Gs.</span></h1>", unsafe_allow_html=True)
-t_res, t_adm = st.tabs(["📋 RESERVAS", "🛡️ ADMINISTRADOR"])
+st.markdown("<h1>JM ASOCIADOS</h1>", unsafe_allow_html=True)
+t_res, t_ubi, t_adm = st.tabs(["📋 RESERVAS", "📍 UBICACIÓN", "🛡️ ADMINISTRADOR"])
 
 with t_res:
     conn = sqlite3.connect(DB_NAME)
     flota = pd.read_sql_query("SELECT * FROM flota", conn); conn.close()
     cols = st.columns(2)
     for i, (_, v) in enumerate(flota.iterrows()):
+        precio_en_guaranies = v['precio'] * COTIZACION_DIA
         with cols[i % 2]:
-            st.markdown(f"""<div class="card-auto">
-                <h3>{v['nombre']}</h3>
-                <img src="{v['img']}" width="250">
-                <p><b>R$ {v['precio']} | Gs. {v['precio']*COTIZACION_DIA:,.0f} / día</b></p>
-                </div>""", unsafe_allow_html=True)
-            with st.expander(f"RESERVAR {v['nombre']}"):
-                if v['estado'] == "Taller":
-                    st.error("⚠️ VEHÍCULO EN MANTENIMIENTO")
-                else:
-                    c1, c2 = st.columns(2)
-                    dt_i = datetime.combine(c1.date_input("Inicio", key=f"fi_{v['nombre']}"), c1.time_input("Hora", time(9,0), key=f"hi_{v['nombre']}"))
-                    dt_f = datetime.combine(c2.date_input("Fin", key=f"ff_{v['nombre']}"), c2.time_input("Hora ", time(10,0), key=f"hf_{v['nombre']}"))
-                    c_n = st.text_input("Nombre Completo", key=f"n_{v['nombre']}")
-                    c_ci = st.text_input("Documento CI/RG", key=f"ci_{v['nombre']}")
-                    c_fir = st.text_input("Firma Digital", key=f"f_{v['nombre']}")
-                    
+            st.markdown(f'''
+                <div class="card-auto">
+                    <h3>{v["nombre"]}</h3>
+                    <img src="{v["img"]}" width="100%">
+                    <p style="font-weight: bold; font-size: 20px; color: #D4AF37; margin-bottom: 2px;">
+                        R$ {v['precio']} / día
+                    </p>
+                    <p style="font-weight: bold; color: #28a745; margin-top: 0px;">
+                        Gs. {precio_en_guaranies:,.0f} / día
+                    </p>
+                </div>
+            ''', unsafe_allow_html=True)
+            with st.expander(f"Alquilar {v['nombre']}"):
+                c1, c2 = st.columns(2)
+                dt_i = datetime.combine(c1.date_input("Inicio", key=f"d1{v['nombre']}"), c1.time_input("Hora 1", time(9,0), key=f"h1{v['nombre']}"))
+                dt_f = datetime.combine(c2.date_input("Fin", key=f"d2{v['nombre']}"), c2.time_input("Hora 2", time(10,0), key=f"h2{v['nombre']}"))
+                
+                if esta_disponible(v['nombre'], dt_i, dt_f):
+                    c_n = st.text_input("Nombre Completo", key=f"n{v['nombre']}")
+                    c_d = st.text_input("CI / Documento", key=f"d{v['nombre']}")
+                    c_w = st.text_input("WhatsApp", key=f"w{v['nombre']}")
                     total = max(1, (dt_f - dt_i).days) * v['precio']
-                    if c_n and c_ci:
-                        res_temp = {'cliente':c_n, 'ci':c_ci, 'celular':'+595', 'inicio':dt_i, 'fin':dt_f, 'total':total, 'firma':c_fir, 'domicilio':''}
-                        st.text_area("Contrato:", obtener_texto_contrato(res_temp, v), height=150)
-                        st.markdown(f"**Total PIX: R$ {total}** | Llave: 24510861818")
-                        foto = st.file_uploader("Comprobante", type=['jpg','png'], key=f"p_{v['nombre']}")
-                        if st.button("CONFIRMAR RESERVA", key=f"b_{v['nombre']}") and foto:
-                            conn = sqlite3.connect(DB_NAME)
-                            conn.execute("INSERT INTO reservas (cliente, ci, auto, inicio, fin, total, comprobante, firma) VALUES (?,?,?,?,?,?,?,?)", (c_n, c_ci, v['nombre'], dt_i.isoformat(), dt_f.isoformat(), total, foto.read(), c_fir))
-                            conn.commit(); conn.close()
-                            msg = f"Reserva de {c_n}. Auto: {v['nombre']}. Total R$ {total}."
-                            st.markdown(f'<a href="https://wa.me/595991681191?text={urllib.parse.quote(msg)}" target="_blank" style="color:#D4AF37; text-decoration:none; border:1px solid #D4AF37; padding:10px; border-radius:10px;">📲 ENVIAR WHATSAPP</a>', unsafe_allow_html=True)
+                    
+                    if c_n and c_d and c_w:
+                        st.markdown(f'<div class="pix-box"><b>PAGO PIX: R$ {total}</b><br>Llave: 24510861818<br>Marina Baez - Santander</div>', unsafe_allow_html=True)
+                        foto = st.file_uploader("Adjuntar Comprobante", type=['jpg', 'png'], key=f"f{v['nombre']}")
+                        
+                        if st.button("CONFIRMAR RESERVA", key=f"btn{v['nombre']}"):
+                            if foto:
+                                conn = sqlite3.connect(DB_NAME)
+                                conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante) VALUES (?,?,?,?,?,?,?,?)", 
+                                             (c_n, c_d, c_w, v['nombre'], dt_i, dt_f, total, foto.read()))
+                                conn.commit(); conn.close()
+                                
+                                st.success("¡Reserva Guardada con éxito!")
+
+                                # MENSAJE WHATSAPP PROFESIONAL
+                                msj_wa = (
+                                    f"Hola JM, soy {c_n}.\n\n"
+                                    f"📄 Mis datos: \n"
+                                    f"Documento/CPF: {c_d}\n\n"
+                                    f"🚗 Detalles del Alquiler: \n"
+                                    f"Vehículo: {v['nombre']}\n"
+                                    f"🗓️ Desde: {dt_i.strftime('%d/%m/%Y %H:%M')}\n"
+                                    f"🗓️ Hasta: {dt_f.strftime('%d/%m/%Y %H:%M')}\n\n"
+                                    f"💰 Monto Pagado: R$ {total}\n\n"
+                                    f"Aquí mi comprobante de pago. Favor confirmar recepción. ¡Muchas gracias!"
+                                )
+                                texto_url = urllib.parse.quote(msj_wa)
+                                link_wa = f"https://wa.me/595991681191?text={texto_url}"
+                                
+                                st.markdown(f'''
+                                    <a href="{link_wa}" target="_blank" style="text-decoration:none;">
+                                        <div style="background-color:#25D366; color:white; padding:15px; border-radius:12px; text-align:center; font-weight:bold; font-size:18px;">
+                                            📲 ENVIAR DATOS Y COMPROBANTE AL WHATSAPP
+                                        </div>
+                                    </a>
+                                ''', unsafe_allow_html=True)
+                            else:
+                                st.warning("Por favor, adjunte la foto del comprobante.")
+
+with t_ubi:
+    st.markdown("<h3>NUESTRA UBICACIÓN</h3>", unsafe_allow_html=True)
+    st.markdown('''
+        <div style="border: 2px solid #D4AF37; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <iframe 
+                src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d14404.144865004746!2d-54.618683!3d-25.503831!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f685764d7883a9%3A0xc3f8e6583907c030!2sCiudad%20del%20Este!5e0!3m2!1ses!2spy!4v1700000000000!5m2!1ses!2spy" 
+                width="100%" height="450" style="border:0;" allowfullscreen="" loading="lazy">
+            </iframe>
+        </div>
+    ''', unsafe_allow_html=True)
+    
+    # BOTÓN DE INSTAGRAM PERSONALIZADO
+    st.markdown('''
+        <br>
+        <a href="https://www.instagram.com/jm_asociados_consultoria?igsh=djBzYno0MmViYzBo" target="_blank" style="text-decoration:none;">
+            <div style="background-color:#E1306C; color:white; padding:15px; border-radius:12px; text-align:center; font-weight:bold; font-size:18px;">
+                📸 VISITAR INSTAGRAM OFICIAL: JM ASOCIADOS
+            </div>
+        </a>
+    ''', unsafe_allow_html=True)
 
 with t_adm:
-    if st.text_input("Acceso Admin", type="password") == "8899":
+    clave = st.text_input("Clave Admin", type="password")
+    if clave == "8899":
         conn = sqlite3.connect(DB_NAME)
-        
-        # --- FINANZAS ---
-        st.subheader("📊 FINANZAS Y ESTADÍSTICAS")
         res_df = pd.read_sql_query("SELECT * FROM reservas", conn)
         egr_df = pd.read_sql_query("SELECT * FROM egresos", conn)
         
-        ing = res_df['total'].sum()
-        egr = egr_df['monto'].sum()
+        st.title("📊 BALANCE Y FINANZAS")
+        ing = res_df['total'].sum() if not res_df.empty else 0
+        egr = egr_df['monto'].sum() if not egr_df.empty else 0
         
-        c1, c2, c3 = st.columns(3)
-        c1.markdown(f"<div class='metric-box'>INGRESOS<br>R$ {ing:,.2f}</div>", unsafe_allow_html=True)
-        c2.markdown(f"<div class='metric-box'>EGRESOS<br>R$ {egr:,.2f}</div>", unsafe_allow_html=True)
-        c3.markdown(f"<div class='metric-box'>NETO<br>R$ {ing-egr:,.2f}</div>", unsafe_allow_html=True)
+        c_f1, c_f2, c_f3 = st.columns(3)
+        c_f1.metric("INGRESOS", f"R$ {ing:,.2f}")
+        c_f2.metric("GASTOS", f"R$ {egr:,.2f}")
+        c_f3.metric("NETO", f"R$ {ing - egr:,.2f}")
         
         if not res_df.empty:
-            fig = px.pie(res_df, names='auto', values='total', title="Ventas por Vehículo", color_discrete_sequence=px.colors.sequential.YlOrBr)
+            fig = px.bar(res_df, x='auto', y='total', color='auto', template="plotly_dark")
             st.plotly_chart(fig, use_container_width=True)
 
-        # --- CARGAR GASTO ---
-        with st.expander("➕ REGISTRAR GASTO"):
-            con_g = st.text_input("Concepto Gasto")
-            mon_g = st.number_input("Monto R$", min_value=0.0)
-            if st.button("Guardar Gasto"):
-                conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (con_g, mon_g, date.today()))
-                conn.commit(); st.rerun()
-
-        # --- GESTIÓN DE FLOTA ---
         st.subheader("🛠️ ESTADO DE FLOTA")
         flota_adm = pd.read_sql_query("SELECT * FROM flota", conn)
         for _, f in flota_adm.iterrows():
-            col1, col2 = st.columns([3, 1])
-            col1.write(f"**{f['nombre']}** - ({f['estado']})")
-            if col2.button("CAMBIAR", key=f"sw_{f['nombre']}"):
-                nuevo = "Taller" if f['estado'] == "Disponible" else "Disponible"
+            col_b1, col_b2 = st.columns([3, 1])
+            col_b1.write(f"{f['nombre']} - ({f['estado']})")
+            if col_b2.button("CAMBIAR", key=f"sw{f['nombre']}"):
+                nuevo = "No Disponible" if f['estado'] == "Disponible" else "Disponible"
                 conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo, f['nombre']))
                 conn.commit(); st.rerun()
 
-        # --- RESERVAS Y PDF ---
-        st.subheader("📑 CONTRATOS Y ELIMINAR")
+        st.subheader("📑 RESERVAS ACTIVAS")
         for _, r in res_df.iterrows():
-            with st.expander(f"Reserva {r['id']} - {r['cliente']}"):
-                v_res = pd.read_sql_query(f"SELECT * FROM flota WHERE nombre='{r['auto']}'", conn).iloc[0]
-                pdf = FPDF()
-                pdf.add_page()
-                pdf.set_font("Arial", size=10)
-                pdf.multi_cell(0, 10, obtener_texto_contrato(r, v_res).encode('latin-1', 'replace').decode('latin-1'))
-                
-                c_a, c_b = st.columns(2)
-                c_a.download_button(f"📥 PDF {r['cliente']}", pdf.output(dest='S').encode('latin-1'), f"Contrato_{r['id']}.pdf")
-                if c_b.button("🗑️ Eliminar", key=f"del_{r['id']}"):
-                    conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],))
-                    conn.commit(); st.rerun()
+            with st.expander(f"Reserva #{r['id']} - {r['cliente']}"):
+                ca, cb = st.columns(2)
+                if r['comprobante']: ca.image(r['comprobante'], width=200)
+                f_d = conn.execute("SELECT placa, color FROM flota WHERE nombre=?", (r['auto'],)).fetchone()
+                pdf = generar_contrato_pdf(r, f_d[0], f_d[1])
+                cb.download_button("📥 CONTRATO PDF", pdf, f"Contrato_{r['cliente']}.pdf", key=f"pdf{r['id']}")
+                if cb.button("🗑️ BORRAR", key=f"del{r['id']}"):
+                    conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],)); conn.commit(); st.rerun()
         conn.close()
