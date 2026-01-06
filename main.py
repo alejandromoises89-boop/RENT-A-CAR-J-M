@@ -5,32 +5,13 @@ import plotly.express as px
 from datetime import datetime, date, timedelta, time
 from fpdf import FPDF
 import urllib.parse
+import styles  # IMPORTANTE: Tener styles.py en la misma carpeta
 
-# main.py
-import streamlit as st
-import styles  # Importamos tu archivo de diseño
-
-# 1. Aplicar el diseño visual inmediatamente
+# --- CONFIGURACIÓN VISUAL ---
 st.set_page_config(page_title="J&M ASOCIADOS", layout="wide")
 st.markdown(styles.aplicar_estilo_premium(), unsafe_allow_html=True)
 
-# 2. Aquí sigue el resto de tu código (Base de datos, Reservas, Admin...)
-# Cuando quieras crear una tarjeta de auto, usas el HTML que definimos:
-st.markdown('<div class="car-card">...contenido del auto...</div>', unsafe_allow_html=True)
-
-st.markdown("""
-<style>
-    .stApp { background: linear-gradient(180deg, #4A0404 0%, #2B0202 100%); color: #D4AF37; }
-    h1, h2, h3, h4, p, label, .stMarkdown { color: #D4AF37 !important; }
-    .stButton>button { background-color: #000000 !important; color: #D4AF37 !important; border: 1px solid #D4AF37 !important; width: 100%; border-radius: 8px; }
-    .card-auto { background-color: rgba(0,0,0,0.5); padding: 20px; border-left: 5px solid #D4AF37; border-radius: 10px; margin-bottom: 20px; text-align: center; }
-    .pix-box { background-color: rgba(212, 175, 55, 0.1); border: 2px dashed #D4AF37; padding: 15px; border-radius: 10px; margin: 10px 0; text-align: center; }
-    .btn-wa { background-color: #25D366 !important; color: white !important; padding: 12px; border-radius: 8px; text-decoration: none; display: block; text-align: center; font-weight: bold; margin-top: 10px; }
-    .btn-ig { background-color: #E1306C !important; color: white !important; padding: 12px; border-radius: 8px; text-decoration: none; display: block; text-align: center; font-weight: bold; margin-top: 10px; }
-</style>
-""", unsafe_allow_html=True)
-
-# --- 2. BASE DE DATOS ---
+# --- BASE DE DATOS ---
 DB_NAME = 'jm_corporativo_permanente.db'
 
 def init_db():
@@ -53,7 +34,7 @@ def init_db():
 
 init_db()
 
-# --- 3. FUNCIONES ---
+# --- FUNCIONES ---
 def generar_contrato_pdf(res, placa, color):
     pdf = FPDF()
     pdf.add_page()
@@ -76,23 +57,31 @@ def esta_disponible(auto, t_inicio, t_fin):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute("SELECT estado FROM flota WHERE nombre=?", (auto,))
-    if c.fetchone()[0] == "No Disponible":
+    res = c.fetchone()
+    if res and res[0] == "No Disponible":
         conn.close(); return False
     q = "SELECT COUNT(*) FROM reservas WHERE auto = ? AND NOT (fin <= ? OR inicio >= ?)"
     c.execute(q, (auto, t_inicio, t_fin))
     ocupado = c.fetchone()[0]
     conn.close(); return ocupado == 0
 
-# --- 4. INTERFAZ ---
-st.markdown("<h1 style='text-align:center;'>🚗 J&M ASOCIADOS</h1>", unsafe_allow_html=True)
+# --- INTERFAZ ---
+st.markdown("<h1>J&M ASOCIADOS</h1>", unsafe_allow_html=True)
 t_res, t_ubi, t_adm = st.tabs(["📋 RESERVAS", "📍 UBICACIÓN", "🛡️ ADMINISTRADOR"])
 
 with t_res:
     conn = sqlite3.connect(DB_NAME)
     flota = pd.read_sql_query("SELECT * FROM flota", conn); conn.close()
-    for _, v in flota.iterrows():
-        with st.container():
-            st.markdown(f'<div class="card-auto"><h3>{v["nombre"]}</h3><img src="{v["img"]}" width="200"></div>', unsafe_allow_html=True)
+    cols = st.columns(2)
+    for i, (_, v) in enumerate(flota.iterrows()):
+        with cols[i % 2]:
+            st.markdown(f'''
+                <div class="card-auto">
+                    <h3>{v["nombre"]}</h3>
+                    <img src="{v["img"]}" width="100%">
+                    <p style="font-weight: bold; font-size: 20px; color: #D4AF37;">R$ {v['precio']} / día</p>
+                </div>
+            ''', unsafe_allow_html=True)
             with st.expander(f"Alquilar {v['nombre']}"):
                 c1, c2 = st.columns(2)
                 dt_i = datetime.combine(c1.date_input("Inicio", key=f"d1{v['nombre']}"), c1.time_input("Hora 1", time(9,0), key=f"h1{v['nombre']}"))
@@ -112,12 +101,12 @@ with t_res:
                             conn.commit(); conn.close()
                             st.success("¡Reserva Guardada!")
                             msg = f"Hola J&M, soy {c_n}. Acabo de pagar R$ {total} por el {v['nombre']}."
-                            st.markdown(f'<a href="https://wa.me/595991681191?text={urllib.parse.quote(msg)}" class="btn-wa">📲 ENVIAR COMPROBANTE AL WHATSAPP</a>', unsafe_allow_html=True)
-                else: st.error("Vehículo en taller o reservado.")
+                            st.markdown(f'<a href="https://wa.me/595991681191?text={urllib.parse.quote(msg)}" target="_blank" style="text-decoration:none;"><div class="btn-wa">📲 ENVIAR COMPROBANTE AL WHATSAPP</div></a>', unsafe_allow_html=True)
+                else: st.error("No disponible.")
 
 with t_ubi:
-    st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d115200.0!2d-54.6!3d-25.5!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1ses!2spy!4v10" width="100%" height="400" style="border:2px solid #D4AF37; border-radius:15px;"></iframe>', unsafe_allow_html=True)
-    st.markdown('<a href="https://www.instagram.com/jm_asociados_consultoria" class="btn-ig">📸 INSTAGRAM OFICIAL</a>', unsafe_allow_html=True)
+    st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d115200.0!2d-54.6!3d-25.5!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1ses!2spy!4v10" width="100%" height="450" style="border:2px solid #D4AF37; border-radius:20px;"></iframe>', unsafe_allow_html=True)
+    st.markdown('<br><a href="https://www.instagram.com/jm_asociados_consultoria" target="_blank" style="text-decoration:none;"><div style="background-color:#E1306C; color:white; padding:12px; border-radius:10px; text-align:center; font-weight:bold;">📸 INSTAGRAM OFICIAL</div></a>', unsafe_allow_html=True)
 
 with t_adm:
     if st.text_input("Clave Admin", type="password") == "8899":
@@ -125,19 +114,18 @@ with t_adm:
         res_df = pd.read_sql_query("SELECT * FROM reservas", conn)
         egr_df = pd.read_sql_query("SELECT * FROM egresos", conn)
         
-        # --- FINANZAS Y GRÁFICAS ---
         st.title("📊 BALANCE Y FINANZAS")
-        ing, egr = res_df['total'].sum(), egr_df['monto'].sum()
+        ing, egr = res_df['total'].sum() if not res_df.empty else 0, egr_df['monto'].sum() if not egr_df.empty else 0
         c_f1, c_f2, c_f3 = st.columns(3)
         c_f1.metric("INGRESOS TOTALES", f"R$ {ing:,.2f}")
-        c_f2.metric("GASTOS/EGRESOS", f"R$ {egr:,.2f}")
-        c_f3.metric("BALANCE NETO", f"R$ {ing - egr:,.2f}")
+        c_f2.metric("GASTOS", f"R$ {egr:,.2f}")
+        c_f3.metric("FLUJO NETO", f"R$ {ing - egr:,.2f}")
         
         if not res_df.empty:
-            st.plotly_chart(px.bar(res_df, x='auto', y='total', color='auto', title="Ingresos por Vehículo", template="plotly_dark"))
-            st.download_button("📤 EXPORTAR DATOS (CSV)", res_df.to_csv(index=False), "finanzas_jm.csv", "text/csv")
+            fig = px.bar(res_df, x='auto', y='total', color='auto', title="Ingresos por Vehículo", template="plotly_dark")
+            fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="#D4AF37")
+            st.plotly_chart(fig, use_container_width=True)
 
-        # --- GASTOS ---
         with st.expander("💸 REGISTRAR GASTO"):
             con = st.text_input("Concepto")
             mon = st.number_input("Monto R$", 0.0)
@@ -145,27 +133,24 @@ with t_adm:
                 conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (con, mon, date.today()))
                 conn.commit(); st.rerun()
 
-        # --- GESTIÓN DE AUTOS ---
-        st.subheader("🛠️ ESTADO DE FLOTA (Taller/Bloqueo)")
+        st.subheader("🛠️ ESTADO DE FLOTA")
         flota_adm = pd.read_sql_query("SELECT * FROM flota", conn)
         for _, f in flota_adm.iterrows():
             col_b1, col_b2 = st.columns([3, 1])
             col_b1.write(f"**{f['nombre']}** - ({f['estado']})")
-            if col_b2.button("CAMBIAR ESTADO", key=f"sw{f['nombre']}"):
+            if col_b2.button("BLOQUEAR/ACTIVAR", key=f"sw{f['nombre']}"):
                 nuevo = "No Disponible" if f['estado'] == "Disponible" else "Disponible"
                 conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo, f['nombre']))
                 conn.commit(); st.rerun()
 
-        # --- RESERVAS Y CONTRATOS ---
-        st.subheader("📑 RESERVAS Y CONTRATOS")
+        st.subheader("📑 RESERVAS ACTIVAS")
         for _, r in res_df.iterrows():
             with st.expander(f"Reserva #{r['id']} - {r['cliente']}"):
                 ca, cb = st.columns(2)
                 if r['comprobante']: ca.image(r['comprobante'], width=200)
-                
                 f_d = conn.execute("SELECT placa, color FROM flota WHERE nombre=?", (r['auto'],)).fetchone()
                 pdf = generar_contrato_pdf(r, f_d[0], f_d[1])
-                cb.download_button("📥 DESCARGAR CONTRATO", pdf, f"Contrato_{r['cliente']}.pdf", key=f"pdf{r['id']}")
-                if cb.button("🗑️ BORRAR RESERVA", key=f"del{r['id']}"):
+                cb.download_button("📥 CONTRATO PDF", pdf, f"Contrato_{r['cliente']}.pdf", key=f"pdf{r['id']}")
+                if cb.button("🗑️ BORRAR", key=f"del{r['id']}"):
                     conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],)); conn.commit(); st.rerun()
         conn.close()
