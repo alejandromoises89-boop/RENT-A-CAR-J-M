@@ -191,10 +191,20 @@ with t_adm:
                 conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo, f['nombre']))
                 conn.commit(); st.rerun()
 
-        # --- GASTOS / EGRESOS ---
+        # --- GASTOS / EGRESOS CON OPCIÓN DE BORRAR ---
         st.subheader("💸 Registro de Egresos")
-        with st.expander("Cargar Gasto Nuevo"):
-            concepto = st.text_input("Concepto (Mecánica, Limpieza, etc.)")
+        egr_df = pd.read_sql_query("SELECT * FROM egresos", conn)
+        
+        # Mostrar gastos actuales con botón de borrar
+        for _, eg in egr_df.iterrows():
+            col_e1, col_e2 = st.columns([4, 1])
+            col_e1.write(f"📌 {eg['concepto']} - R$ {eg['monto']} ({eg['fecha']})")
+            if col_e2.button("🗑️", key=f"del_eg_{eg['id']}"):
+                conn.execute("DELETE FROM egresos WHERE id=?", (eg['id'],))
+                conn.commit(); st.rerun()
+
+        with st.expander("➕ Cargar Gasto Nuevo"):
+            concepto = st.text_input("Concepto")
             monto_eg = st.number_input("Monto R$", min_value=0.0)
             if st.button("Guardar Gasto"):
                 conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (concepto, monto_eg, date.today().isoformat()))
@@ -213,18 +223,26 @@ with t_adm:
                          color_discrete_map={'Ingreso':'#D4AF37', 'Egreso':'#4A0404'})
             st.plotly_chart(fig, use_container_width=True)
 
-        # --- RESERVAS Y CONTRATOS ---
+        # --- RESERVAS CON OPCIÓN DE BORRAR ---
         st.subheader("📑 Reservas y Contratos PDF")
         res_all = pd.read_sql_query("SELECT * FROM reservas", conn)
         for _, r in res_all.iterrows():
-            with st.expander(f"Cliente: {r['cliente']} - {r['auto']}"):
-                v_res = pd.read_sql_query(f"SELECT * FROM flota WHERE nombre='{r['auto']}'", conn).iloc[0]
-                pdf = FPDF()
-                pdf.add_page()
-                pdf.set_font("Arial", size=10)
-                txt = obtener_texto_contrato(r, v_res).encode('latin-1', 'replace').decode('latin-1')
-                pdf.multi_cell(0, 10, txt)
-                st.download_button(f"Descargar PDF {r['id']}", pdf.output(dest='S').encode('latin-1'), f"Contrato_JM_{r['id']}.pdf")
+            # Usamos columnas para poner el botón de borrar al lado del expander
+            col_r1, col_r2 = st.columns([5, 1])
+            with col_r1:
+                with st.expander(f"ID: {r['id']} | Cliente: {r['cliente']} - {r['auto']}"):
+                    v_res = pd.read_sql_query(f"SELECT * FROM flota WHERE nombre='{r['auto']}'", conn).iloc[0]
+                    pdf = FPDF()
+                    pdf.add_page()
+                    pdf.set_font("Arial", size=10)
+                    txt = obtener_texto_contrato(r, v_res).encode('latin-1', 'replace').decode('latin-1')
+                    pdf.multi_cell(0, 10, txt)
+                    st.download_button(f"Descargar PDF {r['id']}", pdf.output(dest='S').encode('latin-1'), f"Contrato_JM_{r['id']}.pdf")
+            
+            # Botón de borrar reserva
+            if col_r2.button("❌ Borrar", key=f"del_res_{r['id']}"):
+                conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],))
+                conn.commit(); st.rerun()
         
-        st.download_button("📥 Descargar Reporte Excel (CSV)", res_all.to_csv().encode('utf-8'), "reporte_jm.csv")
+        st.download_button("📥 Descargar Reporte CSV", res_all.to_csv().encode('utf-8'), "reporte_jm.csv")
         conn.close()
