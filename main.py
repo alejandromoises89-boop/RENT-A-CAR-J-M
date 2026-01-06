@@ -54,34 +54,109 @@ def init_db():
 init_db()
 
 # --- FUNCIONES ---
-def generar_contrato_pdf(res, placa, color):
+def generar_contrato_pdf(res, v_datos):
+    # v_datos trae: marca, nombre, anio, color, chasis, placa
     pdf = FPDF()
     pdf.add_page()
-    pdf.set_font("Arial", 'B', 15)
-    pdf.cell(200, 10, "CONTRATO DE ALQUILER - JM ASOCIADOS", ln=True, align='C')
+    
+    # Encabezado Empresa
+    pdf.set_font("Arial", 'B', 14)
+    pdf.cell(200, 8, "CONTRATO DE ALQUILER DE VEHÍCULO Y AUTORIZACIÓN PARA CONDUCIR", ln=True, align='C')
     pdf.ln(5)
-    pdf.set_font("Arial", size=10)
-    total_gs = float(res['total']) * COTIZACION_DIA
     
-    cuerpotexto = f"""En Ciudad del Este, a {datetime.now().strftime('%d/%m/%Y')}, JM ASOCIADOS (Locador) y {res['cliente']} (Locatario) con CI {res['ci']}, nacionalidad {res.get('nacionalidad', 'N/A')} y domicilio en {res.get('direccion', 'N/A')}, acuerdan:
+    # Datos fijos y del cliente
+    pdf.set_font("Arial", size=9)
+    dias = max(1, (pd.to_datetime(res['fin']) - pd.to_datetime(res['inicio'])).days)
+    total_gs = res['total'] * 1400  # Ajusta tu tasa aquí
+    precio_dia_gs = total_gs / dias
 
-1. OBJETO: Alquiler del vehículo {res['auto']}, Placa: {placa}, Color: {color}.
-2. PLAZO: Desde {res['inicio']} hasta {res['fin']}.
-3. PRECIO: R$ {res['total']} (Equivalente a Gs. {total_gs:,.0f}).
-4. RESPONSABILIDAD: El Locatario asume responsabilidad civil y penal total por accidentes.
-5. COMBUSTIBLE: Debe devolverse con el mismo nivel recibido.
-6. MULTAS: Las infracciones son cargo exclusivo del Locatario.
-7. PROHIBICIONES: Prohibido subarrendar o conducir bajo efectos de sustancias.
-8. MANTENIMIENTO: El Locatario debe cuidar el vehículo como propio.
-9. SEGURO: Daños fuera de póliza o deducibles corren por el Locatario.
-10. LÍMITE: Prohibida la salida del país sin permiso escrito.
-11. RESCISIÓN: El incumplimiento anula el contrato de inmediato.
-12. JURISDICCIÓN: Se somete a los tribunales de Ciudad del Este.
+    texto_intro = f"""CONTRATO DE ALQUILER DE VEHÍCULO Y AUTORIZACIÓN PARA CONDUCIR
+Entre: 
+ARRENDADOR:
+Nombre: JM ASOCIADOS 
+Cédula de Identidad: 1.702.076-0
+Domicilio: CURUPAYTU ESQUINA FARID RAHAL
+Teléfono: +595983635573
+Y, ARRENDATARIO
+Nombre: 
+Cédula de Identidad: 
+Domicilio: 
+Teléfono: 
 
-Firmas:
-Locador: JM ASOCIADOS                    Locatario: {res['cliente']}"""
+Se acuerda lo siguiente:
+ PRIMERA - Objeto del Contrato.
+El arrendador otorga en alquiler al arrendatario el siguiente vehículo:
+*Marca:  
+*Modelo: 
+*Año de fabricación: 
+*Número de chasis: 
+*Número de CHAPA: 
+*Patente: 
+
+El vehículo se encuentra en perfecto estado de funcionamiento y libre de cargas o gravámenes. El arrendatario confirma la recepción del vehículo en buen estado, tras realizar una inspección visual y técnica con soporte Técnico VIDEO del Vehículo. El ARRENDADOR AUTORIZA AL ARRENDATARIO A CONDUCIR EL VEHÍCULO EN TODO EL TERRITORIO PARAGUAYO Y EL MERCOSUR. ------------------------------------------------------------------------------------
+
+SEGUNDA - *Duración del Contrato
+El presente contrato tendrá una duración de  días, comenzando el  a las  hs y finalizando el  a las  hs. de entrega, salvo que se acuerde otra cosa por ambas partes mediante una extensión o terminación anticipada. ------------------------------------------------------
+
+TERCERA - Precio y Forma de Pago
+El arrendatario se compromete a pagar al arrendador la cantidad de    por cada día de alquiler X DIÁS TOTAL DE: .------------------------------------------------------------
+El pago se realizará de la siguiente manera:
+ Forma de pago: En Transferencia Electrónica, El monto total será pagado por adelantado, en caso de exceder el tiempo se pagará a la entrega del vehículo lo excedido de acuerdo a lo que corresponda. ------------------------
+
+CUARTA - Depósito de Seguridad.
+El arrendatario pagara cinco millones de guaraníes (Gs. 5.000.000) en caso de siniestro (accidente) para cubrir los daños al vehículo durante el periodo de alquiler. --------------------------------------------------------------------------------------
+
+ QUINTA - Condiciones de Uso del Vehículo.
+1.	El vehículo será utilizado exclusivamente para fines personales dentro del territorio nacional. ---------------------------------------------------------------
+2.	El ARRENDATARIO es responsable PENAL y CIVIL, de todo lo ocurrido dentro del vehículo y/o encontrado durante el alquiler. --------------------
+3.	 El arrendatario se compromete a no subarrendar el vehículo ni permitir que terceros lo conduzcan sin autorización previa del arrendador. -----------------------------------------------------------------------------
+4.	El uso del vehículo fuera de los límites del país deberá ser aprobado por el arrendador. ---------------------------------------------------------------------
+
+SEXTA - Kilometraje y Excesos
+El alquiler incluye un límite de 200 kilómetros por día. En caso de superar este límite, el arrendatario pagará 100.000 guaraníes adicionales por los kilómetros excedente. ------------------------------------------------------------------------  
+
+ SÉPTIMA - Seguro.
+•	El vehículo cuenta con un seguro básico que cubre---------------------------
+•	Responsabilidad CIVIL en caso de daños a terceros. -------------------------
+•	Cobertura en caso de accidentes. -------------------------------------------------
+•	Servicio de rastreo satelital. --------------------------------------------------------
+•	El arrendatario será responsable de los daños que no estén cubiertos por el seguro, tales como daños por negligencia o uso inapropiado del vehículo. ---------------------------------------------------------------------------------
+
+ OCTAVA - Mantenimiento y Reparaciones
+El arrendatario se compromete a mantener el vehículo en buen estado de funcionamiento. (Agua, combustible, limpieza) ---------------------------------------En caso de desperfectos técnicos o accidentes, el arrendatario deberá notificar inmediatamente al arrendador. ------------------------------------------------
+Las reparaciones necesarias debido al desgaste normal del vehículo serán responsabilidad del arrendador, mientras que las reparaciones debido a uso indebido o negligente serán responsabilidad del arrendatario. --------------------
+
+NOVENA - Devolución del Vehículo.
+El arrendatario devolverá el vehículo en la misma condición en la que lo recibió, excepto por el desgaste normal. Si el vehículo no se devuelve en la fecha y hora acordada, el arrendatario pagará una penalización de media diaria y/o una diaria completa por cada día adicional. -------------------------------
+
+DÉCIMA – Incumplimiento.
+En caso de incumplimiento de alguna de las cláusulas de este contrato, el arrendador podrá rescindir el mismo de manera inmediata, sin perjuicio de reclamar daños y perjuicios. ----------------------------------------------------------------
+
+UNDÉCIMA - Jurisdicción y Ley Aplicable.
+Para cualquier disputa derivada de este contrato, las partes se someten a la jurisdicción de los tribunales del Alto Paraná, Paraguay, y se regirán por la legislación vigente en el país. ---------------------------------------------------------------
+
+DÉCIMA SEGUNDA - Firma de las Partes.
+Ambas partes firman el presente contrato en señal de conformidad, en Ciudad del este el . ----------------------------------------------------
+El ARRENDADOR AUTORIZA AL ARRENDATARIO A CONDUCIR EL VEHÍCULO EN TODO EL TERRITORIO PARAGUAYO Y EL MERCOSUR. 
+
+JM ASOCIADOS                     FIRMA CLIENTE: 
+R.U.C. 1.702.076-0                RG/CPF: 
+Arrendador                        Arrendatario
+.
+"""
+    pdf.multi_cell(0, 5, texto_intro)
     
-    pdf.multi_cell(0, 7, cuerpotexto)
+    pdf.ln(10)
+    pdf.set_font("Arial", 'B', 9)
+    pdf.cell(90, 10, "      _________________________")
+    pdf.cell(90, 10, "      _________________________")
+    pdf.ln(5)
+    pdf.cell(90, 10, "            JM ASOCIADOS")
+    pdf.cell(90, 10, f"            CLIENTE: {res['cliente']}")
+    pdf.ln(5)
+    pdf.cell(90, 10, "             Arrendador")
+    pdf.cell(90, 10, f"             RG/CPF: {res['ci']}")
+
     return pdf.output(dest='S').encode('latin-1')
 
 def esta_disponible(auto, t_inicio, t_fin):
