@@ -140,7 +140,17 @@ with t_res:
                                 conn.commit(); conn.close()
                                 st.success("¡Reserva Guardada!")
                                 
-                                msj_wa = f"Hola JM, soy *{c_n}*. He aceptado el contrato y adjunto pago por el {v['nombre']}."
+                                msj_wa = f"# MENSAJE WHATSAPP PROFESIONAL
+                                msj_wa = (
+                                    f"Hola JM, soy {c_n}.\n\n"
+                                    f"📄 Mis datos: \n"
+                                    f"Documento/CPF: {c_d}\n\n"
+                                    f"🚗 Detalles del Alquiler: \n"
+                                    f"Vehículo: {v['nombre']}\n"
+                                    f"🗓️ Desde: {dt_i.strftime('%d/%m/%Y %H:%M')}\n"
+                                    f"🗓️ Hasta: {dt_f.strftime('%d/%m/%Y %H:%M')}\n\n"
+                                    f"💰 Monto Pagado: R$ {total}\n\n"
+                                    f"Aquí mi comprobante de pago. Favor confirmar recepción. ¡Muchas gracias!"
                                 link_wa = f"https://wa.me/595991681191?text={urllib.parse.quote(msj_wa)}"
                                 st.markdown(f'<a href="{link_wa}" target="_blank" style="text-decoration:none;"><div style="background-color:#25D366; color:white; padding:15px; border-radius:12px; text-align:center; font-weight:bold;">📲 ENVIAR COMPROBANTE AL WHATSAPP</div></a>', unsafe_allow_html=True)
                             else:
