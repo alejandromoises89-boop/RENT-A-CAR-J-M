@@ -6,6 +6,7 @@ import plotly.express as px
 from datetime import datetime, date, timedelta, time
 from fpdf import FPDF
 import urllib.parse
+import styles
 
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(
@@ -13,12 +14,10 @@ st.set_page_config(
     layout="wide",
     page_icon="https://i.ibb.co/PzsvxYrM/JM-Asociados-Logotipo-02.png" 
 )
-
-st.markdown("""<style>
-    .card-auto { background: #1e1e1e; padding: 20px; border-radius: 15px; border: 1px solid #D4AF37; margin-bottom: 20px; color: white; }
-    .pix-box { background: #f0f2f6; color: black; padding: 15px; border-radius: 10px; border-left: 5px solid #28a745; margin: 10px 0; }
-</style>""", unsafe_allow_html=True)
-
+try:
+    st.markdown(styles.aplicar_estilo_premium(), unsafe_allow_html=True)
+except:
+    pass
 
 # --- LÓGICA DE COTIZACIÓN ---
 def obtener_cotizacion_real_guarani():
@@ -37,106 +36,68 @@ DB_NAME = 'jm_corporativo_permanente.db'
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute('CREATE TABLE IF NOT EXISTS reservas (id INTEGER PRIMARY KEY, cliente TEXT, ci TEXT, celular TEXT, auto TEXT, inicio TIMESTAMP, fin TIMESTAMP, total REAL, comprobante BLOB, firma TEXT, domicilio TEXT)')
+    c.execute('CREATE TABLE IF NOT EXISTS reservas (id INTEGER PRIMARY KEY, cliente TEXT, ci TEXT, celular TEXT, auto TEXT, inicio TIMESTAMP, fin TIMESTAMP, total REAL, comprobante BLOB)')
     c.execute('CREATE TABLE IF NOT EXISTS egresos (id INTEGER PRIMARY KEY, concepto TEXT, monto REAL, fecha DATE)')
-    c.execute('CREATE TABLE IF NOT EXISTS flota (nombre TEXT PRIMARY KEY, precio REAL, img TEXT, estado TEXT, placa TEXT, color TEXT, chasis TEXT, anio TEXT, marca TEXT)')
+    c.execute('CREATE TABLE IF NOT EXISTS flota (nombre TEXT PRIMARY KEY, precio REAL, img TEXT, estado TEXT, placa TEXT, color TEXT)')
     
     autos = [
-        ("Hyundai Tucson Blanco", 260.0, "https://i.ibb.co/23tKv88L/Whats-App-Image-2026-01-06-at-14-12-35-1.png", "Disponible", "AAVI502", "Blanco", "KMHJU81VBAU040691", "2010", "HYUNDAI"),
-        ("Toyota Vitz Blanco", 195.0, "https://i.ibb.co/Y7ZHY8kX/pngegg.png", "Disponible", "AAVP719", "Blanco", "NSP1352032141", "2015", "TOYOTA"),
-        ("Toyota Vitz Negro", 195.0, "https://i.ibb.co/rKFwJNZg/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel.png", "Disponible", "AAOR725", "Negro", "NSP1302097964", "2012", "TOYOTA"),
-        ("Toyota Voxy Gris", 240.0, "https://i.ibb.co/7hYR0RC/BG160258-2427f0-Photoroom-1.png", "Disponible", "AAUG465", "Gris", "ZRR700415383", "2011", "TOYOTA")
+        ("Hyundai Tucson Blanco", 260.0, "https://i.ibb.co/23tKv88L/Whats-App-Image-2026-01-06-at-14-12-35-1.png", "Disponible", "AAVI502", "Blanco"),
+        ("Toyota Vitz Blanco", 195.0, "https://i.ibb.co/Y7ZHY8kX/pngegg.png", "Disponible", "AAVP719", "Blanco"),
+        ("Toyota Vitz Negro", 195.0, "https://i.ibb.co/rKFwJNZg/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel.png", "Disponible", "AAOR725", "Negro"),
+        ("Toyota Voxy Gris", 240.0, "https://i.ibb.co/7hYR0RC/BG160258-2427f0-Photoroom-1.png", "Disponible", "AAUG465", "Gris")
     ]
     for a in autos:
-        c.execute("INSERT OR IGNORE INTO flota VALUES (?,?,?,?,?,?,?,?,?)", a)
+        c.execute("INSERT OR IGNORE INTO flota VALUES (?,?,?,?,?,?)", a)
     conn.commit()
     conn.close()
 
 init_db()
 
-# --- TEXTO DEL CONTRATO ---
-def obtener_texto_contrato(res, v):
-    dias = max(1, (res['fin'] - res['inicio']).days)
-    precio_dia_gs = v['precio'] * COTIZACION_DIA
-    total_gs = dias * precio_dia_gs
+# --- FUNCIONES ---
+def generar_contrato_pdf(res, placa, color):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", 'B', 15)
+    pdf.cell(200, 10, "CONTRATO DE ALQUILER - JM ASOCIADOS", ln=True, align='C')
+    pdf.ln(5)
+    pdf.set_font("Arial", size=10)
+    total_gs = float(res['total']) * COTIZACION_DIA
     
-    return f"""CONTRATO DE ALQUILER DE VEHÍCULO Y AUTORIZACIÓN PARA CONDUCIR
-Entre: 
-ARRENDADOR:
-Nombre: JM ASOCIADOS 
-Cédula de Identidad: 1.702.076-0
-Domicilio: CURUPAYTU ESQUINA FARID RAHAL
-Teléfono: +595983635573
+    cuerpotexto = f"""En Ciudad del Este, a {datetime.now().strftime('%d/%m/%Y')}, JM ASOCIADOS (Locador) y {res['cliente']} (Locatario) con CI {res['ci']}, nacionalidad {res.get('nacionalidad', 'N/A')} y domicilio en {res.get('direccion', 'N/A')}, acuerdan:
 
-Y, ARRENDATARIO
-Nombre: {res['cliente']}
-Cédula de Identidad: RG/CPF. {res['ci']}
-Domicilio: {res['domicilio']}
-Teléfono: {res['celular']}
+1. OBJETO: Alquiler del vehículo {res['auto']}, Placa: {placa}, Color: {color}.
+2. PLAZO: Desde {res['inicio']} hasta {res['fin']}.
+3. PRECIO: R$ {res['total']} (Equivalente a Gs. {total_gs:,.0f}).
+4. RESPONSABILIDAD: El Locatario asume responsabilidad civil y penal total por accidentes.
+5. COMBUSTIBLE: Debe devolverse con el mismo nivel recibido.
+6. MULTAS: Las infracciones son cargo exclusivo del Locatario.
+7. PROHIBICIONES: Prohibido subarrendar o conducir bajo efectos de sustancias.
+8. MANTENIMIENTO: El Locatario debe cuidar el vehículo como propio.
+9. SEGURO: Daños fuera de póliza o deducibles corren por el Locatario.
+10. LÍMITE: Prohibida la salida del país sin permiso escrito.
+11. RESCISIÓN: El incumplimiento anula el contrato de inmediato.
+12. JURISDICCIÓN: Se somete a los tribunales de Ciudad del Este.
 
-Se acuerda lo siguiente:
- PRIMERA - Objeto del Contrato.
-El arrendador otorga en alquiler al arrendatario el siguiente vehículo:
-* Marca: {v['marca']}. 
-* Modelo: {v['nombre'].upper()}.
-* Año de fabricación: {v['anio']}.
-* Color: {v['color'].upper()}.
-* Número de chasis: {v['chasis']}.
-* Número de CHAPA: {v['placa']}.
-* Patente: {v['placa']}.
+Firmas:
+Locador: JM ASOCIADOS                    Locatario: {res['cliente']}"""
+    
+    pdf.multi_cell(0, 7, cuerpotexto)
+    return pdf.output(dest='S').encode('latin-1')
 
-El vehículo se encuentra en perfecto estado de funcionamiento y libre de cargas o gravámenes. El arrendatario confirma la recepción del vehículo en buen estado, tras realizar una inspección visual y técnica con soporte Técnico VIDEO del Vehículo. El ARRENDADOR AUTORIZA AL ARRENDATARIO A CONDUCIR EL VEHÍCULO EN TODO EL TERRITORIO PARAGUAYO Y EL MERCOSUR. ------------------------------------------------------------------------------------
-
-SEGUNDA - *Duración del Contrato
-El presente contrato tendrá una duración de ( {dias} ) días, comenzando el {res['inicio'].strftime('%d/%m/%Y')} a las {res['inicio'].strftime('%H:%M')} hs y finalizando el {res['fin'].strftime('%d/%m/%Y')} a las {res['fin'].strftime('%H:%M')} hs. de entrega, salvo que se acuerde otra cosa por ambas partes mediante una extensión o terminación anticipada. ------------------------------------------------------
-
-TERCERA - Precio y Forma de Pago
-El arrendatario se compromete a pagar al arrendador la cantidad de {int(precio_dia_gs/1000)} mil guaraníes ({precio_dia_gs:,.0f}) por cada día de alquiler X DIÁS TOTAL DE: {total_gs:,.0f}Gs.------------------------------------------------------------
-El pago se realizará de la siguiente manera:
- Forma de pago: En Transferencia Electrónica, El monto total será pagado por adelantado, en caso de exceder el tiempo se pagará a la entrega del vehículo lo excedido de acuerdo a lo que corresponda. ------------------------
-
-CUARTA - Depósito de Seguridad.
-El arrendatario pagara cinco millones de guaraníes (Gs. 5.000.000) en caso de siniestro (accidente) para cubrir los daños al vehículo durante el periodo de alquiler. --------------------------------------------------------------------------------------
-
- QUINTA - Condiciones de Uso del Vehículo.
-1. El vehículo será utilizado exclusivamente para fines personales dentro del territorio nacional. ---------------------------------------------------------------
-2. El ARRENDATARIO es responsable PENAL y CIVIL, de todo lo ocurrido dentro del vehículo y/o encontrado durante el alquiler. --------------------
-3. El arrendatario se compromete a no subarrendar el vehículo ni permitir que terceros lo conduzcan sin autorización previa del arrendador. -----------------------------------------------------------------------------
-4. El uso del vehículo fuera de los límites del país deberá ser aprobado por el arrendador. ---------------------------------------------------------------------
-
-SEXTA - Kilometraje y Excesos
-El alquiler incluye un límite de 200 kilómetros por día. En caso de superar este límite, el arrendatario pagará 100.000 guaraníes adicionales por los kilómetros excedente. ------------------------------------------------------------------------  
-
- SÉPTIMA - Seguro.
-• El vehículo cuenta con un seguro básico que cubre---------------------------
-• Responsabilidad CIVIL en caso de daños a terceros. -------------------------
-• Cobertura en caso de accidentes. -------------------------------------------------
-• Servicio de rastreo satelital. --------------------------------------------------------
-• El arrendatario será responsable de los daños que no estén cubiertos por el seguro, tales como daños por negligencia o uso inapropiado del vehículo. ---------------------------------------------------------------------------------
-
- OCTAVA - Mantenimiento y Reparaciones
-El arrendatario se compromete a mantener el vehículo en buen estado de funcionamiento. (Agua, combustible, limpieza) ---------------------------------------En caso de desperfectos técnicos o accidentes, el arrendatario deberá notificar inmediatamente al arrendador. ------------------------------------------------
-Las reparaciones necesarias debido al desgaste normal del vehículo serán responsabilidad del arrendador, mientras que las reparaciones debido a uso indebido o negligente serán responsabilidad del arrendatario. --------------------
-
-NOVENA - Devolución del Vehículo.
-El arrendatario devolverá el vehículo en la misma condición en la que lo recibió, excepto por el desgaste normal. Si el vehículo no se devuelve en la fecha y hora acordada, el arrendatario pagará una penalización de media diaria y/o una diaria completa por cada día adicional. -------------------------------
-
-DÉCIMA – Incumplimiento.
-En caso de incumplimiento de alguna de las cláusulas de este contrato, el arrendador podrá rescindir el mismo de manera inmediata, sin perjuicio de reclamar daños y perjuicios. ----------------------------------------------------------------
-
-UNDÉCIMA - Jurisdicción y Ley Aplicable.
-Para cualquier disputa derivada de este contrato, las partes se someten a la jurisdicción de los tribunales del Alto Paraná, Paraguay, y se regirán por la legislación vigente en el país. ---------------------------------------------------------------
-
-DÉCIMA SEGUNDA - Firma de las Partes.
-Ambas partes firman el presente contrato en señal de conformidad, en Ciudad del este el {datetime.now().strftime('%d/%m/%Y')}. ----------------------------------------------------
-El ARRENDADOR AUTORIZA AL ARRENDATARIO A CONDUCIR EL VEHÍCULO EN TODO EL TERRITORIO PARAGUAYO Y EL MERCOSUR. 
-
-JM ASOCIADOS                     FIRMA CLIENTE: {res['firma']}
-R.U.C. 1.702.076-0                RG/CPF: {res['ci']}
-Arrendador                        Arrendatario"""
+def esta_disponible(auto, t_inicio, t_fin):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT estado FROM flota WHERE nombre=?", (auto,))
+    res = c.fetchone()
+    if res and res[0] == "No Disponible":
+        conn.close(); return False
+    q = "SELECT COUNT(*) FROM reservas WHERE auto = ? AND NOT (fin <= ? OR inicio >= ?)"
+    c.execute(q, (auto, t_inicio, t_fin))
+    ocupado = c.fetchone()[0]
+    conn.close(); return ocupado == 0
 
 # --- INTERFAZ ---
-st.markdown(f"<h1>JM ASOCIADOS | 1 R$ = {COTIZACION_DIA:,.0f} Gs.</h1>", unsafe_allow_html=True)
+st.markdown("<h1>JM ASOCIADOS</h1>", unsafe_allow_html=True)
 t_res, t_ubi, t_adm = st.tabs(["📋 RESERVAS", "📍 UBICACIÓN", "🛡️ ADMINISTRADOR"])
 
 with t_res:
@@ -144,80 +105,128 @@ with t_res:
     flota = pd.read_sql_query("SELECT * FROM flota", conn); conn.close()
     cols = st.columns(2)
     for i, (_, v) in enumerate(flota.iterrows()):
+        precio_en_guaranies = v['precio'] * COTIZACION_DIA
         with cols[i % 2]:
-            st.markdown(f'''<div class="card-auto"><h3>{v["nombre"]}</h3><img src="{v["img"]}" width="100%"><p><b>R$ {v['precio']} / día</b></p></div>''', unsafe_allow_html=True)
+            st.markdown(f'''
+                <div class="card-auto">
+                    <h3>{v["nombre"]}</h3>
+                    <img src="{v["img"]}" width="100%">
+                    <p style="font-weight: bold; font-size: 20px; color: #D4AF37; margin-bottom: 2px;">
+                        R$ {v['precio']} / día
+                    </p>
+                    <p style="font-weight: bold; color: #28a745; margin-top: 0px;">
+                        Gs. {precio_en_guaranies:,.0f} / día
+                    </p>
+                </div>
+            ''', unsafe_allow_html=True)
             with st.expander(f"Alquilar {v['nombre']}"):
-                if v['estado'] == "No Disponible":
-                    st.error("⚠️ VEHÍCULO EN TALLER / NO DISPONIBLE")
-                else:
-                    st.subheader("📄 LECTURA DE CONTRATO")
-                    res_prev = {'cliente':'........', 'ci':'........', 'domicilio':'........', 'celular':'........', 'inicio':datetime.now(), 'fin':datetime.now(), 'firma':'........'}
-                    st.markdown(f'<div class="contrato-box">{obtener_texto_contrato(res_prev, v)}</div>', unsafe_allow_html=True)
+                c1, c2 = st.columns(2)
+                dt_i = datetime.combine(c1.date_input("Inicio", key=f"d1{v['nombre']}"), c1.time_input("Hora 1", time(9,0), key=f"h1{v['nombre']}"))
+                dt_f = datetime.combine(c2.date_input("Fin", key=f"d2{v['nombre']}"), c2.time_input("Hora 2", time(10,0), key=f"h2{v['nombre']}"))
+                
+                if esta_disponible(v['nombre'], dt_i, dt_f):
+                    c_n = st.text_input("Nombre Completo", key=f"n{v['nombre']}")
+                    c_d = st.text_input("CI / Documento", key=f"d{v['nombre']}")
+                    c_w = st.text_input("WhatsApp", key=f"w{v['nombre']}")
+                    total = max(1, (dt_f - dt_i).days) * v['precio']
                     
-                    acepta = st.checkbox("He leído y acepto los términos y condiciones", key=f"check{v['nombre']}")
-                    
-                    if acepta:
-                        st.divider()
-                        c1, c2 = st.columns(2)
-                        dt_i = datetime.combine(c1.date_input("Inicio", key=f"d1{v['nombre']}"), c1.time_input("Hora 1", time(9,0), key=f"h1{v['nombre']}"))
-                        dt_f = datetime.combine(c2.date_input("Fin", key=f"d2{v['nombre']}"), c2.time_input("Hora 2", time(10,0), key=f"h2{v['nombre']}"))
-                        c_n = st.text_input("Nombre Completo", key=f"n{v['nombre']}")
-                        c_d = st.text_input("CI / RG / CPF", key=f"d{v['nombre']}")
-                        c_dom = st.text_input("Domicilio", key=f"dom{v['nombre']}")
-                        c_w = st.text_input("WhatsApp", key=f"w{v['nombre']}")
-                        c_fir = st.text_input("Firma Digital (Nombre)", key=f"f{v['nombre']}")
-                        
-                        total = max(1, (dt_f - dt_i).days) * v['precio']
-                        st.markdown(f"**Monto: R$ {total} | PIX Llave: 24510861818**")
+                    if c_n and c_d and c_w:
+                        st.markdown(f'<div class="pix-box"><b>PAGO PIX: R$ {total}</b><br>Llave: 24510861818<br>Marina Baez - Santander</div>', unsafe_allow_html=True)
                         foto = st.file_uploader("Adjuntar Comprobante", type=['jpg', 'png'], key=f"f{v['nombre']}")
                         
-                        if st.button("CONFIRMAR RESERVA", key=f"btn{v['nombre']}") and foto:
-                            conn = sqlite3.connect(DB_NAME)
-                            conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante, firma, domicilio) VALUES (?,?,?,?,?,?,?,?,?,?)", 
-                                         (c_n, c_d, c_w, v['nombre'], dt_i.isoformat(), dt_f.isoformat(), total, foto.read(), c_fir, c_dom))
-                            conn.commit(); conn.close()
-                            
-                            msj_wa = f"Hola JM, soy {c_n}. Alquiler {v['nombre']} por R$ {total}. Adjunto comprobante."
-                            link_wa = f"https://wa.me/595991681191?text={urllib.parse.quote(msj_wa)}"
-                            st.markdown(f'<a href="{link_wa}" target="_blank" style="text-decoration:none;"><div style="background-color:#25D366; color:white; padding:15px; border-radius:12px; text-align:center; font-weight:bold;">📲 ENVIAR A WHATSAPP</div></a>', unsafe_allow_html=True)
+                        if st.button("CONFIRMAR RESERVA", key=f"btn{v['nombre']}"):
+                            if foto:
+                                conn = sqlite3.connect(DB_NAME)
+                                conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante) VALUES (?,?,?,?,?,?,?,?)", 
+                                             (c_n, c_d, c_w, v['nombre'], dt_i, dt_f, total, foto.read()))
+                                conn.commit(); conn.close()
+                                
+                                st.success("¡Reserva Guardada con éxito!")
+
+                                # MENSAJE WHATSAPP PROFESIONAL
+                                msj_wa = (
+                                    f"Hola JM, soy {c_n}.\n\n"
+                                    f"📄 Mis datos: \n"
+                                    f"Documento/CPF: {c_d}\n\n"
+                                    f"🚗 Detalles del Alquiler: \n"
+                                    f"Vehículo: {v['nombre']}\n"
+                                    f"🗓️ Desde: {dt_i.strftime('%d/%m/%Y %H:%M')}\n"
+                                    f"🗓️ Hasta: {dt_f.strftime('%d/%m/%Y %H:%M')}\n\n"
+                                    f"💰 Monto Pagado: R$ {total}\n\n"
+                                    f"Aquí mi comprobante de pago. Favor confirmar recepción. ¡Muchas gracias!"
+                                )
+                                texto_url = urllib.parse.quote(msj_wa)
+                                link_wa = f"https://wa.me/595991681191?text={texto_url}"
+                                
+                                st.markdown(f'''
+                                    <a href="{link_wa}" target="_blank" style="text-decoration:none;">
+                                        <div style="background-color:#25D366; color:white; padding:15px; border-radius:12px; text-align:center; font-weight:bold; font-size:18px;">
+                                            📲 ENVIAR DATOS Y COMPROBANTE AL WHATSAPP
+                                        </div>
+                                    </a>
+                                ''', unsafe_allow_html=True)
+                            else:
+                                st.warning("Por favor, adjunte la foto del comprobante.")
 
 with t_ubi:
     st.markdown("<h3>NUESTRA UBICACIÓN</h3>", unsafe_allow_html=True)
-    st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m17!1m12!1m3!1d3601.551980310243!2d-54.6152019!3d-25.5532881!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m2!1m1!2zMjXCsDMzJzExLjgiUyA1NMKwMzYnNTQuNyJX!5e0!3m2!1ses!2spy!4v1715800000000!5m2!1ses!2spy" width="100%" height="450" style="border:0;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
+    st.markdown('''
+        <div style="border: 2px solid #D4AF37; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <iframe 
+                src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d14404.144865004746!2d-54.618683!3d-25.503831!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f685764d7883a9%3A0xc3f8e6583907c030!2sCiudad%20del%20Este!5e0!3m2!1ses!2spy!4v1700000000000!5m2!1ses!2spy" 
+                width="100%" height="450" style="border:0;" allowfullscreen="" loading="lazy">
+            </iframe>
+        </div>
+    ''', unsafe_allow_html=True)
+    
+    # BOTÓN DE INSTAGRAM PERSONALIZADO
+    st.markdown('''
+        <br>
+        <a href="https://www.instagram.com/jm_asociados_consultoria?igsh=djBzYno0MmViYzBo" target="_blank" style="text-decoration:none;">
+            <div style="background-color:#E1306C; color:white; padding:15px; border-radius:12px; text-align:center; font-weight:bold; font-size:18px;">
+                📸 VISITAR INSTAGRAM OFICIAL: JM ASOCIADOS
+            </div>
+        </a>
+    ''', unsafe_allow_html=True)
 
 with t_adm:
-    if st.text_input("Clave Admin", type="password") == "8899":
+    clave = st.text_input("Clave Admin", type="password")
+    if clave == "8899":
         conn = sqlite3.connect(DB_NAME)
         res_df = pd.read_sql_query("SELECT * FROM reservas", conn)
         egr_df = pd.read_sql_query("SELECT * FROM egresos", conn)
         
-        c_f1, c_f2, c_f3 = st.columns(3)
+        st.title("📊 BALANCE Y FINANZAS")
         ing = res_df['total'].sum() if not res_df.empty else 0
         egr = egr_df['monto'].sum() if not egr_df.empty else 0
+        
+        c_f1, c_f2, c_f3 = st.columns(3)
         c_f1.metric("INGRESOS", f"R$ {ing:,.2f}")
         c_f2.metric("GASTOS", f"R$ {egr:,.2f}")
         c_f3.metric("NETO", f"R$ {ing - egr:,.2f}")
         
-        st.subheader("🛠️ FLOTA")
+        if not res_df.empty:
+            fig = px.bar(res_df, x='auto', y='total', color='auto', template="plotly_dark")
+            st.plotly_chart(fig, use_container_width=True)
+
+        st.subheader("🛠️ ESTADO DE FLOTA")
         flota_adm = pd.read_sql_query("SELECT * FROM flota", conn)
         for _, f in flota_adm.iterrows():
             col_b1, col_b2 = st.columns([3, 1])
             col_b1.write(f"{f['nombre']} - ({f['estado']})")
-            if col_b2.button("TALLER / DISP", key=f"sw{f['nombre']}"):
+            if col_b2.button("CAMBIAR", key=f"sw{f['nombre']}"):
                 nuevo = "No Disponible" if f['estado'] == "Disponible" else "Disponible"
                 conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo, f['nombre']))
                 conn.commit(); st.rerun()
 
-        st.subheader("📑 REGISTROS")
+        st.subheader("📑 RESERVAS ACTIVAS")
         for _, r in res_df.iterrows():
             with st.expander(f"Reserva #{r['id']} - {r['cliente']}"):
-                v_res = pd.read_sql_query(f"SELECT * FROM flota WHERE nombre='{r['auto']}'", conn).iloc[0]
-                r['inicio'] = datetime.fromisoformat(r['inicio'])
-                r['fin'] = datetime.fromisoformat(r['fin'])
-                
-                pdf = FPDF(); pdf.add_page(); pdf.set_font("Arial", size=10)
-                pdf.multi_cell(0, 7, obtener_texto_contrato(r, v_res).encode('latin-1', 'replace').decode('latin-1'))
-                st.download_button(f"📥 PDF {r['cliente']}", pdf.output(dest='S').encode('latin-1'), f"Contrato_{r['id']}.pdf")
-                if st.button("🗑️ BORRAR", key=f"del{r['id']}"):
+                ca, cb = st.columns(2)
+                if r['comprobante']: ca.image(r['comprobante'], width=200)
+                f_d = conn.execute("SELECT placa, color FROM flota WHERE nombre=?", (r['auto'],)).fetchone()
+                pdf = generar_contrato_pdf(r, f_d[0], f_d[1])
+                cb.download_button("📥 CONTRATO PDF", pdf, f"Contrato_{r['cliente']}.pdf", key=f"pdf{r['id']}")
+                if cb.button("🗑️ BORRAR", key=f"del{r['id']}"):
                     conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],)); conn.commit(); st.rerun()
         conn.close()
