@@ -159,4 +159,4 @@ with t_adm:
                 conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],))
                 conn.commit(); conn.close(); st.rerun()
         
-        conn.close()v
+        conn.close()
