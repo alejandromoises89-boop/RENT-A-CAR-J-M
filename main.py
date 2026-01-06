@@ -6,8 +6,17 @@ from datetime import datetime, date, timedelta, time
 from fpdf import FPDF
 import urllib.parse
 
-# --- 1. CONFIGURACIÓN Y ESTILO JM ---
-st.set_page_config(page_title="JM ALQUILER - SISTEMA CORPORATIVO", layout="wide")
+# main.py
+import streamlit as st
+import styles  # Importamos tu archivo de diseño
+
+# 1. Aplicar el diseño visual inmediatamente
+st.set_page_config(page_title="J&M ASOCIADOS", layout="wide")
+st.markdown(styles.aplicar_estilo_premium(), unsafe_allow_html=True)
+
+# 2. Aquí sigue el resto de tu código (Base de datos, Reservas, Admin...)
+# Cuando quieras crear una tarjeta de auto, usas el HTML que definimos:
+st.markdown('<div class="car-card">...contenido del auto...</div>', unsafe_allow_html=True)
 
 st.markdown("""
 <style>
