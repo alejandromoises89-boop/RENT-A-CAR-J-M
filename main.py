@@ -6,67 +6,99 @@ import urllib.parse
 from datetime import datetime, date, time
 from fpdf import FPDF
 
-# --- CONFIGURACIÓN Y ESTILO JM (BORDO Y DORADO) ---
+# --- CONFIGURACIÓN Y ESTILO JM (TODO BORDO CON LETRAS DORADAS) ---
 st.set_page_config(page_title="JM ASOCIADOS", layout="wide", page_icon="https://i.ibb.co/PzsvxYrM/JM-Asociados-Logotipo-02.png")
 
 st.markdown("""
     <style>
-    /* Fondo principal y textos */
-    .main { background-color: #000000; }
-    h1, h2, h3 { color: #D4AF37 !important; font-family: 'Georgia', serif; }
+    /* Fondo General de la página */
+    .stApp {
+        background-color: #4A0404;
+    }
     
-    /* Estilo de las Pestañas */
-    .stTabs [data-baseweb="tab-list"] { background-color: #4A0404; border-radius: 10px; padding: 5px; }
-    .stTabs [data-baseweb="tab"] { color: white !important; font-weight: bold; }
-    .stTabs [data-baseweb="tab"]:hover { color: #D4AF37 !important; }
-    .stTabs [aria-selected="true"] { background-color: #D4AF37 !important; color: #4A0404 !important; border-radius: 5px; }
+    /* Títulos y textos generales */
+    h1, h2, h3, p, span, label { 
+        color: #D4AF37 !important; 
+        font-family: 'Georgia', serif; 
+    }
+
+    /* Estilo de las Pestañas (Tabs) */
+    .stTabs [data-baseweb="tab-list"] { 
+        background-color: #310202; 
+        border-radius: 5px; 
+    }
+    .stTabs [data-baseweb="tab"] { 
+        color: #D4AF37 !important; 
+    }
+    .stTabs [aria-selected="true"] { 
+        border-bottom: 2px solid #D4AF37 !important;
+        background-color: #5a0505 !important;
+    }
 
     /* Tarjetas de Autos */
     .card-auto { 
-        background: linear-gradient(135deg, #4A0404 0%, #2D0202 100%); 
-        padding: 25px; border-radius: 20px; border: 2px solid #D4AF37; 
-        margin-bottom: 25px; color: white; text-align: center;
-        box-shadow: 0px 4px 15px rgba(212, 175, 55, 0.3);
+        background-color: #4A0404; 
+        padding: 25px; 
+        border-radius: 15px; 
+        border: 2px solid #D4AF37; 
+        margin-bottom: 25px; 
+        text-align: center;
+        box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.5);
     }
     
-    /* Botones de Streamlit */
+    /* Botones Estilo Bordo con Letras Doradas */
     .stButton>button { 
-        background-color: #D4AF37 !important; color: #4A0404 !important; 
-        font-weight: bold; border-radius: 10px; border: none; width: 100%;
+        background-color: #4A0404 !important; 
+        color: #D4AF37 !important; 
+        font-weight: bold; 
+        border: 2px solid #D4AF37 !important;
+        border-radius: 8px;
+        transition: 0.3s;
     }
-    .stButton>button:hover { background-color: #f1c40f !important; transform: scale(1.02); }
+    .stButton>button:hover { 
+        background-color: #D4AF37 !important; 
+        color: #4A0404 !important; 
+    }
+
+    /* Entradas de texto (Inputs) */
+    .stTextInput>div>div>input, .stTextArea>div>div>textarea {
+        background-color: #310202 !important;
+        color: #D4AF37 !important;
+        border: 1px solid #D4AF37 !important;
+    }
 
     /* Botón de WhatsApp */
     .whatsapp-btn {
-        background-color: #25D366; color: white !important; padding: 15px; 
-        border-radius: 12px; text-align: center; font-weight: bold; 
-        text-decoration: none; display: block; margin-top: 10px;
-        box-shadow: 0px 4px 10px rgba(0,0,0,0.3);
+        background-color: #4A0404; 
+        color: #D4AF37 !important; 
+        padding: 15px; 
+        border-radius: 10px; 
+        border: 2px solid #D4AF37;
+        text-align: center; 
+        font-weight: bold; 
+        text-decoration: none; 
+        display: block;
     }
     </style>
     """, unsafe_allow_html=True)
 
 DB_NAME = 'jm_corporativo_permanente.db'
 
-# --- LÓGICA DE NEGOCIO ---
+# --- LÓGICA DE CONTRATO ---
 def obtener_texto_contrato(res, v):
     ini_str = res['inicio'].strftime('%d/%m/%Y %H:%M') if isinstance(res['inicio'], datetime) else str(res['inicio'])
     fin_str = res['fin'].strftime('%d/%m/%Y %H:%M') if isinstance(res['fin'], datetime) else str(res['fin'])
-    return f"""CONTRATO DE ALQUILER DE VEHÍCULO - JM ASOCIADOS
+    return f"""CONTRATO DE ALQUILER - JM ASOCIADOS
 --------------------------------------------------------------
-ARRENDADOR: JM ASOCIADOS (RUC 1.702.076-0)
-ARRENDATARIO: {res['cliente']} | CI/RG: {res['ci']}
-DOMICILIO: {res['domicilio']} | TEL: {res['celular']}
-
+CLIENTE: {res['cliente']} | CI/RG: {res['ci']}
 VEHÍCULO: {v['marca']} {v['nombre']} | PLACA: {v['placa']}
-CHASIS: {v['chasis']} | COLOR: {v['color']} | AÑO: {v['anio']}
+CHASIS: {v['chasis']} | COLOR: {v['color']}
 
 ALQUILER DESDE: {ini_str}
 ALQUILER HASTA: {fin_str}
 
-TOTAL A PAGAR: R$ {res['total']}
+TOTAL: R$ {res['total']}
 --------------------------------------------------------------
-AUTORIZADO PARA CIRCULAR EN TODO EL MERCOSUR.
 FIRMA: {res['firma']}
 """
 
@@ -90,8 +122,8 @@ def init_db():
 init_db()
 
 # --- INTERFAZ ---
-st.title("JM ASOCIADOS | RENT-A-CAR")
-t_res, t_adm = st.tabs(["📋 RESERVAS", "🛡️ ADMINISTRACIÓN"])
+st.title("JM ASOCIADOS | CORPORATIVO")
+t_res, t_adm = st.tabs(["📋 RESERVAS", "🛡️ ADMIN"])
 
 with t_res:
     conn = sqlite3.connect(DB_NAME)
@@ -103,61 +135,61 @@ with t_res:
             st.markdown(f"""<div class="card-auto">
                 <h3>{v['nombre']}</h3>
                 <img src="{v['img']}" width="220">
-                <p style="font-size: 20px; color: #D4AF37;"><b>R$ {v['precio']} / día</b></p>
+                <p><b>R$ {v['precio']} / día</b></p>
                 </div>""", unsafe_allow_html=True)
             
             with st.expander(f"RESERVAR {v['nombre']}"):
                 if v['estado'] == "Taller":
-                    st.error("🚫 VEHÍCULO EN Mantenimiento (Taller)")
+                    st.error("VEHÍCULO EN TALLER")
                 else:
                     c1, c2 = st.columns(2)
-                    f_i = c1.date_input("Fecha Inicio", key=f"fi_{v['nombre']}")
-                    h_i = c1.time_input("Hora Inicio", time(9,0), key=f"hi_{v['nombre']}")
-                    f_f = c2.date_input("Fecha Fin", key=f"ff_{v['nombre']}")
-                    h_f = c2.time_input("Hora Fin", time(10,0), key=f"hf_{v['nombre']}")
+                    dt_i = datetime.combine(c1.date_input("Inicio", key=f"fi_{v['nombre']}"), c1.time_input("Hora I", time(9,0), key=f"hi_{v['nombre']}"))
+                    dt_f = datetime.combine(c2.date_input("Fin", key=f"ff_{v['nombre']}"), c2.time_input("Hora F", time(10,0), key=f"hf_{v['nombre']}"))
                     
-                    c_n = st.text_input("Nombre Completo", key=f"n_{v['nombre']}")
-                    c_ci = st.text_input("CI / CPF", key=f"ci_{v['nombre']}")
+                    c_n = st.text_input("Nombre", key=f"n_{v['nombre']}")
+                    c_ci = st.text_input("Documento", key=f"ci_{v['nombre']}")
                     c_tel = st.text_input("WhatsApp", key=f"t_{v['nombre']}")
                     c_fir = st.text_input("Firma Digital", key=f"f_{v['nombre']}")
                     
-                    dt_i = datetime.combine(f_i, h_i)
-                    dt_f = datetime.combine(f_f, h_f)
-                    total = max(1, (f_f - f_i).days) * v['precio']
+                    dias = max(1, (dt_f - dt_i).days)
+                    total = dias * v['precio']
                     
                     if c_n and c_ci and c_fir:
-                        res_temp = {'cliente': c_n, 'ci': c_ci, 'domicilio': 'A definir', 'celular': c_tel, 'inicio': dt_i, 'fin': dt_f, 'total': total, 'firma': c_fir}
-                        st.markdown("### 📄 Previsualización del Contrato")
-                        txt = obtener_texto_contrato(res_temp, v)
-                        st.text_area("Contrato:", txt, height=180)
+                        res_temp = {'cliente': c_n, 'ci': c_ci, 'domicilio': 'CDE', 'celular': c_tel, 'inicio': dt_i, 'fin': dt_f, 'total': total, 'firma': c_fir}
+                        st.text_area("Previsualización:", obtener_texto_contrato(res_temp, v), height=150)
                         
-                        st.markdown(f'<div style="background:#4A0404; color:#D4AF37; padding:10px; border-radius:5px; border:1px solid #D4AF37"><b>PIX Llave: 24510861818</b><br>Monto: R$ {total}</div>', unsafe_allow_html=True)
-                        foto = st.file_uploader("Subir Comprobante", type=['jpg','png','jpeg'], key=f"p_{v['nombre']}")
+                        st.markdown(f"**Monto: R$ {total} | PIX: 24510861818**")
+                        foto = st.file_uploader("Comprobante", type=['jpg','png'], key=f"p_{v['nombre']}")
                         
-                        if st.button("CONFIRMAR RESERVA", key=f"btn_{v['nombre']}") and foto:
+                        if st.button("CONFIRMAR", key=f"btn_{v['nombre']}") and foto:
                             conn = sqlite3.connect(DB_NAME)
                             conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante, firma) VALUES (?,?,?,?,?,?,?,?,?)",
                                         (c_n, c_ci, c_tel, v['nombre'], dt_i.isoformat(), dt_f.isoformat(), total, foto.read(), c_fir))
                             conn.commit(); conn.close()
                             
-                            msg = f"Hola JM, soy {c_n}.\nReserva de {v['nombre']}\nMonto: R$ {total}.\nAdjunto comprobante."
+                            # MENSAJE SOLICITADO
+                            msg = (f"Hola JM, soy {c_n.upper()}.\n\n📄 Mis datos:\nDocumento/CPF: {c_ci}\n\n"
+                                   f"🚗 Detalles del Alquiler:\nVehículo: {v['nombre']}\n"
+                                   f"📅 Desde: {dt_i.strftime('%d/%m/%Y %H:%M')}\n📅 Hasta: {dt_f.strftime('%d/%m/%Y %H:%M')}\n\n"
+                                   f"💰 Monto Pagado: R$ {total}\n\nAquí mi comprobante de pago. Favor confirmar recepción. ¡Muchas gracias!")
+                            
                             url_wa = f"https://wa.me/595991681191?text={urllib.parse.quote(msg)}"
-                            st.markdown(f'<a href="{url_wa}" target="_blank" class="whatsapp-btn">📲 ENVIAR COMPROBANTE AL CORPORATIVO</a>', unsafe_allow_html=True)
+                            st.markdown(f'<a href="{url_wa}" target="_blank" class="whatsapp-btn">📲 ENVIAR COMPROBANTE</a>', unsafe_allow_html=True)
 
 with t_adm:
-    if st.text_input("Clave Admin", type="password") == "8899":
+    if st.text_input("Clave", type="password") == "8899":
         conn = sqlite3.connect(DB_NAME)
-        st.subheader("🛠️ ESTADO DE FLOTA")
+        # Gestión Taller
         f_adm = pd.read_sql_query("SELECT nombre, estado FROM flota", conn)
         for _, f in f_adm.iterrows():
             c1, c2 = st.columns([3, 1])
-            c1.write(f"**{f['nombre']}** | Estado: {f['estado']}")
-            if c2.button("DISP / TALLER", key=f"sw_{f['nombre']}"):
+            c1.write(f"**{f['nombre']}** ({f['estado']})")
+            if c2.button("CAMBIAR", key=f"sw_{f['nombre']}"):
                 nuevo = "Taller" if f['estado'] == "Disponible" else "Disponible"
                 conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo, f['nombre']))
                 conn.commit(); st.rerun()
 
-        st.subheader("📥 CONTRATOS GENERADOS")
+        # Descargas
         res_df = pd.read_sql_query("SELECT * FROM reservas", conn)
         for _, r in res_df.iterrows():
             with st.expander(f"ID {r['id']} - {r['cliente']}"):
@@ -165,11 +197,9 @@ with t_adm:
                 pdf = FPDF()
                 pdf.add_page()
                 pdf.set_font("Arial", size=10)
-                txt_pdf = obtener_texto_contrato(r, v_pdf)
-                pdf.multi_cell(0, 8, txt_pdf.encode('latin-1', 'replace').decode('latin-1'))
-                
-                st.download_button(f"Descargar PDF {r['cliente']}", pdf.output(dest='S').encode('latin-1'), f"Contrato_{r['cliente']}.pdf", mime="application/pdf", key=f"dl_{r['id']}")
-                if st.button("Borrar", key=f"del_{r['id']}"):
+                pdf.multi_cell(0, 10, obtener_texto_contrato(r, v_pdf).encode('latin-1', 'replace').decode('latin-1'))
+                st.download_button(f"Descargar PDF {r['cliente']}", pdf.output(dest='S').encode('latin-1'), f"Contrato_{r['id']}.pdf", key=f"dl_{r['id']}")
+                if st.button("Eliminar", key=f"del_{r['id']}"):
                     conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],))
                     conn.commit(); st.rerun()
         conn.close()
