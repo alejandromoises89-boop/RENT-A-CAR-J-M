@@ -9,8 +9,11 @@ import urllib.parse
 import styles
 
 # --- CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(page_title="JM ASOCIADOS", layout="wide")
-
+st.set_page_config(
+    page_title="JM ASOCIADOS",
+    layout="wide",
+    page_icon="https://i.ibb.co/PzsvxYrM/JM-Asociados-Logotipo-02.png" 
+)
 try:
     st.markdown(styles.aplicar_estilo_premium(), unsafe_allow_html=True)
 except:
