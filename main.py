@@ -1,47 +1,46 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
-import requests # Necesario para la cotización
+import requests
 import plotly.express as px
 from datetime import datetime, date, timedelta, time
 from fpdf import FPDF
 import urllib.parse
 import styles  
 
-# --- 1. FUNCIÓN DE COTIZACIÓN EN LÍNEA (REAL A GUARANÍ) ---
-def obtener_cotizacion():
+# --- 1. SEGURO DE COTIZACIÓN (No interrumpe el flujo) ---
+def obtener_cotizacion_en_linea():
     try:
-        # Consulta a API de tipo de cambio
+        # Intentamos obtener el cambio real desde una API gratuita
         url = "https://open.er-api.com/v6/latest/BRL"
         response = requests.get(url, timeout=5)
         data = response.json()
         return round(data['rates']['PYG'], 0)
-    except:
-        # Valor de respaldo si falla la conexión
+    except Exception:
+        # Si falla el internet o la API, usamos un valor base para no romper el código
         return 1450.0 
 
-COTIZACION_DIA = obtener_cotizacion()
+COTIZACION_DIA = obtener_cotizacion_en_linea()
 
 # --- 2. CONFIGURACIÓN VISUAL ---
 st.set_page_config(page_title="JM ASOCIADOS", layout="wide")
 try:
     st.markdown(styles.aplicar_estilo_premium(), unsafe_allow_html=True)
 except:
-    st.markdown("<style>.stApp { background-color: #000; color: white; }</style>", unsafe_allow_html=True)
+    pass
 
-# --- 3. BASE DE DATOS (Asegúrate de incluir total_pyg) ---
+# --- 3. BASE DE DATOS ACTUALIZADA ---
 DB_NAME = 'jm_corporativo_permanente.db'
 
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    # Agregamos 'total_pyg' a la tabla para guardar el registro histórico
+    # Importante: Añadimos 'total_pyg' para que el contrato pueda leerlo después
     c.execute('''CREATE TABLE IF NOT EXISTS reservas 
                  (id INTEGER PRIMARY KEY, cliente TEXT, ci TEXT, celular TEXT, auto TEXT, 
                   inicio TIMESTAMP, fin TIMESTAMP, total REAL, comprobante BLOB, total_pyg REAL)''')
-    c.execute('CREATE TABLE IF NOT EXISTS egresos (id INTEGER PRIMARY KEY, concepto TEXT, monto REAL, fecha DATE)')
     c.execute('CREATE TABLE IF NOT EXISTS flota (nombre TEXT PRIMARY KEY, precio REAL, img TEXT, estado TEXT, placa TEXT, color TEXT)')
-    
+
     autos = [
         ("Hyundai Tucson Blanco", 260.0, "https://i.ibb.co/PGrYTDhJ/2098.png", "Disponible", "AAVI502", "Blanco"),
         ("Toyota Vitz Blanco", 195.0, "https://i.ibb.co/Y7ZHY8kX/pngegg.png", "Disponible", "AAVP719", "Blanco"),
@@ -55,7 +54,7 @@ def init_db():
 
 init_db()
 
-# --- 4. FUNCIÓN PDF ACTUALIZADA ---
+# --- 4. FUNCIÓN PDF CON DOBLE MONEDA ---
 def generar_contrato_pdf(res, placa, color):
     pdf = FPDF()
     pdf.add_page()
@@ -64,14 +63,28 @@ def generar_contrato_pdf(res, placa, color):
     pdf.ln(5)
     pdf.set_font("Arial", size=10)
     
-    # Se agrega el monto en Guaraníes al texto del contrato
+    # Aquí es donde extraemos el valor en Guaraníes guardado en la BD
+    monto_brl = res['total']
+    monto_pyg = res['total_pyg'] if 'total_pyg' in res else (monto_brl * COTIZACION_DIA)
+
     cuerpotexto = f"""En Ciudad del Este, a {datetime.now().strftime('%d/%m/%Y')}, JM ASOCIADOS (Locador) y {res['cliente']} (Locatario) con CI {res['ci']}, acuerdan:
 
 1. OBJETO: Alquiler del vehículo {res['auto']}, Placa: {placa}, Color: {color}.
 2. PLAZO: Desde {res['inicio']} hasta {res['fin']}.
-3. PRECIO: R$ {res['total']} (Equivalente a Gs. {res.get('total_pyg', 0):,.0f}).
-... [Resto de cláusulas] ...
-"""
+3. PRECIO: R$ {res['total']} pagaderos vía PIX.
+4. RESPONSABILIDAD: El Locatario asume responsabilidad civil y penal total por accidentes.
+5. COMBUSTIBLE: Debe devolverse con el mismo nivel recibido.
+6. MULTAS: Las infracciones son cargo exclusivo del Locatario.
+7. PROHIBICIONES: Prohibido subarrendar o conducir bajo efectos de sustancias.
+8. MANTENIMIENTO: El Locatario debe cuidar el vehículo como propio.
+9. SEGURO: Daños fuera de póliza o deducibles corren por el Locatario.
+10. LÍMITE: Prohibida la salida del país sin permiso escrito.
+11. RESCISIÓN: El incumplimiento anula el contrato de inmediato.
+12. JURISDICCIÓN: Se somete a los tribunales de Ciudad del Este.
+
+Firmas:
+Locador: JM ASOCIADOS                    Locatario: {res['cliente']}"""
+    
     pdf.multi_cell(0, 7, cuerpotexto)
     return pdf.output(dest='S').encode('latin-1')
 
@@ -87,10 +100,8 @@ def esta_disponible(auto, t_inicio, t_fin):
     ocupado = c.fetchone()[0]
     conn.close(); return ocupado == 0
 
-# --- 5. INTERFAZ ---
-st.markdown("<h1>JM ASOCIADOS</h1>", unsafe_allow_html=True)
-# Barra de cotización superior
-st.markdown(f'<div style="text-align:center; background:#D4AF37; color:black; padding:5px; border-radius:10px; font-weight:bold;">Cotización hoy: 1 Real = {COTIZACION_DIA:,.0f} Gs.</div>', unsafe_allow_html=True)
+# --- 5. INTERFAZ Y LÓGICA DE RESERVA ---
+st.markdown(f'<div style="background-color:#D4AF37; color:black; padding:10px; border-radius:10px; text-align:center;"><b>Cotización del Real hoy:</b> {COTIZACION_DIA:,.0f} PYG</div>', unsafe_allow_html=True)
 
 t_res, t_ubi, t_adm = st.tabs(["📋 RESERVAS", "📍 UBICACIÓN", "🛡️ ADMINISTRADOR"])
 
