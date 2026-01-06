@@ -82,7 +82,6 @@ Nombre:
 Cédula de Identidad: 
 Domicilio: 
 Teléfono: 
-
 Se acuerda lo siguiente:
  PRIMERA - Objeto del Contrato.
 El arrendador otorga en alquiler al arrendatario el siguiente vehículo:
@@ -92,53 +91,40 @@ El arrendador otorga en alquiler al arrendatario el siguiente vehículo:
 *Número de chasis: 
 *Número de CHAPA: 
 *Patente: 
-
 El vehículo se encuentra en perfecto estado de funcionamiento y libre de cargas o gravámenes. El arrendatario confirma la recepción del vehículo en buen estado, tras realizar una inspección visual y técnica con soporte Técnico VIDEO del Vehículo. El ARRENDADOR AUTORIZA AL ARRENDATARIO A CONDUCIR EL VEHÍCULO EN TODO EL TERRITORIO PARAGUAYO Y EL MERCOSUR. ------------------------------------------------------------------------------------
-
 SEGUNDA - *Duración del Contrato
 El presente contrato tendrá una duración de  días, comenzando el  a las  hs y finalizando el  a las  hs. de entrega, salvo que se acuerde otra cosa por ambas partes mediante una extensión o terminación anticipada. ------------------------------------------------------
-
 TERCERA - Precio y Forma de Pago
 El arrendatario se compromete a pagar al arrendador la cantidad de    por cada día de alquiler X DIÁS TOTAL DE: .------------------------------------------------------------
 El pago se realizará de la siguiente manera:
  Forma de pago: En Transferencia Electrónica, El monto total será pagado por adelantado, en caso de exceder el tiempo se pagará a la entrega del vehículo lo excedido de acuerdo a lo que corresponda. ------------------------
-
 CUARTA - Depósito de Seguridad.
 El arrendatario pagara cinco millones de guaraníes (Gs. 5.000.000) en caso de siniestro (accidente) para cubrir los daños al vehículo durante el periodo de alquiler. --------------------------------------------------------------------------------------
-
  QUINTA - Condiciones de Uso del Vehículo.
 1.	El vehículo será utilizado exclusivamente para fines personales dentro del territorio nacional. ---------------------------------------------------------------
 2.	El ARRENDATARIO es responsable PENAL y CIVIL, de todo lo ocurrido dentro del vehículo y/o encontrado durante el alquiler. --------------------
 3.	 El arrendatario se compromete a no subarrendar el vehículo ni permitir que terceros lo conduzcan sin autorización previa del arrendador. -----------------------------------------------------------------------------
 4.	El uso del vehículo fuera de los límites del país deberá ser aprobado por el arrendador. ---------------------------------------------------------------------
-
 SEXTA - Kilometraje y Excesos
 El alquiler incluye un límite de 200 kilómetros por día. En caso de superar este límite, el arrendatario pagará 100.000 guaraníes adicionales por los kilómetros excedente. ------------------------------------------------------------------------  
-
  SÉPTIMA - Seguro.
 •	El vehículo cuenta con un seguro básico que cubre---------------------------
 •	Responsabilidad CIVIL en caso de daños a terceros. -------------------------
 •	Cobertura en caso de accidentes. -------------------------------------------------
 •	Servicio de rastreo satelital. --------------------------------------------------------
 •	El arrendatario será responsable de los daños que no estén cubiertos por el seguro, tales como daños por negligencia o uso inapropiado del vehículo. ---------------------------------------------------------------------------------
-
  OCTAVA - Mantenimiento y Reparaciones
 El arrendatario se compromete a mantener el vehículo en buen estado de funcionamiento. (Agua, combustible, limpieza) ---------------------------------------En caso de desperfectos técnicos o accidentes, el arrendatario deberá notificar inmediatamente al arrendador. ------------------------------------------------
 Las reparaciones necesarias debido al desgaste normal del vehículo serán responsabilidad del arrendador, mientras que las reparaciones debido a uso indebido o negligente serán responsabilidad del arrendatario. --------------------
-
 NOVENA - Devolución del Vehículo.
 El arrendatario devolverá el vehículo en la misma condición en la que lo recibió, excepto por el desgaste normal. Si el vehículo no se devuelve en la fecha y hora acordada, el arrendatario pagará una penalización de media diaria y/o una diaria completa por cada día adicional. -------------------------------
-
 DÉCIMA – Incumplimiento.
 En caso de incumplimiento de alguna de las cláusulas de este contrato, el arrendador podrá rescindir el mismo de manera inmediata, sin perjuicio de reclamar daños y perjuicios. ----------------------------------------------------------------
-
 UNDÉCIMA - Jurisdicción y Ley Aplicable.
 Para cualquier disputa derivada de este contrato, las partes se someten a la jurisdicción de los tribunales del Alto Paraná, Paraguay, y se regirán por la legislación vigente en el país. ---------------------------------------------------------------
-
 DÉCIMA SEGUNDA - Firma de las Partes.
 Ambas partes firman el presente contrato en señal de conformidad, en Ciudad del este el . ----------------------------------------------------
 El ARRENDADOR AUTORIZA AL ARRENDATARIO A CONDUCIR EL VEHÍCULO EN TODO EL TERRITORIO PARAGUAYO Y EL MERCOSUR. 
-
 JM ASOCIADOS                     FIRMA CLIENTE: 
 R.U.C. 1.702.076-0                RG/CPF: 
 Arrendador                        Arrendatario
