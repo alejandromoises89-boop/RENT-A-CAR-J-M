@@ -159,4 +159,34 @@ with t_res:
                         if st.button("CONFIRMAR Y FINALIZAR", key=f"btn{v['nombre']}"):
                             if foto:
                                 conn = sqlite3.connect(DB_NAME)
-                                conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante, firma, domicilio) VALUES (?,?,?,?,?,?,?,?,?,?)", (c_n, c_ci, c_tel, v['
+                                conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante, firma, domicilio) VALUES (?,?,?,?,?,?,?,?,?,?)", (c_n, c_ci, c_tel, v['nombre'], dt_i.isoformat(), dt_f.isoformat(), total, foto.read(), c_fir, c_dom))
+                                conn.commit(); conn.close()
+                                st.balloons()
+                                
+                                # BOTÓN DE WHATSAPP
+                                texto_wa = f"Hola JM ASOCIADOS, realicé una reserva.\nCliente: {c_n}\nAuto: {v['nombre']}\nTotal: R$ {total}"
+                                url_wa = f"https://wa.me/595983635573?text={urllib.parse.quote(texto_wa)}"
+                                st.markdown(f'<a href="{url_wa}" target="_blank" class="whatsapp-btn">📲 ENVIAR COMPROBANTE AL CORPORATIVO</a>', unsafe_allow_html=True)
+                            else:
+                                st.warning("⚠️ Debe subir el comprobante para confirmar.")
+
+with t_adm:
+    if st.text_input("Acceso Admin", type="password") == "8899":
+        conn = sqlite3.connect(DB_NAME)
+        st.subheader("🛠️ Gestión de Flota (Taller)")
+        flota_adm = pd.read_sql_query("SELECT * FROM flota", conn)
+        for _, f in flota_adm.iterrows():
+            col1, col2 = st.columns([3,1])
+            col1.write(f"**{f['nombre']}** ({f['estado']})")
+            if col2.button("TALLER / DISP", key=f"tk{f['nombre']}"):
+                nuevo = "Taller" if f['estado'] == "Disponible" else "Disponible"
+                conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo, f['nombre']))
+                conn.commit(); st.rerun()
+
+        st.subheader("📈 Estadísticas")
+        res_df = pd.read_sql_query("SELECT total, inicio FROM reservas", conn)
+        if not res_df.empty:
+            res_df['mes'] = pd.to_datetime(res_df['inicio']).dt.strftime('%m-%b')
+            fig = px.bar(res_df.groupby('mes')['total'].sum().reset_index(), x='mes', y='total', title="Ingresos R$", color_discrete_sequence=['#D4AF37'])
+            st.plotly_chart(fig)
+        conn.close()
