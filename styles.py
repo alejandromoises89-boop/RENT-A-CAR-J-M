@@ -1,79 +1,53 @@
 # styles.py
-
 def aplicar_estilo_premium():
     return """
     <style>
-        /* Fuente y Fondo Principal */
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;700&display=swap');
         
+        /* Fondo Premium de la Imagen */
         .stApp {
-            background: radial-gradient(circle at top, #3d0a0a 0%, #121212 100%);
+            background: radial-gradient(circle at top, #4A0404 0%, #121212 100%);
             color: #ffffff;
             font-family: 'Montserrat', sans-serif;
         }
 
-        /* Banner de Encabezado J&M */
-        .header-jm {
-            text-align: center;
-            padding: 25px;
-            background: rgba(0,0,0,0.4);
-            border-bottom: 3px solid #D4AF37;
-            border-radius: 0 0 20px 20px;
-            margin-bottom: 40px;
-        }
-        .header-jm h1 { color: #D4AF37; font-weight: 700; letter-spacing: 3px; margin:0; }
-
-        /* Tarjetas de Autos (Efecto Cristal de la Imagen) */
-        .car-card {
+        /* Tarjetas estilo "Glass" de la imagen */
+        .card-auto {
             background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(212, 175, 55, 0.2);
+            border: 1px solid rgba(212, 175, 55, 0.3);
             border-radius: 20px;
             padding: 20px;
-            text-align: center;
-            backdrop-filter: blur(15px);
-            transition: all 0.4s ease;
-            margin-bottom: 25px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+            transition: 0.4s;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+            margin-bottom: 20px;
         }
-        .car-card:hover {
+        .card-auto:hover {
+            transform: translateY(-5px);
             border-color: #D4AF37;
-            transform: translateY(-10px);
-            background: rgba(212, 175, 55, 0.08);
-            box-shadow: 0 15px 40px rgba(212, 175, 55, 0.2);
+            background: rgba(212, 175, 55, 0.05);
         }
 
         /* Botones Dorados */
         div.stButton > button {
             background: linear-gradient(90deg, #D4AF37 0%, #B8860B 100%) !important;
-            color: #000 !important;
-            font-weight: 700 !important;
+            color: black !important;
+            font-weight: bold !important;
             border-radius: 12px !important;
             border: none !important;
-            transition: 0.3s;
-            text-transform: uppercase;
-        }
-        div.stButton > button:hover {
-            box-shadow: 0px 0px 20px rgba(212, 175, 55, 0.7);
-            transform: scale(1.03);
+            height: 45px;
         }
 
-        /* Tabs / Pestañas Personalizadas */
-        .stTabs [data-baseweb="tab-list"] { background-color: transparent; }
-        .stTabs [data-baseweb="tab"] {
-            background-color: rgba(255,255,255,0.05);
-            border: 1px solid rgba(212, 175, 55, 0.1);
-            border-radius: 10px 10px 0 0;
-            color: #D4AF37;
-            padding: 10px 30px;
-        }
-        .stTabs [aria-selected="true"] {
-            background-color: #D4AF37 !important;
-            color: #000 !important;
+        /* Títulos */
+        h1, h2, h3 { color: #D4AF37 !important; text-align: center; }
+        
+        /* Caja de Pago Pix */
+        .pix-box {
+            background: rgba(212, 175, 55, 0.1);
+            border: 2px dashed #D4AF37;
+            padding: 15px;
+            border-radius: 15px;
+            margin: 15px 0;
         }
     </style>
-    
-    <div class="header-jm">
-        <h1>J&M ASOCIADOS</h1>
-        <p style="color: #D4AF37; font-weight: 400; letter-spacing: 1px;">ALQUILER DE VEHÍCULOS DE LUJO</p>
-    </div>
     """
