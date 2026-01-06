@@ -134,23 +134,25 @@ with t_res:
                     st.error("Vehículo no disponible para estas fechas.")
 
 with t_ubi:
-    # Este enlace utiliza la función de búsqueda pública de Google Maps, que es gratuita y estable.
+    st.markdown("<h3>NUESTRA UBICACIÓN</h3>", unsafe_allow_html=True)
+    
+    # Mapa de Ciudad del Este (Versión estable sin errores de API)
     st.markdown('''
         <div style="border: 2px solid #D4AF37; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
             <iframe 
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d57610.05739023021!2d-54.654344186523425!3d-25.5174415!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f690806437979b%3A0x6a2c300895318049!2sCiudad%20del%20Este%2C%20Paraguay!5e0!3m2!1ses!2spy!4v1700000000000!5m2!1ses!2spy" 
                 width="100%" 
                 height="450" 
-                frameborder="0" 
-                style="border:0"
-                src="https://www.google.com/maps/embed/v1/place?key=TU_API_KEY_AQUI&q=Ciudad+del+Este+Paraguay" 
-                allowfullscreen>
+                style="border:0;" 
+                allowfullscreen="" 
+                loading="lazy" 
+                referrerpolicy="no-referrer-when-downgrade">
             </iframe>
         </div>
     ''', unsafe_allow_html=True)
     
-    # st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d115206.59365778235!2d-54.6931535!3d-25.5143399!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f6858d48726f1d%3A0xc0039237937d5707!2sCiudad%20del%20Este!5e0!3m2!1ses!2spy!4v1700000000000" width="100%" height="450" style="border:2px solid #D4AF37; border-radius:20px;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
-
-    st.markdown('<br><a href="https://www.instagram.com/jm_asociados_consultoria" target="_blank" style="text-decoration:none;"><div style="background-color:#E1306C; color:white; padding:12px; border-radius:10px; text-align:center; font-weight:bold;">📸 INSTAGRAM OFICIAL</div></a>', unsafe_allow_html=True)
+    # Botón de Instagram debajo del mapa
+    st.markdown('<br><a href="https://www.instagram.com/jm_asociados_consultoria" target="_blank" style="text-decoration:none;"><div style="background-color:#E1306C; color:white; padding:15px; border-radius:12px; text-align:center; font-weight:bold; font-size:18px;">📸 VISITAR INSTAGRAM OFICIAL</div></a>', unsafe_allow_html=True)
 
 with t_adm:
     clave = st.text_input("Clave Admin", type="password")
