@@ -14,22 +14,11 @@ st.set_page_config(
     page_icon="https://i.ibb.co/PzsvxYrM/JM-Asociados-Logotipo-02.png" 
 )
 
-# --- ESTILO JM PREMIUM (BORDO Y DORADO) ---
-st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@400;700&display=swap');
-    .stApp { background-color: #4A0404; }
-    h1, h2, h3 { color: #D4AF37 !important; font-family: 'Playfair Display', serif !important; }
-    p, span, label, div { color: #D4AF37 !important; font-family: 'Montserrat', sans-serif !important; }
-    .stTabs [data-baseweb="tab-list"] { background-color: #310202; border-radius: 10px; }
-    .stTabs [aria-selected="true"] { border-bottom: 3px solid #D4AF37 !important; background-color: #5a0505 !important; }
-    .card-auto { background-color: #4A0404; padding: 20px; border-radius: 15px; border: 1px solid #D4AF37; text-align: center; margin-bottom: 15px; }
-    .stButton>button { background-color: #4A0404 !important; color: #D4AF37 !important; border: 1px solid #D4AF37 !important; font-weight: bold; width: 100%; }
-    .stButton>button:hover { background-color: #D4AF37 !important; color: #4A0404 !important; }
-    .stTextInput>div>div>input, .stTextArea>div>div>textarea { background-color: #310202 !important; color: #D4AF37 !important; border: 1px solid #D4AF37 !important; }
-    .contrato-box { background-color: #310202; padding: 20px; border: 1px solid #D4AF37; border-radius: 10px; height: 350px; overflow-y: scroll; color: #D4AF37; font-size: 13px; text-align: justify; margin-bottom: 20px; white-space: pre-wrap; }
-    </style>
-    """, unsafe_allow_html=True)
+st.markdown("""<style>
+    .card-auto { background: #1e1e1e; padding: 20px; border-radius: 15px; border: 1px solid #D4AF37; margin-bottom: 20px; color: white; }
+    .pix-box { background: #f0f2f6; color: black; padding: 15px; border-radius: 10px; border-left: 5px solid #28a745; margin: 10px 0; }
+</style>""", unsafe_allow_html=True)
+
 
 # --- LÓGICA DE COTIZACIÓN ---
 def obtener_cotizacion_real_guarani():
