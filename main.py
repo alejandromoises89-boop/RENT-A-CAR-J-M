@@ -1,11 +1,12 @@
 import streamlit as st
+import requests
 import sqlite3
 import pandas as pd
 import plotly.express as px
 from datetime import datetime, date, timedelta, time
 from fpdf import FPDF
 import urllib.parse
-import styles  # Asegúrate de tener styles.py con la función aplicar_estilo_premium()
+import styles  
 
 # --- FUNCIÓN DE COTIZACIÓN EN LÍNEA ---
 def obtener_cotizacion_pyg():
