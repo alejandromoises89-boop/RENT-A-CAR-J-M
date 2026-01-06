@@ -134,7 +134,22 @@ with t_res:
                     st.error("Vehículo no disponible para estas fechas.")
 
 with t_ubi:
-    st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d3600.9!2d-54.6!3d-25.5!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f690f6e5f8f3bd%3A0x936570644f77f1b6!2sJ%26M%20ASOCIADOS!5e0!3m2!1ses!2spy!4v1700000000000" width="100%" height="450" style="border:2px solid #D4AF37; border-radius:20px;"></iframe>', unsafe_allow_html=True)
+    # Este enlace utiliza la función de búsqueda pública de Google Maps, que es gratuita y estable.
+    st.markdown('''
+        <div style="border: 2px solid #D4AF37; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            <iframe 
+                width="100%" 
+                height="450" 
+                frameborder="0" 
+                style="border:0"
+                src="https://www.google.com/maps/embed/v1/place?key=TU_API_KEY_AQUI&q=Ciudad+del+Este+Paraguay" 
+                allowfullscreen>
+            </iframe>
+        </div>
+    ''', unsafe_allow_html=True)
+    
+    # st.markdown('<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d115206.59365778235!2d-54.6931535!3d-25.5143399!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f6858d48726f1d%3A0xc0039237937d5707!2sCiudad%20del%20Este!5e0!3m2!1ses!2spy!4v1700000000000" width="100%" height="450" style="border:2px solid #D4AF37; border-radius:20px;" allowfullscreen="" loading="lazy"></iframe>', unsafe_allow_html=True)
+
     st.markdown('<br><a href="https://www.instagram.com/jm_asociados_consultoria" target="_blank" style="text-decoration:none;"><div style="background-color:#E1306C; color:white; padding:12px; border-radius:10px; text-align:center; font-weight:bold;">📸 INSTAGRAM OFICIAL</div></a>', unsafe_allow_html=True)
 
 with t_adm:
