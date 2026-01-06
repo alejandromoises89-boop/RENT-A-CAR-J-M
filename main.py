@@ -122,4 +122,8 @@ else:
         if st.button("🖨️ IMPRIMIR CONTRATO"):
             st.info("Preparando versión para imprimir...")
     with col_c2:
-        st.success("📝 Al presionar 'Confirmar Alquiler', los datos se estamparon en
+        st.success("📝 Al presionar 'Confirmar Alquiler', los datos se estamparon en el contrato.")
+
+    if st.sidebar.button("Cerrar Sesión"):
+        st.session_state.logged_in = False
+        st.rerun()
