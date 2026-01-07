@@ -164,23 +164,160 @@ Adjunto mi comprobante de pago."""
                     st.error("Vehículo no disponible para estas fechas.")
 
 with t_ubi:
-    st.markdown("<h3>NUESTRA UBICACIÓN</h3>", unsafe_allow_html=True)
+    st.markdown("<h3>NUESTRA UBICACIÓN EXACTA</h3>", unsafe_allow_html=True)
+    
+    # Mapa Exacto de J&M ASOCIADOS Consultoria
+    # Se utiliza el Place ID oficial (ChIJ7fT45f2P9pQRtvHHT-ZwZTM) para precisión total
     st.markdown('''
-        <div style="border: 2px solid #D4AF37; border-radius: 20px; overflow: hidden;">
-            <iframe src="http://googleusercontent.com/maps.google.com/9" width="100%" height="450" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
+        <div style="border: 3px solid #D4AF37; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-bottom: 20px;">
+            <iframe 
+                src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d3601.24151703666!2d-54.6103998!3d-25.5170969!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f68ffd65f8f4ed%3A0x336570e64f77f1b6!2sJ%26M%20ASOCIADOS%20Consultoria!5e0!3m2!1ses-419!2spy!4v1715634567890!5m2!1ses-419!2spy" 
+                width="100%" 
+                height="450" 
+                style="border:0;" 
+                allowfullscreen="" 
+                loading="lazy" 
+                referrerpolicy="no-referrer-when-downgrade">
+            </iframe>
+        </div>
+    ''', unsafe_allow_html=True)
+    
+    # Columnas para los botones de Redes Sociales
+    col_social1, col_social2 = st.columns(2)
+    
+    with col_social1:
+        # Botón de Instagram
+        st.markdown('''
+            <a href="https://www.instagram.com/jm_asociados_consultoria?igsh=djBzYno0MmViYzBo" target="_blank" style="text-decoration:none;">
+                <div style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); 
+                            color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold; font-size:18px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+                    📸 INSTAGRAM OFICIAL
+                </div>
+            </a>
+        ''', unsafe_allow_html=True)
+        
+    with col_social2:
+        # Botón de WhatsApp
+        # Usamos el formato internacional 595991681191 para que abra directo el chat
+        st.markdown('''
+            <a href="https://wa.me/595991681191" target="_blank" style="text-decoration:none;">
+                <div style="background-color:#25D366; color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold; font-size:18px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+                    💬 WHATSAPP EMPRESARIAL
+                </div>
+            </a>
+        ''', unsafe_allow_html=True)
+    
+    # Información adicional debajo de los botones
+    st.markdown('''
+        <div style="text-align:center; margin-top:20px; color:#D4AF37;">
+            <p>📍 C/ Farid Rahal Canan, Curupayty, Cd. del Este 7000, Paraguay</p>
+            <p>⏰ Horario de Atención: Lunes a Viernes 08:00 – 16:30</p>
         </div>
     ''', unsafe_allow_html=True)
 
 with t_adm:
-    clave = st.text_input("Clave Admin", type="password")
+    clave = st.text_input("Clave de Acceso", type="password")
     if clave == "8899":
         conn = sqlite3.connect(DB_NAME)
         res_df = pd.read_sql_query("SELECT * FROM reservas", conn)
-        st.metric("INGRESOS", f"R$ {res_df['total'].sum():,.2f}" if not res_df.empty else "R$ 0.00")
+        egr_df = pd.read_sql_query("SELECT * FROM egresos", conn)
+        flota_adm = pd.read_sql_query("SELECT * FROM flota", conn)
         
+        st.title("📊 PANEL DE CONTROL ESTRATÉGICO")
+        
+        # --- MÉTRICAS RÁPIDAS ---
+        ing = res_df['total'].sum() if not res_df.empty else 0
+        egr = egr_df['monto'].sum() if not egr_df.empty else 0
+        
+        c_f1, c_f2, c_f3 = st.columns(3)
+        c_f1.metric("INGRESOS TOTALES", f"R$ {ing:,.2f}")
+        c_f2.metric("GASTOS OPERATIVOS", f"R$ {egr:,.2f}")
+        c_f3.metric("UTILIDAD NETA", f"R$ {ing - egr:,.2f}")
+
+        # --- GRÁFICOS ESTADÍSTICOS ---
+        col_g1, col_g2 = st.columns(2)
+        
+        with col_g1:
+            st.subheader("Distribución de Ingresos por Auto")
+            if not res_df.empty:
+                fig_torta = px.pie(res_df, values='total', names='auto', hole=0.4,
+                                 color_discrete_sequence=px.colors.sequential.Gold)
+                st.plotly_chart(fig_torta, use_container_width=True)
+        
+        with col_g2:
+            st.subheader("Ingresos vs Gastos")
+            fig_bar = px.bar(x=["Ingresos", "Gastos"], y=[ing, egr], 
+                            color=["Ingresos", "Gastos"],
+                            color_discrete_map={"Ingresos": "#D4AF37", "Gastos": "#800020"})
+            st.plotly_chart(fig_bar, use_container_width=True)
+
+        # --- SECCIÓN DE GASTOS ---
+        with st.expander("💸 CARGAR NUEVO GASTO / EGRESO"):
+            with st.form("form_gasto"):
+                con = st.text_input("Concepto del Gasto (Ej: Lavado, Mecánico)")
+                mon = st.number_input("Monto en R$", min_value=0.0)
+                fec = st.date_input("Fecha", date.today())
+                if st.form_submit_button("Registrar Egreso"):
+                    if con and mon > 0:
+                        conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (con, mon, fec))
+                        conn.commit()
+                        st.success("Gasto registrado correctamente")
+                        st.rerun()
+
+        # --- GESTIÓN DE FLOTA (DISPONIBILIDAD) ---
+        st.subheader("🛠️ ESTADO DE LA FLOTA")
+        for _, f in flota_adm.iterrows():
+            col_a1, col_a2, col_a3 = st.columns([2, 1, 1])
+            col_a1.write(f"**{f['nombre']}** | Placa: {f['placa']}")
+            
+            # Color del estado
+            color_estado = "green" if f['estado'] == "Disponible" else "orange"
+            col_a2.markdown(f'<span style="color:{color_estado}; font-weight:bold;">{f["estado"]}</span>', unsafe_allow_html=True)
+            
+            if col_a3.button("CAMBIAR ESTADO", key=f"btn_flota_{f['nombre']}"):
+                nuevo = "En Taller" if f['estado'] == "Disponible" else "Disponible"
+                conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo, f['nombre']))
+                conn.commit()
+                st.rerun()
+
+        # --- EXPORTACIÓN Y RESERVAS ---
+        st.subheader("📑 REGISTRO DE RESERVAS Y EXPORTACIÓN")
+        
+        # Botón para descargar Excel
+        if not res_df.empty:
+            # Limpiamos el DF para el Excel (quitamos el comprobante que es pesado)
+            excel_df = res_df.drop(columns=['comprobante'])
+            st.download_button(
+                label="📥 DESCARGAR REPORTE EXCEL",
+                data=excel_df.to_csv(index=False).encode('utf-8'),
+                file_name=f"Reporte_JM_{date.today()}.csv",
+                mime="text/csv"
+            )
+
+        # Visualización Detallada
         for _, r in res_df.iterrows():
             with st.expander(f"Reserva #{r['id']} - {r['cliente']}"):
-                if r['comprobante']: st.image(r['comprobante'], width=200)
-                if st.button("🗑️ BORRAR", key=f"del{r['id']}"):
-                    conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],)); conn.commit(); st.rerun()
+                col_r1, col_r2 = st.columns(2)
+                
+                with col_r1:
+                    st.write("**Datos del Cliente:**")
+                    st.write(f"ID: {r['ci']}")
+                    st.write(f"Contacto: {r['celular']}")
+                    if r['comprobante']:
+                        st.write("**Comprobante de Pago:**")
+                        st.image(r['comprobante'], use_container_width=True)
+                
+                with col_r2:
+                    st.write("**Acciones:**")
+                    # Buscamos placa y color para el PDF
+                    f_info = conn.execute("SELECT placa, color FROM flota WHERE nombre=?", (r['auto'],)).fetchone()
+                    pdf_data = generar_contrato_pdf(r, f_info[0], f_info[1])
+                    
+                    st.download_button("📄 DESCARGAR CONTRATO", pdf_data, f"Contrato_{r['cliente']}.pdf", key=f"pdf_{r['id']}")
+                    
+                    if st.button("❌ ELIMINAR RESERVA", key=f"del_{r['id']}"):
+                        conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],))
+                        conn.commit()
+                        st.rerun()
+        
         conn.close()
