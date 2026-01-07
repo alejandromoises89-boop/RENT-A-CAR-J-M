@@ -46,10 +46,10 @@ def init_db():
                  (id INTEGER PRIMARY KEY, concepto TEXT, monto REAL, fecha DATE)''')
     
     autos = [
-        ("Hyundai Tucson Blanco", 260.0, "https://i.ibb.co/23tKv88L/Whats-App-Image-2026-01-06-at-14-12-35-1.png", "Disponible", "AAVI502", "Blanco"),
+        ("Hyundai Tucson Blanco", 260.0, "https://i.ibb.co/Kx1v7t9w/tucson.jpg", "Disponible", "AAVI502", "Blanco"),
         ("Toyota Vitz Blanco", 195.0, "https://i.ibb.co/Y7ZHY8kX/pngegg.png", "Disponible", "AAVP719", "Blanco"),
         ("Toyota Vitz Negro", 195.0, "https://i.ibb.co/rKFwJNZg/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel.png", "Disponible", "AAOR725", "Negro"),
-        ("Toyota Voxy Gris", 240.0, "https://i.ibb.co/7hYR0RC/BG160258-2427f0-Photoroom-1.png", "Disponible", "AAUG465", "Gris")
+        ("Toyota Voxy Gris", 240.0, "https://i.ibb.co/VpSpSJ9Q/voxy.png", "Disponible", "AAUG465", "Gris")
     ]
     for a in autos:
         c.execute("INSERT OR IGNORE INTO flota VALUES (?,?,?,?,?,?)", a)
@@ -57,6 +57,26 @@ def init_db():
     conn.close()
 
 init_db()
+
+# --- FUNCIÓN CALENDARIO VISUAL (NUEVO) ---
+def obtener_fechas_ocupadas(auto):
+    conn = sqlite3.connect(DB_NAME)
+    query = "SELECT inicio, fin FROM reservas WHERE auto = ?"
+    df = pd.read_sql_query(query, conn, params=(auto,))
+    conn.close()
+    
+    fechas_bloqueadas = []
+    for _, row in df.iterrows():
+        try:
+            # Convertimos strings de la DB a objetos date
+            f_ini = pd.to_datetime(row['inicio']).date()
+            f_fin = pd.to_datetime(row['fin']).date()
+            delta = f_fin - f_ini
+            for i in range(delta.days + 1):
+                fechas_bloqueadas.append(f_ini + timedelta(days=i))
+        except:
+            continue
+    return fechas_bloqueadas
 
 # --- FUNCIÓN GENERAR PDF ---
 def generar_pdf_contrato(reserva):
@@ -73,7 +93,6 @@ def generar_pdf_contrato(reserva):
     FECHA: {datetime.now().strftime('%d/%m/%Y')}
     ARRENDATARIO: {reserva['cliente']}
     DOCUMENTO: {reserva['ci']}
-    WHATSAPP: {reserva['numero']}
     VEHICULO: {reserva['auto']}
     DESDE: {reserva['inicio']} 
     HASTA: {reserva['fin']}
@@ -122,7 +141,32 @@ with t_res:
                     </p>
                 </div>
             ''', unsafe_allow_html=True)
-            with st.expander(f"Alquilar {v['nombre']}"):
+            
+            # --- SECCIÓN DE CALENDARIO Y RESERVA ---
+            with st.expander(f"📅 VER DISPONIBILIDAD Y ALQUILAR {v['nombre'].upper()}"):
+                
+                # --- CALENDARIO VISUAL FIJO ---
+                st.write("### Disponibilidad Próximos 21 Días")
+                ocupadas = obtener_fechas_ocupadas(v['nombre'])
+                hoy = date.today()
+                
+                filas = st.columns(7)
+                for d in range(21):
+                    dia_f = hoy + timedelta(days=d)
+                    is_ocupado = dia_f in ocupadas
+                    color = "#ff4b4b" if is_ocupado else "#28a745" # Rojo si ocupado, Verde si libre
+                    texto = "X" if is_ocupado else "OK"
+                    
+                    with filas[d % 7]:
+                        st.markdown(f'''
+                            <div style="background-color:{color}; color:white; padding:5px; border-radius:5px; text-align:center; font-size:12px; margin-bottom:10px;">
+                                {dia_f.strftime('%d/%m')}<br><b>{texto}</b>
+                            </div>
+                        ''', unsafe_allow_html=True)
+                st.caption("🟢 Verde: Disponible | 🔴 Rojo: Ocupado")
+                st.divider()
+
+                # --- FORMULARIO EXISTENTE ---
                 c1, c2 = st.columns(2)
                 dt_i = datetime.combine(c1.date_input("Inicio", key=f"d1{v['nombre']}"), c1.time_input("Hora 1", time(9,0), key=f"h1{v['nombre']}"))
                 dt_f = datetime.combine(c2.date_input("Fin", key=f"d2{v['nombre']}"), c2.time_input("Hora 2", time(10,0), key=f"h2{v['nombre']}"))
@@ -139,14 +183,25 @@ with t_res:
 
                     if c_n and c_d and c_w:
                         st.warning("⚠️ **ATENCIÓN:** Antes de proceder al pago, es obligatorio leer el contrato.")
-                        st.markdown(f"""
-                        <div style="background-color: #2b0606; color: #f1f1f1; padding: 20px; border: 1px solid #D4AF37; border-radius: 10px; height: 200px; overflow-y: scroll; font-size: 13px;">
-                            <center><h4 style="color:#D4AF37;">CONTRATO DE ALQUILER</h4></center>
-                            <b>ARRENDADOR:</b> JM ASOCIADOS | <b>ARRENDATARIO:</b> {c_n.upper()}<br>
-                            <b>PRECIO PACTADO:</b> Gs. {precio_dia_gs:,.0f} por día. <b>TOTAL: Gs. {total_gs:,.0f}</b>.<br>
-                            Usted se hace responsable civil y penalmente del vehículo.
+                        contrato_html = f"""
+                        <div style="background-color: #2b0606; color: #f1f1f1; padding: 20px; border: 1px solid #D4AF37; border-radius: 10px; height: 350px; overflow-y: scroll; font-size: 13px; line-height: 1.6; font-family: sans-serif;">
+                            <center><h4 style="color:#D4AF37;">CONTRATO DE ALQUILER Y AUTORIZACIÓN PARA CONDUCIR</h4></center>
+                            <b>ARRENDADOR:</b> JM ASOCIADOS | C.I. 1.702.076-0 | Domicilio: CURUPAYTU ESQUINA FARID RAHAL<br>
+                            <b>ARRENDATARIO:</b> {c_n.upper()} | C.I./Documento: {c_d}<br><br>
+                            <b>PRIMERA - OBJETO:</b> Se alquila el vehículo {v['nombre']} (Chapa: {v['placa']}) en perfecto estado.<br>
+                            <b>SEGUNDA - DURACIÓN:</b> {dias} días. Desde {dt_i.strftime('%d/%m/%Y %H:%M')} hasta {dt_f.strftime('%d/%m/%Y %H:%M')}.<br>
+                            <b>TERCERA - PRECIO:</b> Gs. {precio_dia_gs:,.0f} por día. <b>TOTAL: Gs. {total_gs:,.0f}</b>.<br>
+                            <b>CUARTA - DEPÓSITO:</b> Gs. 5.000.000 en caso de accidente.<br>
+                            <b>QUINTA - CONDICIONES:</b> El arrendatario es responsable PENAL y CIVIL de todo lo ocurrido dentro del vehículo.<br>
+                            <b>SEXTA - KILOMETRAJE:</b> Límite 200km/día. Exceso: 100.000 Gs adicionales.<br>
+                            <b>SÉPTIMA - SEGURO:</b> Cuenta con seguro básico contra terceros y rastreo satelital.<br>
+                            <b>OCTAVA:</b> Mantenimiento de agua, combustible y limpieza a cargo del cliente.<br>
+                            <b>NOVENA:</b> Devolución en misma condición. Retrasos generan penalización.<br>
+                            <b>DÉCIMA:</b> Jurisdicción Tribunales del Alto Paraná, Paraguay.<br><br>
+                            <i>Al confirmar y subir el comprobante, usted declara haber leído y aceptado todas las cláusulas.</i>
                         </div>
-                        """, unsafe_allow_html=True)
+                        """
+                        st.markdown(contrato_html, unsafe_allow_html=True)
                         
                         st.markdown(f'<div class="pix-box"><b>PAGO PIX: R$ {total_r}</b><br>Llave: 24510861818<br>Marina Baez</div>', unsafe_allow_html=True)
                         foto = st.file_uploader("Adjuntar Comprobante", type=['jpg', 'png'], key=f"f{v['nombre']}")
@@ -160,13 +215,7 @@ with t_res:
                                 conn.commit(); conn.close()
                                 st.success("¡Reserva confirmada!")
                                 
-                                msj_wa = f"""Hola JM, soy {c_n}.
-He leído el contrato y acepto los términos.
-🚗 Vehículo: {v['nombre']}
-🗓️ Periodo: {dt_i.strftime('%d/%m/%Y')} al {dt_f.strftime('%d/%m/%Y')}
-💰 Total: R$ {total_r}
-Adjunto mi comprobante de pago."""
-                                
+                                msj_wa = f"Hola JM, soy {c_n}.\nHe leído el contrato y acepto los términos.\n🚗 Vehículo: {v['nombre']}\n🗓️ Periodo: {dt_i.strftime('%d/%m/%Y')} al {dt_f.strftime('%d/%m/%Y')}\n💰 Total: R$ {total_r}\nAdjunto mi comprobante de pago."
                                 texto_url = urllib.parse.quote(msj_wa)
                                 link_wa = f"https://wa.me/595991681191?text={texto_url}"
                                 
@@ -180,13 +229,14 @@ Adjunto mi comprobante de pago."""
                             else:
                                 st.warning("Por favor, adjunte la foto del comprobante.")
                 else:
-                    st.error("Vehículo no disponible para estas fechas.")
+                    st.error("Vehículo no disponible para estas fechas. Revise el calendario arriba.")
 
+# --- SECCIONES UBICACIÓN Y ADMINISTRADOR SE MANTIENEN IGUAL ---
 with t_ubi:
     st.markdown("<h3 style='text-align: center; color: #D4AF37;'>NUESTRA UBICACIÓN</h3>", unsafe_allow_html=True)
     st.markdown('''
         <div style="border: 2px solid #D4AF37; border-radius: 15px; overflow: hidden; margin-bottom: 20px;">
-            <iframe width="100%" height="400" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3601.547144342774!2d-54.6138652!3d-25.5184519!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f68ff184000001%3A0xc34346816007c050!2sC.%20Farid%20Rahal%20Canan%2C%20Ciudad%20del%20Este!5e0!3m2!1ses!2spy!4v1700000000000" frameborder="0" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
+            <iframe width="100%" height="400" src="https://maps.google.com/maps?q=Curupaytu%20Ciudad%20del%20este&t=&z=13&ie=UTF8&iwloc=&output=embed" frameborder="0" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
         </div>
     ''', unsafe_allow_html=True)
     
