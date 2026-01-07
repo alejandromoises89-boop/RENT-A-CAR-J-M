@@ -159,7 +159,6 @@ with t_res:
                                 conn.commit(); conn.close()
                                 st.success("¡Reserva confirmada!")
                                 
-                                # --- CORRECCIÓN AQUÍ: USO DE TRIPLE COMILLA PARA EVITAR ERRORES ---
                                 msj_wa = f"""Hola JM, soy {c_n}.
 He leído el contrato y acepto los términos.
 🚗 Vehículo: {v['nombre']}
@@ -184,47 +183,17 @@ Adjunto mi comprobante de pago."""
 
 with t_ubi:
     st.markdown("<h3 style='text-align: center; color: #D4AF37;'>NUESTRA UBICACIÓN</h3>", unsafe_allow_html=True)
-    
     st.markdown('''
         <div style="border: 2px solid #D4AF37; border-radius: 15px; overflow: hidden; margin-bottom: 20px;">
-            <iframe 
-                width="100%" 
-                height="400" 
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3601.201416801!2d-54.6133!3d-25.5165!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjXCsDMwJzU5LjQiUyA1NMKwMzYnNDcuOSJX!5e0!3m2!1ses!2spy!4v1704500000000!5m2!1ses!2spy" 
-                frameborder="0" 
-                style="border:0;" 
-                allowfullscreen="" 
-                loading="lazy">
-            </iframe>
+            <iframe width="100%" height="400" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3601.547144342774!2d-54.6138652!3d-25.5184519!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f68ff184000001%3A0xc34346816007c050!2sC.%20Farid%20Rahal%20Canan%2C%20Ciudad%20del%20Este!5e0!3m2!1ses!2spy!4v1700000000000" frameborder="0" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
         </div>
     ''', unsafe_allow_html=True)
     
     col_social1, col_social2 = st.columns(2)
     with col_social1:
-        st.markdown('''
-            <a href="https://www.instagram.com/jm_asociados_consultoria?igsh=djBzYno0MmViYzBo" target="_blank" style="text-decoration:none;">
-                <div style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); 
-                            color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold; font-size:18px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
-                    📸 INSTAGRAM OFICIAL
-                </div>
-            </a>
-        ''', unsafe_allow_html=True)
-        
+        st.markdown('''<a href="https://www.instagram.com/jm_asociados_consultoria?igsh=djBzYno0MmViYzBo" target="_blank" style="text-decoration:none;"><div style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold; font-size:18px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">📸 INSTAGRAM OFICIAL</div></a>''', unsafe_allow_html=True)
     with col_social2:
-        st.markdown('''
-            <a href="https://wa.me/595991681191" target="_blank" style="text-decoration:none;">
-                <div style="background-color:#25D366; color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold; font-size:18px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
-                    💬 WHATSAPP EMPRESARIAL
-                </div>
-            </a>
-        ''', unsafe_allow_html=True)
-    
-    st.markdown('''
-        <div style="text-align:center; margin-top:20px; color:#D4AF37;">
-            <p>📍 C/ Farid Rahal Canan, Curupayty, Cd. del Este 7000, Paraguay</p>
-            <p>⏰ Horario de Atención: Lunes a Viernes 08:00 – 16:30</p>
-        </div>
-    ''', unsafe_allow_html=True)
+        st.markdown('''<a href="https://wa.me/595991681191" target="_blank" style="text-decoration:none;"><div style="background-color:#25D366; color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold; font-size:18px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">💬 WHATSAPP EMPRESARIAL</div></a>''', unsafe_allow_html=True)
 
 with t_adm:
     clave = st.text_input("Clave de Acceso", type="password")
@@ -275,11 +244,18 @@ with t_adm:
 
         with st.expander("💸 CARGAR GASTO"):
             with st.form("g_form"):
-                con = st.text_input("Concepto")
-                mon = st.number_input("Monto en Gs. y en R$", min_value=0.0)
-                if st.form_submit_button("Guardar"):
-                    conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (con, mon, date.today()))
-                    conn.commit(); st.rerun()
+                con = st.text_input("Concepto (Ej: Lavado, Taller, Repuesto)")
+                mon_texto = st.text_input("Monto en Gs. (Usa puntos, ej: 150.000)", value="0")
+                if st.form_submit_button("Guardar Gasto"):
+                    try:
+                        mon_limpio = float(mon_texto.replace(".", "").replace(",", ""))
+                        mon_en_reales = mon_limpio / COTIZACION_DIA
+                        if mon_limpio > 0:
+                            conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", 
+                                         (con, mon_en_reales, date.today()))
+                            conn.commit(); st.success("Gasto guardado."); st.rerun()
+                    except:
+                        st.error("Formato de monto inválido.")
 
         st.subheader("🛠️ ESTADO DE LA FLOTA")
         for _, f in flota_adm.iterrows():
@@ -299,9 +275,8 @@ with t_adm:
                     t_gs = r['total'] * COTIZACION_DIA
                     st.write(f"**Periodo:** {r['inicio']} a {r['fin']}")
                     st.write(f"**Total:** R$ {r['total']} | **Gs. {t_gs:,.0f}**")
-                    st.write(f"**Pactado:** R$ {r.get('precio_pactado', 0)}/día")
                     pdf_data = generar_pdf_contrato(r)
-                    st.download_button("📄 DESCARGAR CONTRATO PDF", pdf_data, f"Contrato_{r['id']}.pdf", "application/pdf")
+                    st.download_button("📄 CONTRATO PDF", pdf_data, f"Contrato_{r['id']}.pdf", "application/pdf")
                 with col_r2:
                     if r['comprobante']: st.image(r['comprobante'], width=150)
                     if st.button("🗑️ BORRAR", key=f"del_{r['id']}"):
