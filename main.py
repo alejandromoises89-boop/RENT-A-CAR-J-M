@@ -236,7 +236,7 @@ with t_adm:
         # --- GRÁFICOS ESTADÍSTICOS ---
         col_g1, col_g2 = st.columns(2)
         
-                with col_g1:
+        with col_g1:
             st.subheader("Distribución de Ingresos")
             if not res_df.empty:
                 # Cambiamos px.colors.sequential.Gold por una lista manual de dorados
