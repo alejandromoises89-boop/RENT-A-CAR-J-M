@@ -36,15 +36,12 @@ DB_NAME = 'jm_corporativo_permanente.db'
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    # Tabla Flota
     c.execute('''CREATE TABLE IF NOT EXISTS flota 
                  (nombre TEXT PRIMARY KEY, precio REAL, img TEXT, estado TEXT, placa TEXT, color TEXT)''')
-    # Tabla Reservas con precio_pactado
     c.execute('''CREATE TABLE IF NOT EXISTS reservas 
                  (id INTEGER PRIMARY KEY, cliente TEXT, ci TEXT, celular TEXT, 
                   auto TEXT, inicio TIMESTAMP, fin TIMESTAMP, total REAL, 
                   comprobante BLOB, precio_pactado REAL)''')
-    # Tabla Egresos
     c.execute('''CREATE TABLE IF NOT EXISTS egresos 
                  (id INTEGER PRIMARY KEY, concepto TEXT, monto REAL, fecha DATE)''')
     
@@ -69,6 +66,10 @@ def generar_pdf_contrato(reserva):
     pdf.cell(200, 10, "CONTRATO DE ALQUILER - JM ASOCIADOS", ln=True, align='C')
     pdf.ln(10)
     pdf.set_font("Arial", size=12)
+    
+    # Conversión a guaraníes para el documento
+    total_gs = reserva['total'] * COTIZACION_DIA
+    
     pdf.multi_cell(0, 10, f"""
     FECHA: {datetime.now().strftime('%d/%m/%Y')}
     ARRENDATARIO: {reserva['cliente']}
@@ -78,7 +79,7 @@ def generar_pdf_contrato(reserva):
     HASTA: {reserva['fin']}
     
     PRECIO PACTADO POR DIA: R$ {reserva['precio_pactado']}
-    TOTAL PAGADO: R$ {reserva['total']}
+    TOTAL PAGADO: R$ {reserva['total']} (Equivalente a Gs. {total_gs:,.0f})
     
     EL ARRENDATARIO DECLARA RECIBIR EL VEHICULO EN OPTIMAS CONDICIONES Y SE 
     HACE RESPONSABLE CIVIL Y PENALMENTE POR EL USO DEL MISMO DURANTE EL PERIODO MENCIONADO.
@@ -179,14 +180,28 @@ with t_adm:
         flota_adm = pd.read_sql_query("SELECT * FROM flota", conn)
         
         st.title("📊 PANEL ESTRATÉGICO")
+        st.write(f"**Cotización Actual:** 1 R$ = {COTIZACION_DIA:,.0f} Gs.")
         
-        # --- MÉTRICAS ---
-        ing = res_df['total'].sum() if not res_df.empty else 0
-        egr = egr_df['monto'].sum() if not egr_df.empty else 0
+        # --- MÉTRICAS DOBLE MONEDA ---
+        ing_r = res_df['total'].sum() if not res_df.empty else 0
+        egr_r = egr_df['monto'].sum() if not egr_df.empty else 0
+        util_r = ing_r - egr_r
+
+        # Conversiones
+        ing_gs = ing_r * COTIZACION_DIA
+        egr_gs = egr_r * COTIZACION_DIA
+        util_gs = util_r * COTIZACION_DIA
+
         c1, c2, c3 = st.columns(3)
-        c1.metric("INGRESOS", f"R$ {ing:,.2f}")
-        c2.metric("GASTOS", f"R$ {egr:,.2f}")
-        c3.metric("UTILIDAD", f"R$ {ing-egr:,.2f}")
+        with c1:
+            st.metric("INGRESOS TOTALES", f"R$ {ing_r:,.2f}")
+            st.caption(f"Gs. {ing_gs:,.0f}")
+        with c2:
+            st.metric("GASTOS TOTALES", f"R$ {egr_r:,.2f}")
+            st.caption(f"Gs. {egr_gs:,.0f}")
+        with c3:
+            st.metric("UTILIDAD NETA", f"R$ {util_r:,.2f}")
+            st.caption(f"Gs. {util_gs:,.0f}")
 
         # --- GESTIÓN DE TARIFAS ---
         with st.expander("💰 ACTUALIZAR PRECIOS ACTUALES"):
@@ -215,7 +230,7 @@ with t_adm:
         with st.expander("💸 CARGAR GASTO"):
             with st.form("g_form"):
                 con = st.text_input("Concepto")
-                mon = st.number_input("Monto", min_value=0.0)
+                mon = st.number_input("Monto en R$", min_value=0.0)
                 if st.form_submit_button("Guardar"):
                     conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (con, mon, date.today()))
                     conn.commit(); st.rerun()
@@ -237,10 +252,11 @@ with t_adm:
             with st.expander(f"#{r['id']} - {r['cliente']} ({r['auto']})"):
                 col_r1, col_r2 = st.columns([2, 1])
                 with col_r1:
-                    st.write(f"Periodo: {r['inicio']} a {r['fin']}")
-                    st.write(f"Total: R$ {r['total']} (Pactado: R$ {r.get('precio_pactado', 0)}/día)")
+                    total_gs_res = r['total'] * COTIZACION_DIA
+                    st.write(f"**Periodo:** {r['inicio']} a {r['fin']}")
+                    st.write(f"**Total:** R$ {r['total']} | **Gs. {total_gs_res:,.0f}**")
+                    st.write(f"**Pactado:** R$ {r.get('precio_pactado', 0)}/día")
                     
-                    # BOTÓN DESCARGAR CONTRATO
                     pdf_data = generar_pdf_contrato(r)
                     st.download_button("📄 DESCARGAR CONTRATO PDF", pdf_data, f"Contrato_{r['id']}.pdf", "application/pdf")
                     
