@@ -1,4 +1,4 @@
-import streamlit as st
+uimport streamlit as st
 import sqlite3
 import pandas as pd
 import requests
@@ -256,4 +256,57 @@ with t_adm:
             with st.form("gasto_form"):
                 con_g = st.text_input("Concepto (Ej: Mecánico, Limpieza)")
                 mon_g = st.number_input("Monto en R$", min_value=0.0)
-                if st.form_
+                if st.form_submit_button("Guardar Egreso"):
+                    if con_g and mon_g > 0:
+                        conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (con_g, mon_g, date.today()))
+                        conn.commit()
+                        st.success("Gasto guardado")
+                        st.rerun()
+
+        # --- 4. GESTIÓN DE FLOTA (TALLER / DISPONIBLE) ---
+        st.subheader("🛠️ ESTADO DE LA FLOTA")
+        for _, f in flota_adm.iterrows():
+            ca1, ca2, ca3 = st.columns([2, 1, 1])
+            ca1.write(f"**{f['nombre']}** ({f['placa']})")
+            # Mostrar bolita verde o roja según estado
+            status_icon = "🟢" if f['estado'] == "Disponible" else "🔴"
+            ca2.write(f"{status_icon} {f['estado']}")
+            if ca3.button("CAMBIAR", key=f"sw_{f['nombre']}"):
+                nuevo = "En Taller" if f['estado'] == "Disponible" else "Disponible"
+                conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo, f['nombre']))
+                conn.commit()
+                st.rerun()
+
+        # --- 5. VISUALIZACIÓN DE RESERVAS Y BORRADO ---
+        st.subheader("📑 REGISTRO DE RESERVAS")
+        if not res_df.empty:
+            # Opción de descargar Excel por si lo necesitas
+            csv = res_df.drop(columns=['comprobante']).to_csv(index=False).encode('utf-8')
+            st.download_button("📥 DESCARGAR EXCEL", csv, "reporte_jm.csv", "text/csv")
+
+        for _, r in res_df.iterrows():
+            with st.expander(f"Reserva #{r['id']} - {r['cliente']}"):
+                cr1, cr2 = st.columns([2, 1])
+                with cr1:
+                    st.markdown(f"""
+                    **INFORMACIÓN:**
+                    - **Documento:** {r['ci']}
+                    - **Contacto:** {r['celular']}
+                    - **Auto:** {r['auto']}
+                    - **Desde:** {r['inicio']}
+                    - **Hasta:** {r['fin']}
+                    - **Total:** R$ {r['total']:,.2f}
+                    """)
+                
+                with cr2:
+                    if r['comprobante']:
+                        st.write("**Comprobante PIX:**")
+                        st.image(r['comprobante'], use_container_width=True)
+                    
+                    # Botón para borrar reservas
+                    if st.button("🗑️ BORRAR RESERVA", key=f"del_{r['id']}"):
+                        conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],))
+                        conn.commit()
+                        st.success(f"Reserva #{r['id']} eliminada")
+                        st.rerun()
+        conn.close()
