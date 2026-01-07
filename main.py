@@ -70,3 +70,183 @@ def generar_pdf_contrato(reserva):
     pdf.ln(10)
     pdf.set_font("Arial", size=12)
     pdf.multi_cell(0, 10, f"""
+    FECHA: {datetime.now().strftime('%d/%m/%Y')}
+    ARRENDATARIO: {reserva['cliente']}
+    DOCUMENTO: {reserva['ci']}
+    VEHICULO: {reserva['auto']}
+    DESDE: {reserva['inicio']} 
+    HASTA: {reserva['fin']}
+    
+    PRECIO PACTADO POR DIA: R$ {reserva['precio_pactado']}
+    TOTAL PAGADO: R$ {reserva['total']}
+    
+    EL ARRENDATARIO DECLARA RECIBIR EL VEHICULO EN OPTIMAS CONDICIONES Y SE 
+    HACE RESPONSABLE CIVIL Y PENALMENTE POR EL USO DEL MISMO DURANTE EL PERIODO MENCIONADO.
+    """)
+    return pdf.output(dest='S').encode('latin-1')
+
+# --- FUNCIONES DISPONIBILIDAD ---
+def esta_disponible(auto, t_inicio, t_fin):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT estado FROM flota WHERE nombre=?", (auto,))
+    res = c.fetchone()
+    if res and res[0] == "En Taller":
+        conn.close(); return False
+    q = "SELECT COUNT(*) FROM reservas WHERE auto = ? AND NOT (fin <= ? OR inicio >= ?)"
+    c.execute(q, (auto, t_inicio.strftime('%Y-%m-%d %H:%M:%S'), t_fin.strftime('%Y-%m-%d %H:%M:%S')))
+    ocupado = c.fetchone()[0]
+    conn.close(); return ocupado == 0
+
+# --- INTERFAZ ---
+st.markdown("<h1>JM ASOCIADOS</h1>", unsafe_allow_html=True)
+t_res, t_ubi, t_adm = st.tabs(["📋 RESERVAS", "📍 UBICACIÓN", "🛡️ ADMINISTRADOR"])
+
+with t_res:
+    conn = sqlite3.connect(DB_NAME)
+    flota = pd.read_sql_query("SELECT * FROM flota", conn); conn.close()
+    cols = st.columns(2)
+    for i, (_, v) in enumerate(flota.iterrows()):
+        precio_en_guaranies = v['precio'] * COTIZACION_DIA
+        with cols[i % 2]:
+            st.markdown(f'''
+                <div class="card-auto">
+                    <h3>{v["nombre"]}</h3>
+                    <img src="{v["img"]}" width="100%">
+                    <p style="font-weight: bold; font-size: 20px; color: #D4AF37; margin-bottom: 2px;">
+                        R$ {v['precio']} / día
+                    </p>
+                    <p style="font-weight: bold; color: #28a745; margin-top: 0px;">
+                        Gs. {precio_en_guaranies:,.0f} / día
+                    </p>
+                </div>
+            ''', unsafe_allow_html=True)
+            with st.expander(f"Alquilar {v['nombre']}"):
+                c1, c2 = st.columns(2)
+                dt_i = datetime.combine(c1.date_input("Inicio", key=f"d1{v['nombre']}"), c1.time_input("Hora 1", time(9,0), key=f"h1{v['nombre']}"))
+                dt_f = datetime.combine(c2.date_input("Fin", key=f"d2{v['nombre']}"), c2.time_input("Hora 2", time(10,0), key=f"h2{v['nombre']}"))
+                
+                if esta_disponible(v['nombre'], dt_i, dt_f):
+                    c_n = st.text_input("Nombre Completo", key=f"n{v['nombre']}")
+                    c_d = st.text_input("CI / Documento", key=f"d{v['nombre']}")
+                    c_w = st.text_input("WhatsApp", key=f"w{v['nombre']}")
+                    
+                    dias = max(1, (dt_f - dt_i).days)
+                    total_r = dias * v['precio']
+                    total_gs = total_r * COTIZACION_DIA
+                    precio_dia_gs = total_gs / dias
+
+                    if c_n and c_d and c_w:
+                        st.warning("⚠️ **ATENCIÓN:** Antes de proceder al pago, es obligatorio leer el contrato.")
+                        st.markdown(f"""
+                        <div style="background-color: #2b0606; color: #f1f1f1; padding: 20px; border: 1px solid #D4AF37; border-radius: 10px; height: 200px; overflow-y: scroll; font-size: 13px;">
+                            <center><h4 style="color:#D4AF37;">CONTRATO DE ALQUILER</h4></center>
+                            <b>ARRENDADOR:</b> JM ASOCIADOS | <b>ARRENDATARIO:</b> {c_n.upper()}<br>
+                            <b>PRECIO PACTADO:</b> Gs. {precio_dia_gs:,.0f} por día. <b>TOTAL: Gs. {total_gs:,.0f}</b>.<br>
+                            Usted se hace responsable civil y penalmente del vehículo.
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        st.markdown(f'<div class="pix-box"><b>PAGO PIX: R$ {total_r}</b><br>Llave: 24510861818<br>Marina Baez</div>', unsafe_allow_html=True)
+                        foto = st.file_uploader("Adjuntar Comprobante", type=['jpg', 'png'], key=f"f{v['nombre']}")
+                        
+                        if st.button("CONFIRMAR RESERVA Y ACEPTAR CONTRATO", key=f"btn{v['nombre']}"):
+                            if foto:
+                                conn = sqlite3.connect(DB_NAME)
+                                conn.execute("""INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante, precio_pactado) 
+                                             VALUES (?,?,?,?,?,?,?,?,?)""", 
+                                             (c_n, c_d, c_w, v['nombre'], dt_i, dt_f, total_r, foto.read(), v['precio']))
+                                conn.commit(); conn.close()
+                                st.success("¡Reserva confirmada!")
+                                
+                                msj_wa = f"Hola JM, soy {c_n}. Alquilé {v['nombre']} del {dt_i.strftime('%d/%m')} al {dt_f.strftime('%d/%m')}. Pago R$ {total_r}."
+                                st.markdown(f'<a href="https://wa.me/595991681191?text={urllib.parse.quote(msj_wa)}" target="_blank">📲 ENVIAR COMPROBANTE WHATSAPP</a>', unsafe_allow_html=True)
+                            else:
+                                st.error("Adjunte comprobante.")
+                else:
+                    st.error("No disponible.")
+
+with t_ubi:
+    st.markdown("<h3 style='text-align: center; color: #D4AF37;'>NUESTRA UBICACIÓN</h3>", unsafe_allow_html=True)
+    st.markdown('<iframe width="100%" height="400" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3601.234!2d-54.6123!3d-25.5123!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjXCsDMwJzQ0LjMiUyA1NMKwMzYnNDQuMyJX!5e0!3m2!1ses!2spy!4v1641000000000" frameborder="0"></iframe>', unsafe_allow_html=True)
+
+with t_adm:
+    clave = st.text_input("Clave de Acceso", type="password")
+    if clave == "8899":
+        conn = sqlite3.connect(DB_NAME)
+        res_df = pd.read_sql_query("SELECT * FROM reservas", conn)
+        egr_df = pd.read_sql_query("SELECT * FROM egresos", conn)
+        flota_adm = pd.read_sql_query("SELECT * FROM flota", conn)
+        
+        st.title("📊 PANEL ESTRATÉGICO")
+        
+        # --- MÉTRICAS ---
+        ing = res_df['total'].sum() if not res_df.empty else 0
+        egr = egr_df['monto'].sum() if not egr_df.empty else 0
+        c1, c2, c3 = st.columns(3)
+        c1.metric("INGRESOS", f"R$ {ing:,.2f}")
+        c2.metric("GASTOS", f"R$ {egr:,.2f}")
+        c3.metric("UTILIDAD", f"R$ {ing-egr:,.2f}")
+
+        # --- GESTIÓN DE TARIFAS ---
+        with st.expander("💰 ACTUALIZAR PRECIOS ACTUALES"):
+            for idx, row in flota_adm.iterrows():
+                col_p1, col_p2 = st.columns([2, 1])
+                nuevo_p = col_p1.number_input(f"{row['nombre']}", value=float(row['precio']), key=f"p_adm_{row['nombre']}")
+                if col_p2.button("GUARDAR", key=f"btn_p_{row['nombre']}"):
+                    conn.execute("UPDATE flota SET precio=? WHERE nombre=?", (nuevo_p, row['nombre']))
+                    conn.commit(); st.rerun()
+
+        # --- CARGA HISTÓRICA ---
+        with st.expander("📅 BLOQUEAR FECHAS / CARGAR HISTÓRICO"):
+            with st.form("form_historico"):
+                h_cli = st.text_input("Cliente")
+                h_auto = st.selectbox("Vehículo", flota_adm['nombre'].tolist())
+                h_pre = st.number_input("Precio pagado (R$ día)", min_value=0.0)
+                h_ini = st.date_input("Inicio")
+                h_fin = st.date_input("Fin")
+                if st.form_submit_button("REGISTRAR Y BLOQUEAR"):
+                    d = max(1, (h_fin - h_ini).days)
+                    conn.execute("INSERT INTO reservas (cliente, auto, inicio, fin, total, precio_pactado) VALUES (?,?,?,?,?,?)",
+                                 (h_cli, h_auto, h_ini, h_fin, d*h_pre, h_pre))
+                    conn.commit(); st.rerun()
+
+        # --- REGISTRO DE GASTOS ---
+        with st.expander("💸 CARGAR GASTO"):
+            with st.form("g_form"):
+                con = st.text_input("Concepto")
+                mon = st.number_input("Monto", min_value=0.0)
+                if st.form_submit_button("Guardar"):
+                    conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (con, mon, date.today()))
+                    conn.commit(); st.rerun()
+
+        # --- ESTADO FLOTA ---
+        st.subheader("🛠️ ESTADO DE LA FLOTA")
+        for _, f in flota_adm.iterrows():
+            ca1, ca2, ca3 = st.columns([2, 1, 1])
+            ca1.write(f"**{f['nombre']}**")
+            ca2.write("🟢" if f['estado']=="Disponible" else "🔴 Taller")
+            if ca3.button("CAMBIAR", key=f"sw_{f['nombre']}"):
+                nuevo = "En Taller" if f['estado']=="Disponible" else "Disponible"
+                conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo, f['nombre']))
+                conn.commit(); st.rerun()
+
+        # --- REGISTRO RESERVAS ---
+        st.subheader("📑 REGISTRO DE RESERVAS")
+        for _, r in res_df.iterrows():
+            with st.expander(f"#{r['id']} - {r['cliente']} ({r['auto']})"):
+                col_r1, col_r2 = st.columns([2, 1])
+                with col_r1:
+                    st.write(f"Periodo: {r['inicio']} a {r['fin']}")
+                    st.write(f"Total: R$ {r['total']} (Pactado: R$ {r.get('precio_pactado', 0)}/día)")
+                    
+                    # BOTÓN DESCARGAR CONTRATO
+                    pdf_data = generar_pdf_contrato(r)
+                    st.download_button("📄 DESCARGAR CONTRATO PDF", pdf_data, f"Contrato_{r['id']}.pdf", "application/pdf")
+                    
+                with col_r2:
+                    if r['comprobante']: st.image(r['comprobante'], width=150)
+                    if st.button("🗑️ BORRAR", key=f"del_{r['id']}"):
+                        conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],))
+                        conn.commit(); st.rerun()
+        conn.close()
