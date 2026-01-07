@@ -164,20 +164,19 @@ Adjunto mi comprobante de pago."""
                     st.error("Vehículo no disponible para estas fechas.")
 
 with t_ubi:
-    st.markdown("<h3>NUESTRA UBICACIÓN EXACTA</h3>", unsafe_allow_html=True)
+    st.markdown("<h3>CIUDAD DEL ESTE - PARAGUAY</h3>", unsafe_allow_html=True)
     
-    # Mapa Exacto de J&M ASOCIADOS Consultoria
-    # Se utiliza el Place ID oficial (ChIJ7fT45f2P9pQRtvHHT-ZwZTM) para precisión total
+    # Mapa estándar de Ciudad del Este (Sin errores de API)
     st.markdown('''
-        <div style="border: 3px solid #D4AF37; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-bottom: 20px;">
+        <div style="border: 2px solid #D4AF37; border-radius: 20px; overflow: hidden; margin-bottom: 20px;">
             <iframe 
-                src="https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d3601.24151703666!2d-54.6103998!3d-25.5170969!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f68ffd65f8f4ed%3A0x336570e64f77f1b6!2sJ%26M%20ASOCIADOS%20Consultoria!5e0!3m2!1ses-419!2spy!4v1715634567890!5m2!1ses-419!2spy" 
                 width="100%" 
                 height="450" 
-                style="border:0;" 
-                allowfullscreen="" 
-                loading="lazy" 
-                referrerpolicy="no-referrer-when-downgrade">
+                src="https://maps.google.com/maps?q=Ciudad%20del%20Este&t=&z=13&ie=UTF8&iwloc=&output=embed" 
+                frameborder="0" 
+                scrolling="no" 
+                marginheight="0" 
+                marginwidth="0">
             </iframe>
         </div>
     ''', unsafe_allow_html=True)
@@ -237,11 +236,14 @@ with t_adm:
         # --- GRÁFICOS ESTADÍSTICOS ---
         col_g1, col_g2 = st.columns(2)
         
-        with col_g1:
-            st.subheader("Distribución de Ingresos por Auto")
+                with col_g1:
+            st.subheader("Distribución de Ingresos")
             if not res_df.empty:
+                # Cambiamos px.colors.sequential.Gold por una lista manual de dorados
+                colores_oro = ['#D4AF37', '#FFD700', '#B8860B', '#F5DEB3']
                 fig_torta = px.pie(res_df, values='total', names='auto', hole=0.4,
-                                 color_discrete_sequence=px.colors.sequential.Gold)
+                                 color_discrete_sequence=colores_oro)
+                fig_torta.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="#D4AF37")
                 st.plotly_chart(fig_torta, use_container_width=True)
         
         with col_g2:
