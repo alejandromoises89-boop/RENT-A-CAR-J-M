@@ -67,7 +67,6 @@ def generar_pdf_contrato(reserva):
     pdf.ln(10)
     pdf.set_font("Arial", size=12)
     
-    # Conversión a guaraníes para el documento
     total_gs = reserva['total'] * COTIZACION_DIA
     
     pdf.multi_cell(0, 10, f"""
@@ -160,16 +159,72 @@ with t_res:
                                 conn.commit(); conn.close()
                                 st.success("¡Reserva confirmada!")
                                 
-                                msj_wa = f"Hola JM, soy {c_n}. Alquilé {v['nombre']} del {dt_i.strftime('%d/%m')} al {dt_f.strftime('%d/%m')}. Pago R$ {total_r}."
-                                st.markdown(f'<a href="https://wa.me/595991681191?text={urllib.parse.quote(msj_wa)}" target="_blank">📲 ENVIAR COMPROBANTE WHATSAPP</a>', unsafe_allow_html=True)
+                                # --- CORRECCIÓN AQUÍ: USO DE TRIPLE COMILLA PARA EVITAR ERRORES ---
+                                msj_wa = f"""Hola JM, soy {c_n}.
+He leído el contrato y acepto los términos.
+🚗 Vehículo: {v['nombre']}
+🗓️ Periodo: {dt_i.strftime('%d/%m/%Y')} al {dt_f.strftime('%d/%m/%Y')}
+💰 Total: R$ {total_r}
+Adjunto mi comprobante de pago."""
+                                
+                                texto_url = urllib.parse.quote(msj_wa)
+                                link_wa = f"https://wa.me/595991681191?text={texto_url}"
+                                
+                                st.markdown(f'''
+                                    <a href="{link_wa}" target="_blank" style="text-decoration:none;">
+                                        <div style="background-color:#25D366; color:white; padding:15px; border-radius:12px; text-align:center; font-weight:bold; font-size:18px;">
+                                            📲 ENVIAR COMPROBANTE AL WHATSAPP
+                                        </div>
+                                    </a>
+                                ''', unsafe_allow_html=True)
                             else:
-                                st.error("Adjunte comprobante.")
+                                st.warning("Por favor, adjunte la foto del comprobante.")
                 else:
-                    st.error("No disponible.")
+                    st.error("Vehículo no disponible para estas fechas.")
 
 with t_ubi:
     st.markdown("<h3 style='text-align: center; color: #D4AF37;'>NUESTRA UBICACIÓN</h3>", unsafe_allow_html=True)
-    st.markdown('<iframe width="100%" height="400" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3601.234!2d-54.6123!3d-25.5123!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjXCsDMwJzQ0LjMiUyA1NMKwMzYnNDQuMyJX!5e0!3m2!1ses!2spy!4v1641000000000" frameborder="0"></iframe>', unsafe_allow_html=True)
+    
+    st.markdown('''
+        <div style="border: 2px solid #D4AF37; border-radius: 15px; overflow: hidden; margin-bottom: 20px;">
+            <iframe 
+                width="100%" 
+                height="400" 
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3601.201416801!2d-54.6133!3d-25.5165!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjXCsDMwJzU5LjQiUyA1NMKwMzYnNDcuOSJX!5e0!3m2!1ses!2spy!4v1704500000000!5m2!1ses!2spy" 
+                frameborder="0" 
+                style="border:0;" 
+                allowfullscreen="" 
+                loading="lazy">
+            </iframe>
+        </div>
+    ''', unsafe_allow_html=True)
+    
+    col_social1, col_social2 = st.columns(2)
+    with col_social1:
+        st.markdown('''
+            <a href="https://www.instagram.com/jm_asociados_consultoria?igsh=djBzYno0MmViYzBo" target="_blank" style="text-decoration:none;">
+                <div style="background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%); 
+                            color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold; font-size:18px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+                    📸 INSTAGRAM OFICIAL
+                </div>
+            </a>
+        ''', unsafe_allow_html=True)
+        
+    with col_social2:
+        st.markdown('''
+            <a href="https://wa.me/595991681191" target="_blank" style="text-decoration:none;">
+                <div style="background-color:#25D366; color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold; font-size:18px; box-shadow: 0 4px 15px rgba(0,0,0,0.3);">
+                    💬 WHATSAPP EMPRESARIAL
+                </div>
+            </a>
+        ''', unsafe_allow_html=True)
+    
+    st.markdown('''
+        <div style="text-align:center; margin-top:20px; color:#D4AF37;">
+            <p>📍 C/ Farid Rahal Canan, Curupayty, Cd. del Este 7000, Paraguay</p>
+            <p>⏰ Horario de Atención: Lunes a Viernes 08:00 – 16:30</p>
+        </div>
+    ''', unsafe_allow_html=True)
 
 with t_adm:
     clave = st.text_input("Clave de Acceso", type="password")
@@ -182,28 +237,21 @@ with t_adm:
         st.title("📊 PANEL ESTRATÉGICO")
         st.write(f"**Cotización Actual:** 1 R$ = {COTIZACION_DIA:,.0f} Gs.")
         
-        # --- MÉTRICAS DOBLE MONEDA ---
         ing_r = res_df['total'].sum() if not res_df.empty else 0
         egr_r = egr_df['monto'].sum() if not egr_df.empty else 0
         util_r = ing_r - egr_r
 
-        # Conversiones
-        ing_gs = ing_r * COTIZACION_DIA
-        egr_gs = egr_r * COTIZACION_DIA
-        util_gs = util_r * COTIZACION_DIA
-
         c1, c2, c3 = st.columns(3)
         with c1:
             st.metric("INGRESOS TOTALES", f"R$ {ing_r:,.2f}")
-            st.caption(f"Gs. {ing_gs:,.0f}")
+            st.caption(f"Gs. {ing_r * COTIZACION_DIA:,.0f}")
         with c2:
             st.metric("GASTOS TOTALES", f"R$ {egr_r:,.2f}")
-            st.caption(f"Gs. {egr_gs:,.0f}")
+            st.caption(f"Gs. {egr_r * COTIZACION_DIA:,.0f}")
         with c3:
             st.metric("UTILIDAD NETA", f"R$ {util_r:,.2f}")
-            st.caption(f"Gs. {util_gs:,.0f}")
+            st.caption(f"Gs. {util_r * COTIZACION_DIA:,.0f}")
 
-        # --- GESTIÓN DE TARIFAS ---
         with st.expander("💰 ACTUALIZAR PRECIOS ACTUALES"):
             for idx, row in flota_adm.iterrows():
                 col_p1, col_p2 = st.columns([2, 1])
@@ -212,7 +260,6 @@ with t_adm:
                     conn.execute("UPDATE flota SET precio=? WHERE nombre=?", (nuevo_p, row['nombre']))
                     conn.commit(); st.rerun()
 
-        # --- CARGA HISTÓRICA ---
         with st.expander("📅 BLOQUEAR FECHAS / CARGAR HISTÓRICO"):
             with st.form("form_historico"):
                 h_cli = st.text_input("Cliente")
@@ -226,7 +273,6 @@ with t_adm:
                                  (h_cli, h_auto, h_ini, h_fin, d*h_pre, h_pre))
                     conn.commit(); st.rerun()
 
-        # --- REGISTRO DE GASTOS ---
         with st.expander("💸 CARGAR GASTO"):
             with st.form("g_form"):
                 con = st.text_input("Concepto")
@@ -235,7 +281,6 @@ with t_adm:
                     conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (con, mon, date.today()))
                     conn.commit(); st.rerun()
 
-        # --- ESTADO FLOTA ---
         st.subheader("🛠️ ESTADO DE LA FLOTA")
         for _, f in flota_adm.iterrows():
             ca1, ca2, ca3 = st.columns([2, 1, 1])
@@ -246,20 +291,17 @@ with t_adm:
                 conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo, f['nombre']))
                 conn.commit(); st.rerun()
 
-        # --- REGISTRO RESERVAS ---
         st.subheader("📑 REGISTRO DE RESERVAS")
         for _, r in res_df.iterrows():
             with st.expander(f"#{r['id']} - {r['cliente']} ({r['auto']})"):
                 col_r1, col_r2 = st.columns([2, 1])
                 with col_r1:
-                    total_gs_res = r['total'] * COTIZACION_DIA
+                    t_gs = r['total'] * COTIZACION_DIA
                     st.write(f"**Periodo:** {r['inicio']} a {r['fin']}")
-                    st.write(f"**Total:** R$ {r['total']} | **Gs. {total_gs_res:,.0f}**")
+                    st.write(f"**Total:** R$ {r['total']} | **Gs. {t_gs:,.0f}**")
                     st.write(f"**Pactado:** R$ {r.get('precio_pactado', 0)}/día")
-                    
                     pdf_data = generar_pdf_contrato(r)
                     st.download_button("📄 DESCARGAR CONTRATO PDF", pdf_data, f"Contrato_{r['id']}.pdf", "application/pdf")
-                    
                 with col_r2:
                     if r['comprobante']: st.image(r['comprobante'], width=150)
                     if st.button("🗑️ BORRAR", key=f"del_{r['id']}"):
