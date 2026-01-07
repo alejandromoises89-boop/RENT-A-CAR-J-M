@@ -276,7 +276,7 @@ with t_adm:
         with st.expander("💸 CARGAR GASTO"):
             with st.form("g_form"):
                 con = st.text_input("Concepto")
-                mon = st.number_input("Monto en R$", min_value=0.0)
+                mon = st.number_input("Monto en Gs. y en R$", min_value=0.0)
                 if st.form_submit_button("Guardar"):
                     conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (con, mon, date.today()))
                     conn.commit(); st.rerun()
