@@ -46,7 +46,7 @@ def init_db():
                  (id INTEGER PRIMARY KEY, concepto TEXT, monto REAL, fecha DATE)''')
     
     autos = [
-        ("Hyundai Tucson Blanco", 260.0, "https://i.ibb.co/Kx1v7t9w/tucson.jpg", "Disponible", "AAVI502", "Blanco"),
+        ("Hyundai Tucson Blanco", 260.0, "https://i.ibb.co/396BLNSq/tucson-Photoroom.png", "Disponible", "AAVI502", "Blanco"),
         ("Toyota Vitz Blanco", 195.0, "https://i.ibb.co/Y7ZHY8kX/pngegg.png", "Disponible", "AAVP719", "Blanco"),
         ("Toyota Vitz Negro", 195.0, "https://i.ibb.co/rKFwJNZg/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel.png", "Disponible", "AAOR725", "Negro"),
         ("Toyota Voxy Gris", 240.0, "https://i.ibb.co/VpSpSJ9Q/voxy.png", "Disponible", "AAUG465", "Gris")
