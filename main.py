@@ -224,104 +224,36 @@ with t_adm:
         
         st.title("📊 PANEL DE CONTROL ESTRATÉGICO")
         
-        # --- MÉTRICAS RÁPIDAS ---
+        # --- 1. MÉTRICAS DE DINERO ---
         ing = res_df['total'].sum() if not res_df.empty else 0
         egr = egr_df['monto'].sum() if not egr_df.empty else 0
         
         c_f1, c_f2, c_f3 = st.columns(3)
         c_f1.metric("INGRESOS TOTALES", f"R$ {ing:,.2f}")
-        c_f2.metric("GASTOS OPERATIVOS", f"R$ {egr:,.2f}")
+        c_f2.metric("GASTOS", f"R$ {egr:,.2f}")
         c_f3.metric("UTILIDAD NETA", f"R$ {ing - egr:,.2f}")
 
-        # --- GRÁFICOS ESTADÍSTICOS ---
+        # --- 2. GRÁFICOS ESTADÍSTICOS ---
         col_g1, col_g2 = st.columns(2)
-        
         with col_g1:
-            st.subheader("Distribución de Ingresos")
+            st.subheader("Ingresos por Vehículo")
             if not res_df.empty:
-                # Cambiamos px.colors.sequential.Gold por una lista manual de dorados
-                colores_oro = ['#D4AF37', '#FFD700', '#B8860B', '#F5DEB3']
-                fig_torta = px.pie(res_df, values='total', names='auto', hole=0.4,
-                                 color_discrete_sequence=colores_oro)
-                fig_torta.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="#D4AF37")
-                st.plotly_chart(fig_torta, use_container_width=True)
+                # Gráfico de torta con colores dorados
+                fig_pie = px.pie(res_df, values='total', names='auto', hole=0.4,
+                                color_discrete_sequence=['#D4AF37', '#B8860B', '#FFD700', '#F5DEB3'])
+                fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color="#D4AF37")
+                st.plotly_chart(fig_pie, use_container_width=True)
         
         with col_g2:
-            st.subheader("Ingresos vs Gastos")
-            fig_bar = px.bar(x=["Ingresos", "Gastos"], y=[ing, egr], 
-                            color=["Ingresos", "Gastos"],
+            st.subheader("Balance Ingresos vs Gastos")
+            fig_bar = px.bar(x=["Ingresos", "Gastos"], y=[ing, egr], color=["Ingresos", "Gastos"],
                             color_discrete_map={"Ingresos": "#D4AF37", "Gastos": "#800020"})
+            fig_bar.update_layout(paper_bgcolor='rgba(0,0,0,0)', font_color="#D4AF37", showlegend=False)
             st.plotly_chart(fig_bar, use_container_width=True)
 
-        # --- SECCIÓN DE GASTOS ---
-        with st.expander("💸 CARGAR NUEVO GASTO / EGRESO"):
-            with st.form("form_gasto"):
-                con = st.text_input("Concepto del Gasto (Ej: Lavado, Mecánico)")
-                mon = st.number_input("Monto en R$", min_value=0.0)
-                fec = st.date_input("Fecha", date.today())
-                if st.form_submit_button("Registrar Egreso"):
-                    if con and mon > 0:
-                        conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (con, mon, fec))
-                        conn.commit()
-                        st.success("Gasto registrado correctamente")
-                        st.rerun()
-
-        # --- GESTIÓN DE FLOTA (DISPONIBILIDAD) ---
-        st.subheader("🛠️ ESTADO DE LA FLOTA")
-        for _, f in flota_adm.iterrows():
-            col_a1, col_a2, col_a3 = st.columns([2, 1, 1])
-            col_a1.write(f"**{f['nombre']}** | Placa: {f['placa']}")
-            
-            # Color del estado
-            color_estado = "green" if f['estado'] == "Disponible" else "orange"
-            col_a2.markdown(f'<span style="color:{color_estado}; font-weight:bold;">{f["estado"]}</span>', unsafe_allow_html=True)
-            
-            if col_a3.button("CAMBIAR ESTADO", key=f"btn_flota_{f['nombre']}"):
-                nuevo = "En Taller" if f['estado'] == "Disponible" else "Disponible"
-                conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo, f['nombre']))
-                conn.commit()
-                st.rerun()
-
-        # --- EXPORTACIÓN Y RESERVAS ---
-        st.subheader("📑 REGISTRO DE RESERVAS Y EXPORTACIÓN")
-        
-        # Botón para descargar Excel
-        if not res_df.empty:
-            # Limpiamos el DF para el Excel (quitamos el comprobante que es pesado)
-            excel_df = res_df.drop(columns=['comprobante'])
-            st.download_button(
-                label="📥 DESCARGAR REPORTE EXCEL",
-                data=excel_df.to_csv(index=False).encode('utf-8'),
-                file_name=f"Reporte_JM_{date.today()}.csv",
-                mime="text/csv"
-            )
-
-        # Visualización Detallada
-        for _, r in res_df.iterrows():
-            with st.expander(f"Reserva #{r['id']} - {r['cliente']}"):
-                col_r1, col_r2 = st.columns(2)
-                
-                with col_r1:
-                    st.write("**Datos del Cliente:**")
-                    st.write(f"ID: {r['ci']}")
-                    st.write(f"Contacto: {r['celular']}")
-                    if r['comprobante']:
-                        st.write("**Comprobante de Pago:**")
-                        st.image(r['comprobante'], use_container_width=True)
-                
-                with col_r2:
-                    st.write("**Acciones:**")
-                    # Buscamos placa y color con verificación de seguridad
-                    f_query = conn.execute("SELECT placa, color FROM flota WHERE nombre=?", (r['auto'],)).fetchone()
-                    
-                    if f_query:
-                        placa_f, color_f = f_query
-                        pdf_data = generar_contrato_pdf(r, placa_f, color_f)
-                        st.download_button("📄 DESCARGAR CONTRATO", pdf_data, f"Contrato_{r['cliente']}.pdf", key=f"pdf_{r['id']}")
-                    else:
-                        st.warning("⚠️ Datos del vehículo no encontrados en la flota.")
-                    
-                    if st.button("❌ ELIMINAR RESERVA", key=f"del_{r['id']}"):
-                        conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],))
-                        conn.commit()
-                        st.rerun()
+        # --- 3. REGISTRO DE GASTOS ---
+        with st.expander("💸 CARGAR NUEVO GASTO"):
+            with st.form("gasto_form"):
+                con_g = st.text_input("Concepto (Ej: Mecánico, Limpieza)")
+                mon_g = st.number_input("Monto en R$", min_value=0.0)
+                if st.form_
