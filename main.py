@@ -311,15 +311,17 @@ with t_adm:
                 
                 with col_r2:
                     st.write("**Acciones:**")
-                    # Buscamos placa y color para el PDF
-                    f_info = conn.execute("SELECT placa, color FROM flota WHERE nombre=?", (r['auto'],)).fetchone()
-                    pdf_data = generar_contrato_pdf(r, f_info[0], f_info[1])
+                    # Buscamos placa y color con verificación de seguridad
+                    f_query = conn.execute("SELECT placa, color FROM flota WHERE nombre=?", (r['auto'],)).fetchone()
                     
-                    st.download_button("📄 DESCARGAR CONTRATO", pdf_data, f"Contrato_{r['cliente']}.pdf", key=f"pdf_{r['id']}")
+                    if f_query:
+                        placa_f, color_f = f_query
+                        pdf_data = generar_contrato_pdf(r, placa_f, color_f)
+                        st.download_button("📄 DESCARGAR CONTRATO", pdf_data, f"Contrato_{r['cliente']}.pdf", key=f"pdf_{r['id']}")
+                    else:
+                        st.warning("⚠️ Datos del vehículo no encontrados en la flota.")
                     
                     if st.button("❌ ELIMINAR RESERVA", key=f"del_{r['id']}"):
                         conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],))
                         conn.commit()
                         st.rerun()
-        
-        conn.close()
