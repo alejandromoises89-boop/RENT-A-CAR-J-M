@@ -164,19 +164,19 @@ Adjunto mi comprobante de pago."""
                     st.error("Vehículo no disponible para estas fechas.")
 
 with t_ubi:
-    st.markdown("<h3>CIUDAD DEL ESTE - PARAGUAY</h3>", unsafe_allow_html=True)
+    st.markdown("<h3 style='text-align: center; color: #D4AF37;'>NUESTRA UBICACIÓN</h3>", unsafe_allow_html=True)
     
-    # Mapa estándar de Ciudad del Este (Sin errores de API)
+    # Mapa de Ciudad del Este
     st.markdown('''
-        <div style="border: 2px solid #D4AF37; border-radius: 20px; overflow: hidden; margin-bottom: 20px;">
+        <div style="border: 2px solid #D4AF37; border-radius: 15px; overflow: hidden; margin-bottom: 20px;">
             <iframe 
                 width="100%" 
-                height="450" 
-                src="https://maps.google.com/maps?q=Ciudad%20del%20Este&t=&z=13&ie=UTF8&iwloc=&output=embed" 
+                height="400" 
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d57604.246417743!2d-54.67759567832031!3d-25.530374699999997!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f68595fe36b1d1%3A0xce33cb9eeec10b1e!2sCiudad%20del%20Este!5e0!3m2!1ses!2spy!4v1709564821000!5m2!1ses!2spy" 
                 frameborder="0" 
-                scrolling="no" 
-                marginheight="0" 
-                marginwidth="0">
+                style="border:0;" 
+                allowfullscreen="" 
+                loading="lazy">
             </iframe>
         </div>
     ''', unsafe_allow_html=True)
