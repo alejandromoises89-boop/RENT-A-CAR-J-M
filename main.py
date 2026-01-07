@@ -73,6 +73,7 @@ def generar_pdf_contrato(reserva):
     FECHA: {datetime.now().strftime('%d/%m/%Y')}
     ARRENDATARIO: {reserva['cliente']}
     DOCUMENTO: {reserva['ci']}
+    WHATSAPP: {reserva['numero']}
     VEHICULO: {reserva['auto']}
     DESDE: {reserva['inicio']} 
     HASTA: {reserva['fin']}
