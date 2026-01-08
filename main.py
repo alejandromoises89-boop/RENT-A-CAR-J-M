@@ -157,25 +157,63 @@ with t_res:
                     total_gs = total_r * COTIZACION_DIA
                     
                     if c_n and c_d and c_w:
-                        # --- CONTRATO SCROLL COMPLETO ---
+                                                # --- CONTRATO SCROLL COMPLETO (TEXTO INTEGRO) ---
                         contrato_html = f"""
-                        <div class="contrato-scroll" style="background-color: #f9f9f9; color: #333; padding: 20px; border-radius: 10px; height: 350px; overflow-y: scroll; font-family: 'Courier New', monospace; font-size: 12px; border: 2px solid #D4AF37; text-align: justify;">
+                        <div class="contrato-scroll" style="background-color: #f9f9f9; color: #333; padding: 25px; border-radius: 10px; height: 400px; overflow-y: scroll; font-family: 'Courier New', monospace; font-size: 12px; border: 2px solid #D4AF37; text-align: justify; line-height: 1.4;">
                             <center><b>CONTRATO DE ALQUILER DE VEHÍCULO Y AUTORIZACIÓN PARA CONDUCIR</b></center><br>
-                            <b>ARRENDADOR:</b> J&M ASOCIADOS. CI: 1.702.076-0. Domicilio: CURUPAYTU ESQUINA FARID RAHAL. Tel: +595983635573.<br>
-                            <b>ARRENDATARIO:</b> {c_n.upper()}. Doc: {c_d}. Domicilio: {c_pais.upper()}. Tel: {c_w}.<br><br>
-                            <b>PRIMERA - Objeto:</b> El arrendador otorga en alquiler el vehículo {v['nombre'].upper()}. Chapa: {v['placa']}. Color: {v['color'].upper()}.<br>
-                            El vehículo se encuentra en perfecto estado... El ARRENDADOR AUTORIZA AL ARRENDATARIO A CONDUCIR EL VEHÍCULO EN TODO EL TERRITORIO PARAGUAYO Y EL MERCOSUR.<br><br>
-                            <b>SEGUNDA - Duración:</b> {dias} días, comenzando el {dt_i.strftime('%d/%m/%Y')} a las {dt_i.strftime('%H:%M')}hs y finalizando el {dt_f.strftime('%d/%m/%Y')} a las {dt_f.strftime('%H:%M')}hs.<br><br>
-                            <b>TERCERA - Precio:</b> Gs. {v['precio'] * COTIZACION_DIA:,.0f} por día. <b>TOTAL: Gs. {total_gs:,.0f}</b>.<br><br>
-                            <b>CUARTA - Depósito:</b> Gs. 5.000.000 en caso de siniestro.<br><br>
-                            <b>QUINTA - Condiciones:</b> El ARRENDATARIO es responsable PENAL y CIVIL de todo lo ocurrido dentro del vehículo.<br><br>
-                            <i>(Resto de cláusulas legales omitidas para el resumen...)</i><br><br>
-                            <b>DÉCIMA SEGUNDA:</b> Ambas partes firman en Ciudad del Este el {date.today().strftime('%d/%m/%Y')}.<br><br>
-                            __________________________ &nbsp;&nbsp;&nbsp;&nbsp; __________________________<br>
-                            J&M ASOCIADOS (Arrendador) &nbsp;&nbsp;&nbsp;&nbsp; {c_n.upper()} (Arrendatario)
+                            Entre:<br>
+                            <b>ARRENDADOR:</b><br>
+                            Nombre: J&M ASOCIADOS<br>
+                            Cédula de Identidad: 1.702.076-0<br>
+                            Domicilio: CURUPAYTU ESQUINA FARID RAHAL<br>
+                            Teléfono: +595983635573<br><br>
+                            <b>Y, ARRENDATARIO:</b><br>
+                            Nombre: {c_n.upper()}<br>
+                            Cédula de Identidad: {c_d.upper()}<br>
+                            Domicilio: {c_pais.upper()}<br>
+                            Teléfono: {c_w}<br><br>
+                            Se acuerda lo siguiente:<br><br>
+                            <b>PRIMERA - Objeto del Contrato.</b><br>
+                            El arrendador otorga en alquiler al arrendatario el siguiente vehículo:<br>
+                            * Marca: {v['nombre'].split()[0].upper()}<br>
+                            * Modelo: {' '.join(v['nombre'].split()[1:]).upper()}<br>
+                            * Año: 2012 (Verificado)<br>
+                            * Color: {v['color'].upper()}<br>
+                            * Número de CHAPA: {v['placa']}<br>
+                            * Patente: {v['placa']}<br>
+                            El vehículo se encuentra en perfecto estado de funcionamiento y libre de cargas o gravámenes. El arrendatario confirma la recepción del vehículo en buen estado, tras realizar una inspección visual y técnica con soporte Técnico VIDEO del Vehículo. El ARRENDADOR AUTORIZA AL ARRENDATARIO A CONDUCIR EL VEHÍCULO EN TODO EL TERRITORIO PARAGUAYO Y EL MERCOSUR. ------------------------------------------------------------------------------------<br><br>
+                            <b>SEGUNDA - Duración del Contrato</b><br>
+                            El presente contrato tendrá una duración de {dias} (TRES) días, comenzando el {dt_i.strftime('%d de %B')} a las {dt_i.strftime('%H:%M')}hs y finalizando el {dt_f.strftime('%d de %B')} del {dt_f.year}, {dt_f.strftime('%H:%M')} hs. de entrega. ------------------------------------------------------<br><br>
+                            <b>TERCERA - Precio y Forma de Pago</b><br>
+                            El arrendatario se compromete a pagar al arrendador la cantidad de Gs. {v['precio'] * COTIZACION_DIA:,.0f} por cada día de alquiler X {dias} DIÁS TOTAL DE: Gs. {total_gs:,.0f}.------------------------------------------------------------<br>
+                            Forma de pago: Efectivo y/o Transferencia Electrónica. El monto total será pagado por adelantado. ------------------------<br><br>
+                            <b>CUARTA - Depósito de Seguridad.</b><br>
+                            El arrendatario pagara cinco millones de guaraníes (Gs. 5.000.000) en caso de siniestro (accidente) para cubrir los daños al vehículo durante el periodo de alquiler. --------------------------------------------------------------------------------------<br><br>
+                            <b>QUINTA - Condiciones de Uso del Vehículo.</b><br>
+                            1. El vehículo será utilizado exclusivamente para fines personales dentro del territorio nacional. ---------------------------------------------------------------<br>
+                            2. El ARRENDATARIO es responsable PENAL y CIVIL, de todo lo ocurrido dentro del vehículo y/o encontrado durante el alquiler. --------------------<br>
+                            3. El arrendatario se compromete a no subarrendar el vehículo ni permitir que terceros lo conduzcan sin autorización previa del arrendador. -----------------------------------------------------------------------------<br>
+                            4. El uso del vehículo fuera de los límites del país deberá ser aprobado por el arrendador. ---------------------------------------------------------------------<br><br>
+                            <b>SEXTA - Kilometraje y Excesos</b><br>
+                            El alquiler incluye un límite de 200 kilómetros por día. En caso de superar este límite, el arrendatario pagará 100.000 guaraníes adicionales por los kilómetros excedente. ------------------------------------------------------------------------<br><br>
+                            <b>SÉPTIMA - Seguro.</b><br>
+                            • El vehículo cuenta con un seguro básico que cubre Responsabilidad CIVIL en caso de daños a terceros, accidentes y servicio de rastreo satelital. El arrendatario será responsable de los daños que no estén cubiertos por el seguro, tales como daños por negligencia. ---------------------------------------------------------------------------------<br><br>
+                            <b>OCTAVA - Mantenimiento y Reparaciones</b><br>
+                            El arrendatario se compromete a mantener el vehículo en buen estado de funcionamiento (Agua, combustible, limpieza). En caso de desperfectos, deberá notificar inmediatamente al arrendador. ------------------------------------------------<br><br>
+                            <b>NOVENA - Devolución del Vehículo.</b><br>
+                            El arrendatario devolverá el vehículo en la misma condición en la que lo recibió. Si no se devuelve en la fecha y hora acordada, pagará una penalización de media diaria y/o una diaria completa por cada día adicional. -------------------------------<br><br>
+                            <b>DÉCIMA – Incumplimiento.</b><br>
+                            En caso de incumplimiento, el arrendador podrá rescindir el mismo de manera inmediata. ----------------------------------------------------------------<br><br>
+                            <b>UNDÉCIMA - Jurisdicción y Ley Aplicable.</b><br>
+                            Para cualquier disputa, las partes se someten a la jurisdicción de los tribunales del Alto Paraná, Paraguay. ---------------------------------------------------------------<br><br>
+                            <b>DÉCIMA SEGUNDA - Firma de las Partes.</b><br>
+                            Ambas partes firman el presente contrato en señal de conformidad, en Ciudad del Este el {date.today().strftime('%d de %B del %Y')}.<br><br>
+                            El ARRENDADOR AUTORIZA AL ARRENDATARIO A CONDUCIR EL VEHÍCULO EN TODO EL TERRITORIO PARAGUAYO Y EL MERCOSUR.<br><br><br>
+                            __________________________&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;__________________________<br>
+                            <b>J&M ASOCIADOS</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<b>{c_n.upper()}</b><br>
+                            Arrendador&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Arrendatario
                         </div>
                         """
-                        st.markdown(contrato_html, unsafe_allow_html=True)
                         
                         st.markdown(f'<div style="background-color:#1a1c23; padding:15px; border-radius:10px; border:1px solid #D4AF37; margin-top:10px;"><b>PAGO PIX: R$ {total_r}</b><br>Llave: 24510861818<br>Marina Baez</div>', unsafe_allow_html=True)
                         
