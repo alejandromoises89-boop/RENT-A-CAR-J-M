@@ -207,7 +207,7 @@ with t_adm:
         
         st.title("📊 PANEL DE CONTROL")
 
-        # --- SECCIÓN DE EGRESOS (GS Y R$) ---
+        # --- SECCIÓN DE EGRESOS ---
         st.subheader("💸 REGISTRO DE EGRESOS")
         if not egr_df.empty:
             egr_df['Monto Gs.'] = egr_df['monto'] * COTIZACION_DIA
@@ -217,75 +217,85 @@ with t_adm:
             with st.form("gasto_final"):
                 det = st.text_input("Concepto del Gasto")
                 c1, c2 = st.columns(2)
-                v_gs = c1.number_input("Monto en Gs.", step=1000, value=0)
-                v_r = c2.number_input("O Monto en R$", step=1.0, value=0.0)
+                v_gs = c1.number_input("Monto en Guaraníes (Gs.)", step=1000, value=0)
+                v_r = c2.number_input("O Monto en Reales (R$)", step=1.0, value=0.0)
                 if st.form_submit_button("Guardar Gasto"):
                     final_r = v_r if v_r > 0 else (v_gs / COTIZACION_DIA)
                     if final_r > 0:
                         conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (det, final_r, date.today()))
                         conn.commit(); st.rerun()
 
-        # --- BLOQUEO DE FECHAS (CONTRATOS VIEJOS) ---
-        with st.expander("📅 BLOQUEAR CALENDARIO (Contratos Manuales)"):
+        # --- BLOQUEO DE FECHAS ---
+        with st.expander("📅 BLOQUEAR CALENDARIO (Contratos Manuales/Viejos)"):
             with st.form("manual"):
                 c_nom = st.text_input("Nombre Cliente")
+                c_doc_man = st.text_input("Documento/CPF") # Nuevo campo manual
                 c_aut = st.selectbox("Vehículo", flota_adm['nombre'].tolist())
                 c_ini = st.date_input("Fecha Inicio")
                 c_fin = st.date_input("Fecha Fin")
-                c_mon = st.number_input("Monto en R$", value=0.0)
+                c_mon = st.number_input("Monto Cobrado en R$", value=0.0)
                 if st.form_submit_button("Bloquear Fechas"):
                     conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total) VALUES (?,?,?,?,?,?,?)",
-                                 (f"[MANUAL] {c_nom}", "000", "000", c_aut, c_ini, c_fin, c_mon))
+                                 (f"[MANUAL] {c_nom}", c_doc_man, "000", c_aut, c_ini, c_fin, c_mon))
                     conn.commit(); st.rerun()
 
+        # --- ESTADO DE FLOTA ---
         st.subheader("🛠️ ESTADO DE FLOTA")
         for _, f in flota_adm.iterrows():
             ca1, ca2, ca3 = st.columns([2,1,1])
             ca1.write(f"*{f['nombre']}* ({f['placa']})")
-            ca2.write("🟢" if f['estado'] == "Disponible" else "🔴 Taller")
-            if ca3.button("CAMBIAR", key=f"sw_{f['nombre']}"):
+            ca2.write("🟢 Disponible" if f['estado'] == "Disponible" else "🔴 Taller")
+            if ca3.button("CAMBIAR ESTADO", key=f"sw_{f['nombre']}"):
                 nuevo = "En Taller" if f['estado'] == "Disponible" else "Disponible"
                 conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo, f['nombre'])); conn.commit(); st.rerun()
 
+        # --- REGISTRO DE RESERVAS (CON VISUALIZACIÓN DE DOCUMENTO Y DESCARGA) ---
         st.subheader("📑 REGISTRO DE RESERVAS")
         for _, r in res_df.iterrows():
-            with st.expander(f"Reserva #{r['id']} - {r['cliente']}"):
-                st.write(f"Auto: {r['auto']} | Total: R$ {r['total']}")
+            # Se muestra el nombre y el documento directamente en el título del expander
+            with st.expander(f"Reserva #{r['id']} - {r['cliente']} (DOC: {r['ci']})"):
+                st.write(f"*Auto:* {r['auto']}")
+                st.write(f"*Documento/CPF:* {r['ci']}") # Visualización clara
+                st.write(f"*WhatsApp:* {r['celular']}")
+                st.write(f"*Periodo:* {r['inicio']} al {r['fin']}")
+                st.write(f"*Total:* R$ {r['total']} (Gs. {r['total']*COTIZACION_DIA:,.0f})")
                 
-                # --- GENERADOR DE CONTRATO COMPLETO PARA DESCARGA ---
+                # --- PLANTILLA DE CONTRATO CON DOCUMENTO INCLUIDO ---
                 contrato_completo = f"""
                 CONTRATO DE ALQUILER DE VEHÍCULO - J&M ASOCIADOS
                 ------------------------------------------------
-                CLIENTE: {r['cliente']}
+                ARRENDATARIO: {r['cliente']}
+                DOCUMENTO/CPF: {r['ci']}  <-- IDENTIFICACIÓN DEL CLIENTE
+                ------------------------------------------------
                 VEHÍCULO: {r['auto']}
                 PERIODO: {r['inicio']} hasta {r['fin']}
                 TOTAL: R$ {r['total']} (Equivale a Gs. {r['total'] * COTIZACION_DIA:,.0f})
                 
                 CLÁUSULAS DEL CONTRATO:
-                1. OBJETO: El arrendador otorga en alquiler el vehículo mencionado en perfecto estado.
-                2. DURACIÓN: Según las fechas especificadas arriba.
-                3. PAGO: El monto total debe ser pagado por adelantado.
+                1. OBJETO: El arrendador otorga en alquiler el vehículo en perfecto estado. Autorizado para Paraguay y MERCOSUR.
+                2. DURACIÓN: Según fechas pactadas.
+                3. PAGO: Por adelantado vía Efectivo/Transferencia.
                 4. DEPÓSITO: Gs. 5.000.000 en caso de siniestro.
-                5. USO: El arrendatario es responsable PENAL y CIVIL de lo ocurrido en el vehículo.
-                6. KM: Límite 200km/día. Exceso Gs. 100.000.
-                7. SEGURO: Cobertura contra terceros y accidentes. Negligencia no cubierta.
-                8. MANTENIMIENTO: Agua, combustible y limpieza a cargo del arrendatario.
-                9. DEVOLUCIÓN: En las mismas condiciones recibidas.
-                10. INCUMPLIMIENTO: Rescisión inmediata del contrato.
+                5. USO: Arrendatario responsable PENAL y CIVIL.
+                6. KM: Límite 200km/día. Excedente Gs. 100.000.
+                7. SEGURO: Responsabilidad CIVIL y accidentes. No cubre negligencia.
+                8. MANTENIMIENTO: Agua, combustible y limpieza por el cliente.
+                9. DEVOLUCIÓN: Misma condición recibida.
+                10. INCUMPLIMIENTO: Rescisión inmediata.
                 11. JURISDICCIÓN: Tribunales de Alto Paraná, Paraguay.
-                12. VALIDEZ: Autorizado para circular en Paraguay y MERCOSUR.
-                
+                12. FIRMA: Aceptado digitalmente por el cliente al reservar.
+                ------------------------------------------------
                 Firmado en Ciudad del Este, Paraguay.
                 """
                 
                 st.download_button(
-                    label="📥 Descargar Contrato Completo",
+                    label=f"📥 Descargar Contrato de {r['cliente']}",
                     data=contrato_completo,
-                    file_name=f"contrato_JM_{r['id']}.txt",
+                    file_name=f"contrato_{r['cliente']}_{r['id']}.txt",
                     mime="text/plain"
                 )
 
                 if r['comprobante']: st.image(r['comprobante'], width=250)
-                if st.button("🗑️ BORRAR", key=f"del{r['id']}"):
+                if st.button("🗑️ BORRAR RESERVA", key=f"del{r['id']}"):
                     conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],)); conn.commit(); st.rerun()
         conn.close()
