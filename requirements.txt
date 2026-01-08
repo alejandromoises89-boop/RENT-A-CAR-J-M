@@ -6,3 +6,4 @@ plotly
 fpdf
 streamlit-js-eval
 streamlit-drawable-canvas
+locale
