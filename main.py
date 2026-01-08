@@ -6,12 +6,20 @@ import plotly.express as px
 from datetime import datetime, date, timedelta, time
 import urllib.parse
 import calendar
+import locale
 import styles
 
+# Intentar forzar español para que el calendario no use "Tue, Wed"
+try:
+    locale.setlocale(locale.LC_ALL, 'es_PY.UTF-8') # Específico de Paraguay
+except:
+    try:
+        locale.setlocale(locale.LC_ALL, 'es_ES.UTF-8')
+    except:
+        pass # Si el servidor no lo soporta, no rompe el programa
+
 # --- CONFIGURACIÓN DE PÁGINA ---
-st.set_page_config(
-    page_title="JM ASOCIADOS",
-    layout="wide",
+st.set_page_config(page_title="JM ASOCIADOS",layout="wide",
     page_icon="https://i.ibb.co/PzsvxYrM/JM-Asociados-Logotipo-02.png")
 
 try:
