@@ -33,24 +33,86 @@ def obtener_cotizacion_real_guarani():
 COTIZACION_DIA = obtener_cotizacion_real_guarani()
 DB_NAME = 'jm_corporativo_permanente.db'
 
-# --- ESTILOS CSS (CALENDARIO AIRBNB Y TARJETAS) ---
+# --- NUEVO CSS PARA CALENDARIO FIJO (REEMPLAZAR EN EL BLOQUE DE STYLE) ---
 st.markdown("""
     <style>
-    .cal-header { font-size: 14px; font-weight: 600; text-align: center; margin-bottom: 8px; color: #222; text-transform: capitalize; }
-    .cal-grid-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; }
-    .cal-day-name { text-align: center; font-size: 10px; color: #717171; padding: 4px 0; }
-    .cal-box { 
-        aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; 
-        font-size: 13px; position: relative; border: 0.5px solid #f0f0f0; background: white; color: #222;
+    .cal-header { 
+        font-size: 16px; font-weight: bold; text-align: center; 
+        margin: 15px 0 5px 0; color: #333;
     }
-    .ocupado { color: #b0b0b0 !important; background-color: #fafafa; }
+    /* Contenedor que obliga a 7 columnas siempre */
+    .cal-grid-fijo { 
+        display: grid; 
+        grid-template-columns: repeat(7, 1fr); 
+        gap: 0px; 
+        max-width: 320px; 
+        margin: 0 auto; /* Centra el calendario */
+        border: 0.2px solid #eee;
+    }
+    .cal-box-fijo { 
+        aspect-ratio: 1/1; 
+        display: flex; 
+        align-items: center; 
+        justify-content: center; 
+        font-size: 12px; 
+        position: relative; 
+        background: white; 
+        color: #222;
+        border: 0.1px solid #f7f7f7;
+    }
+    .cal-day-name-fijo {
+        text-align: center;
+        font-size: 10px;
+        color: #717171;
+        font-weight: bold;
+        padding-bottom: 5px;
+    }
+    .ocupado { color: #ccc !important; background-color: #fafafa; }
     .raya-roja-h { 
         position: absolute; width: 80%; height: 1.5px; 
         background-color: #ff385c; z-index: 1; top: 50%;
     }
-    .card-auto img { filter: drop-shadow(0px 8px 8px rgba(0,0,0,0.25)); }
     </style>
 """, unsafe_allow_html=True)
+
+# --- DENTRO DEL EXPANDER DE RESERVAS (REEMPLAZAR LA LÓGICA DEL CALENDARIO) ---
+with st.expander(f"Ver Disponibilidad"):
+    ocupadas = obtener_fechas_ocupadas(v['nombre'])
+    hoy = date.today()
+    meses = [(hoy.month, hoy.year), ((hoy.month % 12) + 1, hoy.year if hoy.month < 12 else hoy.year + 1)]
+    
+    # Creamos dos columnas en PC, pero dentro usamos el Grid Fijo para los días
+    col_izq, col_der = st.columns(2)
+    
+    for idx, (m, a) in enumerate(meses):
+        target_col = col_izq if idx == 0 else col_der
+        with target_col:
+            st.markdown(f'<div class="cal-header">{calendar.month_name[m]} {a}</div>', unsafe_allow_html=True)
+            
+            # Encabezado de días L M M J V S D
+            dias_html = "".join([f'<div class="cal-day-name-fijo">{d}</div>' for d in ["L","M","M","J","V","S","D"]])
+            
+            # Generar los cuadros de los días
+            cal_data = calendar.monthcalendar(a, m)
+            dias_grid_html = ""
+            for semana in cal_data:
+                for dia in semana:
+                    if dia == 0:
+                        dias_grid_html += '<div class="cal-box-fijo" style="background:transparent; border:none;"></div>'
+                    else:
+                        f_act = date(a, m, dia)
+                        es_ocu = f_act in ocupadas
+                        clase = "cal-box-fijo ocupado" if es_ocu else "cal-box-fijo"
+                        raya = '<div class="raya-roja-h"></div>' if es_ocu else ""
+                        dias_grid_html += f'<div class="{clase}">{dia}{raya}</div>'
+            
+            # Renderizamos todo el mes en un solo bloque HTML
+            st.markdown(f"""
+                <div class="cal-grid-fijo">
+                    {dias_html}
+                    {dias_grid_html}
+                </div>
+            """, unsafe_allow_html=True)
 
 # --- BASE DE DATOS ---
 def init_db():
