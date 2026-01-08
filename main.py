@@ -277,30 +277,29 @@ with t_adm:
                     conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo_est, f['nombre']))
                     conn.commit(); st.rerun()
 
-        # --- SECCIÓN 5: EGRESOS ---
-        st.subheader("💸 GASTOS")
-        if not egr_df.empty:
-            egr_df['Gs.'] = egr_df['monto'] * COTIZACION_DIA
-            st.dataframe(egr_df.rename(columns={'monto':'R$', 'concepto':'Detalle'}).style.format({'R$':'{:.2f}', 'Gs.':'{:,.0f}'}))
+                # --- SECCIÓN 6: REGISTRO Y PREVISUALIZACIÓN DE CONTRATO ---
+        st.subheader("📑 RESERVAS Y PREVISUALIZACIÓN")
         
-        with st.expander("➕ CARGAR NUEVO GASTO"):
-            with st.form("g_final"):
-                d_g = st.text_input("Concepto")
-                cg1, cg2 = st.columns(2)
-                v_gs = cg1.number_input("Gs.", step=1000)
-                v_r = cg2.number_input("R$", step=1.0)
-                if st.form_submit_button("Guardar"):
-                    m_f = v_r if v_r > 0 else (v_gs / COTIZACION_DIA)
-                    conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (d_g, m_f, date.today()))
-                    conn.commit(); st.rerun()
+        with st.expander("📅 BLOQUEO MANUAL"):
+            with st.form("f_man"):
+                c_n = st.text_input("Cliente")
+                c_d = st.text_input("DOC/CPF")
+                c_a = st.selectbox("Auto", flota_adm['nombre'].tolist())
+                fi = st.date_input("Inicio")
+                ff = st.date_input("Fin")
+                m_r = st.number_input("Monto R$")
+                if st.form_submit_button("Bloquear"):
+                    conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total) VALUES (?,?,?,?,?,?,?)",
+                                 (f"[M] {c_n}", c_d, "000", c_a, fi, ff, m_r))
+                    conn.commit()
+                    st.rerun()
 
-                        for _, r in res_df.iterrows():
-            # Creamos una llave única combinando ID y Cliente para evitar el error Duplicate Key
-            unique_key = f"res_{r['id']}_{r['cliente'][:5]}"
+        # AQUÍ EMPIEZA EL BUCLE (Asegúrate que esté alineado con el 'with' de arriba)
+        for _, r in res_df.iterrows():
+            unique_key = f"res_{r['id']}_{r['cliente'][:3]}"
             
             with st.expander(f"Reserva #{r['id']} - {r['cliente']} (DOC: {r['ci']})"):
-                
-                # --- CUERPO DEL CONTRATO CON FIRMA ---
+                # Cuerpo del contrato con firma digital
                 txt_c = f"""CONTRATO DE ALQUILER J&M ASOCIADOS
 ----------------------------------------
 ARRENDATARIO: {r['cliente']}
@@ -319,12 +318,12 @@ CLÁUSULAS:
 ----------------------------------------
 ACEPTADO DIGITALMENTE POR: {r['cliente']}
 DOC: {r['ci']}
-FECHA: {r['inicio']}
+FECHA DE FIRMA: {r['inicio']}
 ID TRANSACCIÓN: JM-{r['id']}
 ----------------------------------------
 Firmado en Ciudad del Este, Paraguay."""
                 
-                # Previsualización profesional
+                # Previsualización
                 st.code(txt_c, language="markdown")
                 
                 # Botón de descarga
@@ -332,16 +331,14 @@ Firmado en Ciudad del Este, Paraguay."""
                     label=f"📥 Descargar Contrato {r['id']}", 
                     data=txt_c, 
                     file_name=f"Contrato_{r['cliente']}.txt",
-                    key=f"dl_btn_{unique_key}" # Llave única para el botón de descarga
+                    key=f"dl_{unique_key}"
                 )
                 
                 if r['comprobante']: 
                     st.image(r['comprobante'], width=250)
                 
-                # BOTÓN DE BORRAR (Aquí estaba el error, ahora tiene llave única)
-                if st.button("🗑️ Borrar Reserva", key=f"btn_del_{unique_key}"):
-                    conn = sqlite3.connect(DB_NAME)
+                # Botón de borrar
+                if st.button("🗑️ Borrar Reserva", key=f"del_{unique_key}"):
                     conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],))
                     conn.commit()
-                    conn.close()
                     st.rerun()
