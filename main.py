@@ -190,7 +190,7 @@ st.text_area("Lea atentamente el contrato antes de reservar:", value=texto_legal
                         # EL BOTÓN DEBE ESTAR AQUÍ ADENTRO
                        if st.button("Reservar Ahora"):
             if nombre and cedula and celular:
-                # --- 1. REDACCIÓN PROFESIONAL DEL CONTRATO ---
+                # --- REDACCIÓN PROFESIONAL DEL CONTRATO ---
                 texto_legal = f"""CONTRATO DE LOCACIÓN DE VEHÍCULO - J&M ASOCIADOS
 
 1. OBJETO: El Arrendador entrega al Arrendatario Sr./Sra. {nombre} el vehículo {auto} en perfecto estado.
@@ -207,21 +207,33 @@ FECHA DE OPERACIÓN: {date.today().strftime('%d/%m/%Y')}
 ID DE SEGURIDAD: JM-CONFIRMED-{cedula[-3:]}
 --------------------------------------------------"""
 
-                # --- 2. MOSTRAR CONTRATO EN PANTALLA ---
+                # 1. Mostramos el contrato generado
                 st.subheader("📝 Contrato de Locación Generado")
                 st.text_area("Documento de Aceptación:", value=texto_legal, height=300, disabled=True)
                 
-                # --- 3. PROCESAR COMPROBANTE Y GUARDAR EN DB ---
+                # 2. Procesar la imagen del comprobante
                 img_byte = None
                 if comprobante:
                     img_byte = comprobante.read()
 
+                # 3. Guardar en la Base de Datos
                 conn = sqlite3.connect(DB_NAME)
                 conn.execute('''INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante) 
                              VALUES (?,?,?,?,?,?,?,?)''', 
                              (nombre, cedula, celular, auto, fecha_i, fecha_f, total, img_byte))
                 conn.commit()
                 conn.close()
+                
+                # 4. Preparar mensaje de WhatsApp
+                import urllib.parse
+                texto_wa = f"Hola JM, soy {c_n}.\nHe leído el contrato y acepto los términos.\n🚗 Vehículo: {v['nombre']}\n🗓️ Periodo: {dt_i.strftime('%d/%m/%Y')} al {dt_f.strftime('%d/%m/%Y')}\n💰 Total: R$ {total_r}\nAdjunto mi comprobante."
+                                link_wa = f"https://wa.me/595991681191?text={urllib.parse.quote(texto_wa)}"
+                                st.markdown(f'<a href="{link_wa}" target="_blank" style="background-color:#25D366; color:white; padding:15px; border-radius:10px; text-align:center; display:block; text-decoration:none; font-weight:bold;">✅ ENVIAR POR WHATSAPP</a>', unsafe_allow_html=True)
+                                st.success("¡Reserva Guardada!")
+                            else:
+                                st.error("Por favor, adjunte el comprobante.")
+                else:
+                    st.error("Vehículo no disponible en las fechas seleccionadas.")
                 
                 # --- 4. PREPARAR Y MOSTRAR BOTÓN DE WHATSAPP ---
                 import urllib.parse
