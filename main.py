@@ -112,40 +112,45 @@ with t_res:
             st.markdown(f'''<div class="card-auto"><h3>{v["nombre"]}</h3><img src="{v["img"]}" width="100%"><p style="font-weight:bold; font-size:20px; color:#D4AF37; margin-bottom:2px;">R$ {v["precio"]} / día</p><p style="color:#28a745; margin-top:0px;">Gs. {precio_gs:,.0f} / día</p></div>''', unsafe_allow_html=True)
             
             with st.expander(f"Ver Disponibilidad"):
-                # --- BLOQUE CALENDARIO AIRBNB HORIZONTAL CORREGIDO ---
+                                # --- CALENDARIO TIPO AIRBNB HORIZONTAL Y COMPACTO ---
                 ocupadas = obtener_fechas_ocupadas(v['nombre'])
-                st.write("**Disponibilidad de Fechas**")
-
-                c_m1, c_m2 = st.columns(2)
-                meses_a_mostrar = [
+                
+                # Usamos 2 columnas para que los meses salgan uno al lado del otro
+                c_mes1, c_mes2 = st.columns(2)
+                meses_display = [
                     (date.today().month, date.today().year), 
                     ((date.today().month % 12) + 1, date.today().year if date.today().month < 12 else date.today().year + 1)
                 ]
 
-                for idx, (m, a) in enumerate(meses_a_mostrar):
-                    with [c_m1, c_m2][idx]:
-                        nombre_mes = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"][m-1]
-                        st.markdown(f'<div style="text-align:center; font-weight:bold; color:#D4AF37; margin-bottom:5px; font-size:14px;">{nombre_mes} {a}</div>', unsafe_allow_html=True)
+                for idx, (m, a) in enumerate(meses_display):
+                    with [c_mes1, c_mes2][idx]:
+                        # Título del mes pequeño y alineado a la izquierda como la imagen
+                        nombre_mes = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"][m-1]
+                        st.markdown(f'<div style="font-weight:600; font-size:16px; margin-bottom:10px;">{nombre_mes} {a}</div>', unsafe_allow_html=True)
                         
-                        cd = st.columns(7)
-                        for d_n in ["L","M","M","J","V","S","D"]: 
-                            cd[["L","M","M","J","V","S","D"].index(d_n)].markdown(f'<div style="text-align:center; font-size:10px; color:#999;">{d_n}</div>', unsafe_allow_html=True)
+                        # Encabezados de días (L M M J V S D)
+                        cols_dias = st.columns(7)
+                        for d_idx, d_nom in enumerate(["L","M","M","J","V","S","D"]):
+                            cols_dias[d_idx].markdown(f'<div style="text-align:center; font-size:11px; color:#717171;">{d_nom}</div>', unsafe_allow_html=True)
                         
-                        cal_data = calendar.monthcalendar(a, m)
-                        for semana in cal_data:
-                            cdi = st.columns(7)
+                        # Grilla de días
+                        for semana in calendar.monthcalendar(a, m):
+                            cols_sem = st.columns(7)
                             for d_idx, dia in enumerate(semana):
                                 if dia != 0:
                                     f_act = date(a, m, dia)
                                     es_ocu = f_act in ocupadas
-                                    bg_color = "#1a1c23" if es_ocu else "#2d323e"
-                                    txt_color = "#555" if es_ocu else "white"
-                                    raya_html = '<div style="position:absolute; width:100%; height:2px; background-color:#ff385c; top:50%; left:0; z-index:10;"></div>' if es_ocu else ""
                                     
-                                    cdi[d_idx].markdown(
-                                        f'''<div style="position: relative; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; font-size: 12px; background-color: {bg_color}; color: {txt_color}; border: 0.1px solid #3d4452;">
-                                            {dia}{raya_html}
+                                    # Estilo: Si está ocupado, color gris y raya roja horizontal
+                                    color_texto = "#b0b0b0" if es_ocu else "#222222"
+                                    raya = '<div style="position:absolute; width:100%; height:1.5px; background-color:#ff385c; top:50%; left:0;"></div>' if es_ocu else ""
+                                    
+                                    cols_sem[d_idx].markdown(
+                                        f'''<div style="position:relative; height:35px; display:flex; align-items:center; justify-content:center; font-size:13px; color:{color_texto}; font-weight:500;">
+                                            {dia}{raya}
                                         </div>''', unsafe_allow_html=True)
+                # --- FIN CALENDARIO ---
+
 
                 st.divider()
                 # --- FORMULARIO Y DATOS DEL CLIENTE ---
