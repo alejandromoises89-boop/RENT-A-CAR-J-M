@@ -194,6 +194,9 @@ with t_res:
 with t_ubi:
     st.markdown("<h3 style='text-align: center; color: #D4AF37;'>NUESTRA UBICACIÓN</h3>", unsafe_allow_html=True)
     st.markdown('<div style="border: 2px solid #D4AF37; border-radius: 15px; overflow: hidden;"><iframe width="100%" height="400" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d57604.246417743!2d-54.67759567832031!3d-25.530374699999997!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f68595fe36b1d1%3A0xce33cb9eeec10b1e!2sCiudad%20del%20Este!5e0!3m2!1ses!2spy!4v1709564821000!5m2!1ses!2spy"></iframe></div>', unsafe_allow_html=True)
+    cs1, cs2 = st.columns(2)
+    cs1.markdown('<a href="https://instagram.com/jm_asociados_consultoria" target="_blank"><div style="background: linear-gradient(45deg, #f09433, #bc1888); color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold;">📸 INSTAGRAM</div></a>', unsafe_allow_html=True)
+    cs2.markdown('<a href="https://wa.me/595991681191" target="_blank"><div style="background-color:#25D366; color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold;">💬 WHATSAPP</div></a>', unsafe_allow_html=True)
 
 with t_adm:
     if st.text_input("Clave de Acceso", type="password") == "8899":
@@ -201,5 +204,45 @@ with t_adm:
         res_df = pd.read_sql_query("SELECT * FROM reservas", conn)
         egr_df = pd.read_sql_query("SELECT * FROM egresos", conn)
         flota_adm = pd.read_sql_query("SELECT * FROM flota", conn)
-        st.title("📊 PANEL DE CONTROL")
-        # (Aquí va el resto de tu código de administración que ya tienes funcionando...)
+        
+        st.title("📊 PANEL DE CONTROL ESTRATÉGICO")
+        ing = res_df['total'].sum() if not res_df.empty else 0
+        egr = egr_df['monto'].sum() if not egr_df.empty else 0
+        
+        c_m1, c_m2, c_m3 = st.columns(3)
+        c_m1.metric("INGRESOS TOTALES", f"R$ {ing:,.2f}")
+        c_m2.metric("GASTOS", f"R$ {egr:,.2f}")
+        c_m3.metric("UTILIDAD NETA", f"R$ {ing - egr:,.2f}")
+
+        cg1, cg2 = st.columns(2)
+        with cg1:
+            if not res_df.empty:
+                fig1 = px.pie(res_df, values='total', names='auto', hole=0.4, color_discrete_sequence=['#D4AF37', '#B8860B', '#FFD700'])
+                st.plotly_chart(fig1, use_container_width=True)
+        with cg2:
+            fig2 = px.bar(x=["Ingresos", "Gastos"], y=[ing, egr], color=["Ingresos", "Gastos"], color_discrete_map={"Ingresos": "#D4AF37", "Gastos": "#800020"})
+            st.plotly_chart(fig2, use_container_width=True)
+
+        with st.expander("💸 CARGAR GASTO"):
+            with st.form("g"):
+                c_g = st.text_input("Concepto"); m_g = st.number_input("Monto R$")
+                if st.form_submit_button("Guardar"):
+                    conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (c_g, m_g, date.today())); conn.commit(); st.rerun()
+
+        st.subheader("🛠️ ESTADO DE FLOTA")
+        for _, f in flota_adm.iterrows():
+            ca1, ca2, ca3 = st.columns([2,1,1])
+            ca1.write(f"*{f['nombre']}* ({f['placa']})")
+            ca2.write("🟢 Disponible" if f['estado'] == "Disponible" else "🔴 Taller")
+            if ca3.button("CAMBIAR", key=f"sw_{f['nombre']}"):
+                nuevo = "En Taller" if f['estado'] == "Disponible" else "Disponible"
+                conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo, f['nombre'])); conn.commit(); st.rerun()
+
+        st.subheader("📑 REGISTRO DE RESERVAS")
+        for _, r in res_df.iterrows():
+            with st.expander(f"Reserva #{r['id']} - {r['cliente']}"):
+                st.write(f"Auto: {r['auto']} | Periodo: {r['inicio']} al {r['fin']} | Total: R$ {r['total']}")
+                if r['comprobante']: st.image(r['comprobante'], width=200)
+                if st.button("🗑️ BORRAR", key=f"del{r['id']}"):
+                    conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],)); conn.commit(); st.rerun()
+        conn.close()
