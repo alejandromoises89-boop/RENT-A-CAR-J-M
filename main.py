@@ -136,7 +136,7 @@ with t_res:
                 dt_i = datetime.combine(c1.date_input("Inicio", key=f"d1{v['nombre']}"), c1.time_input("Hora 1", time(10,0), key=f"h1{v['nombre']}"))
                 dt_f = datetime.combine(c2.date_input("Fin", key=f"d2{v['nombre']}"), c2.time_input("Hora 2", time(12,0), key=f"h2{v['nombre']}"))
                 
-                if esta_disponible(v['nombre'], dt_i, dt_f):
+               if esta_disponible(v['nombre'], dt_i, dt_f):
                     c_n = st.text_input("Nombre Completo", key=f"n{v['nombre']}")
                     c_d = st.text_input("CI / Cédula / RG", key=f"d{v['nombre']}")
                     c_w = st.text_input("WhatsApp", key=f"w{v['nombre']}")
@@ -183,20 +183,35 @@ with t_res:
                             
                             <div style="display: flex; justify-content: space-between;">
                                 <div>
-                                    __________________________<br>
+                                    __________<br>
                                     <b>J&M ASOCIADOS</b><br>
                                     Arrendador
                                 </div>
                                 <div>
-                                    __________________________<br>
+                                    __________<br>
                                     <b>{c_n.upper()}</b><br>
                                     Arrendatario
                                 </div>
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
-                        # --- FIN DEL BLOQUE DEL CONTRATO ---
-
+                    
+                    # --- CASILLA DE ACEPTACIÓN ---
+                    acepto = st.checkbox("He leído el contrato y acepto los términos y condiciones.", key=f"chk{v['nombre']}")
+                    
+                    st.info(f"PAGO PIX: R$ {total_r} | Llave: 24510861818")
+                    foto = st.file_uploader("Adjuntar Comprobante", key=f"f{v['nombre']}")
+                    
+                    # El botón solo se activa si hay datos Y aceptó el contrato
+                    if st.button("CONFIRMAR RESERVA", key=f"btn{v['nombre']}", disabled=not (acepto and c_n and c_d and c_w)):
+                        if foto:
+                            # ... (resto de tu código de base de datos y whatsapp)
+                            st.success("Reserva procesada")
+                        else:
+                            st.error("Por favor, sube la foto del comprobante.")
+                    
+                    if not acepto:
+                        st.warning("Debes leer y aceptar el contrato para confirmar.")
 with t_ubi:
     st.markdown("<h3 style='text-align: center; color: #D4AF37;'>NUESTRA UBICACIÓN</h3>", unsafe_allow_html=True)
     st.markdown('<div style="border: 2px solid #D4AF37; border-radius: 15px; overflow: hidden;"><iframe width="100%" height="400" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d57604.246417743!2d-54.67759567832031!3d-25.530374699999997!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f68595fe36b1d1%3A0xce33cb9eeec10b1e!2sCiudad%20del%20Este!5e0!3m2!1ses!2spy!4v1709564821000!5m2!1ses!2spy"></iframe></div>', unsafe_allow_html=True)
