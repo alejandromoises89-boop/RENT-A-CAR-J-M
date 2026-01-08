@@ -147,7 +147,7 @@ with t_res:
                     total_gs = total_r * COTIZACION_DIA
                     
 if c_n and c_d and c_w:
-                        # --- CONTRATO COMPLETO 12 CLÁUSULAS (SIN CORTES) ---
+                        # --- INICIO DEL BLOQUE DEL CONTRATO ---
                         st.markdown(f"""
                         <div style="
                             background-color: #f9f9f9; 
@@ -165,61 +165,51 @@ if c_n and c_d and c_w:
                         ">
                             <center><b style="font-size: 16px;">CONTRATO DE ALQUILER DE VEHÍCULO Y AUTORIZACIÓN PARA CONDUCIR</b></center><br>
                             Entre:<br>
-                            <b>ARRENDADOR:</b> J&M ASOCIADOS. CI: 1.702.076-0. Domicilio: CURUPAYTU ESQUINA FARID RAHAL.<br>
-                            <b>ARRENDATARIO:</b> {c_n.upper()}. Doc: {c_d.upper()}. Domicilio: {c_pais.upper()}.<br><br>
+                            <b>ARRENDADOR:</b> J&M ASOCIADOS. CI: 1.702.076-0. Domicilio: CURUPAYTU ESQUINA FARID RAHAL. Teléfono: +595983635573<br><br>
+                            <b>ARRENDATARIO:</b> {c_n.upper()}. Doc: {c_d.upper()}. Domicilio: {c_pais.upper()}. Teléfono: {c_w}<br><br>
                             
-                            <b>PRIMERA - Objeto del Contrato.</b> El arrendador otorga en alquiler al arrendatario el siguiente vehículo: {v['nombre'].upper()}. Chapa: {v['placa']}. Color: {v['color'].upper()}. El vehículo se encuentra en perfecto estado de funcionamiento. El arrendatario confirma la recepción del vehículo en buen estado, tras realizar una inspección visual y técnica con soporte Técnico VIDEO. El ARRENDADOR AUTORIZA AL ARRENDATARIO A CONDUCIR EL VEHÍCULO EN TODO EL TERRITORIO PARAGUAYO Y EL MERCOSUR. -----------------------------------------------------------<br><br>
+                            Se acuerda lo siguiente:<br><br>
+                            
+                            <b>PRIMERA - Objeto del Contrato.</b> El arrendador otorga en alquiler al arrendatario el siguiente vehículo: {v['nombre'].upper()}. Color: {v['color'].upper()}. Chapa/Patente: {v['placa']}. El vehículo se encuentra en perfecto estado de funcionamiento. El arrendatario confirma la recepción del vehículo en buen estado, tras realizar una inspección visual y técnica con soporte Técnico VIDEO del Vehículo. El ARRENDADOR AUTORIZA AL ARRENDATARIO A CONDUCIR EL VEHÍCULO EN TODO EL TERRITORIO PARAGUAYO Y EL MERCOSUR. ------------------------------------------------------------------------------------<br><br>
 
                             <b>SEGUNDA - Duración del Contrato.</b> El presente contrato tendrá una duración de {dias} días, comenzando el {dt_i.strftime('%d/%m/%Y')} a las {dt_i.strftime('%H:%M')}hs y finalizando el {dt_f.strftime('%d/%m/%Y')} a las {dt_f.strftime('%H:%M')} hs. de entrega. ------------------------------------------------------<br><br>
 
-                            <b>TERCERA - Precio y Forma de Pago.</b> El arrendatario se compromete a pagar al arrendador la cantidad de Gs. {v['precio'] * COTIZACION_DIA:,.0f} por día. <b>TOTAL: Gs. {total_gs:,.0f}</b>. El monto total será pagado por adelantado vía Efectivo y/o Transferencia. En caso de exceder el tiempo se pagará a la entrega lo excedido. ------------------------<br><br>
+                            <b>TERCERA - Precio y Forma de Pago.</b> El arrendatario se compromete a pagar al arrendador la cantidad de Gs. {v['precio'] * COTIZACION_DIA:,.0f} por día. <b>TOTAL: Gs. {total_gs:,.0f}</b>. El pago se realizará por adelantado vía Efectivo y/o Transferencia. En caso de exceder el tiempo se pagará a la entrega del vehículo lo excedido de acuerdo a lo que corresponda. ------------------------<br><br>
 
-                            <b>CUARTA - Depósito de Seguridad.</b> El arrendatario pagará cinco millones de guaraníes (Gs. 5.000.000) en caso de siniestro (accidente) para cubrir los daños al vehículo durante el periodo de alquiler. -----------------------------------------------------------<br><br>
+                            <b>CUARTA - Depósito de Seguridad.</b> El arrendatario pagará cinco millones de guaraníes (Gs. 5.000.000) en caso de siniestro (accidente) para cubrir los daños al vehículo durante el periodo de alquiler. --------------------------------------------------------------------------------------<br><br>
 
-                            <b>QUINTA - Condiciones de Uso.</b> 1. El vehículo será utilizado exclusivamente para fines personales. 2. El ARRENDATARIO es responsable PENAL y CIVIL de todo lo ocurrido dentro del vehículo. 3. No se permite subarrendar ni permitir que terceros conduzcan sin autorización. --------------------<br><br>
+                            <b>QUINTA - Condiciones de Uso del Vehículo.</b> 1. El vehículo será utilizado exclusivamente para fines personales dentro del territorio nacional. 2. El ARRENDATARIO es responsable PENAL y CIVIL, de todo lo ocurrido dentro del vehículo y/o encontrado durante el alquiler. 3. El arrendatario se compromete a no subarrendar el vehículo ni permitir que terceros lo conduzcan sin autorización previa del arrendador. 4. El uso del vehículo fuera de los límites del país deberá ser aprobado por el arrendador. ---------------------------------------------------------------------<br><br>
 
-                            <b>SEXTA - Kilometraje y Excesos.</b> El alquiler incluye un límite de 200 kilómetros por día. En caso de superar este límite, el arrendatario pagará 100.000 guaraníes adicionales por los kilómetros excedente. -----------------------------------------------------------<br><br>
+                            <b>SEXTA - Kilometraje y Excesos.</b> El alquiler incluye un límite de 200 kilómetros por día. En caso de superar este límite, el arrendatario pagará 100.000 guaraníes adicionales por los kilómetros excedente. ------------------------------------------------------------------------<br><br>
 
-                            <b>SÉPTIMA - Seguro.</b> El vehículo cuenta con seguro de Responsabilidad CIVIL ante daños a terceros, cobertura en accidentes y rastreo satelital. El arrendatario será responsable de daños por negligencia o uso inapropiado. -----------------------------------------------------------<br><br>
+                            <b>SÉPTIMA - Seguro.</b> El vehículo cuenta con un seguro básico que cubre Responsabilidad CIVIL en caso de daños a terceros, Cobertura en caso de accidentes y Servicio de rastreo satelital. El arrendatario será responsable de los daños que no estén cubiertos por el seguro, tales como daños por negligencia o uso inapropiado del vehículo. ---------------------------------------------------------------------------------<br><br>
 
-                            <b>OCTAVA - Mantenimiento.</b> El arrendatario mantendrá el vehículo en buen estado (Agua, combustible, limpieza). Las reparaciones por desgaste normal son del arrendador; las reparaciones por negligencia son del arrendatario. --------------------<br><br>
+                            <b>OCTAVA - Mantenimiento y Reparaciones.</b> El arrendatario se compromete a mantener el vehículo en buen estado de funcionamiento (Agua, combustible, limpieza). En caso de desperfectos, el arrendatario deberá notificar inmediatamente al arrendador. Las reparaciones por desgaste normal serán responsabilidad del arrendador, mientras que las debidas a negligencia serán del arrendatario. --------------------<br><br>
 
-                            <b>NOVENA - Devolución.</b> El arrendatario devolverá el vehículo en la misma condición recibida. Si no se devuelve en la fecha y hora acordada, pagará una penalización de media diaria o diaria completa adicional. -------------------------------<br><br>
+                            <b>NOVENA - Devolución del Vehículo.</b> El arrendatario devolverá el vehículo en la misma condición en la que lo recibió, excepto por el desgaste normal. Si el vehículo no se devuelve en la fecha y hora acordada, el arrendatario pagará una penalización de media diaria y/o una diaria completa por cada día adicional. -------------------------------<br><br>
 
-                            <b>DÉCIMA – Incumplimiento.</b> En caso de incumplimiento de alguna cláusula, el arrendador podrá rescindir el contrato de manera inmediata y reclamar daños y perjuicios. -----------------------------------------------------------<br><br>
+                            <b>DÉCIMA – Incumplimiento.</b> En caso de incumplimiento de alguna de las cláusulas de este contrato, el arrendador podrá rescindir el mismo de manera inmediata, sin perjuicio de reclamar daños y perjuicios. ----------------------------------------------------------------<br><br>
 
-                            <b>UNDÉCIMA - Jurisdicción.</b> Para cualquier disputa, las partes se someten a la jurisdicción de los tribunales del Alto Paraná, Paraguay. -----------------------------------------------------------<br><br>
+                            <b>UNDÉCIMA - Jurisdicción y Ley Aplicable.</b> Para cualquier disputa derivada de este contrato, las partes se someten a la jurisdicción de los tribunales del Alto Paraná, Paraguay, y se regirán por la legislación vigente en el país. ---------------------------------------------------------------<br><br>
 
-                            <b>DÉCIMA SEGUNDA - Firma.</b> Ambas partes firman en señal de conformidad, en Ciudad del Este el {date.today().strftime('%d/%m/%Y')}.<br><br><br>
+                            <b>DÉCIMA SEGUNDA - Firma de las Partes.</b> Ambas partes firman el presente contrato en señal de conformidad, en Ciudad del Este el {date.today().strftime('%d/%m/%Y')}.<br><br>
+                            El ARRENDADOR AUTORIZA AL ARRENDATARIO A CONDUCIR EL VEHÍCULO EN TODO EL TERRITORIO PARAGUAYO Y EL MERCOSUR.<br><br><br>
                             
                             <div style="display: flex; justify-content: space-between;">
-                                <div>__________<br><b>J&M ASOCIADOS</b><br>Arrendador</div>
-                                <div>__________<br><b>{c_n.upper()}</b><br>Arrendatario</div>
+                                <div>
+                                    __________________________<br>
+                                    <b>J&M ASOCIADOS</b><br>
+                                    Arrendador
+                                </div>
+                                <div>
+                                    __________________________<br>
+                                    <b>{c_n.upper()}</b><br>
+                                    Arrendatario
+                                </div>
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
-                        
-                        acepto = st.checkbox("He leído el contrato y acepto los términos y condiciones.", key=f"chk{v['nombre']}")                        
-                        st.markdown(f'<div style="background-color:#1a1c23; padding:15px; border-radius:10px; border:1px solid #D4AF37; margin-top:10px;"><b>PAGO PIX: R$ {total_r}</b><br>Llave: 24510861818<br>Marina Baez</div>', unsafe_allow_html=True)
-                        
-                        foto = st.file_uploader("Adjuntar Comprobante de Pago", key=f"f{v['nombre']}")
-                        
-                        if st.button("CONFIRMAR RESERVA", key=f"btn{v['nombre']}", disabled=not acepto):
-                            if foto:
-                                conn = sqlite3.connect(DB_NAME)
-                                conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante) VALUES (?,?,?,?,?,?,?,?)", 
-                                             (c_n, c_d, c_w, v['nombre'], dt_i, dt_f, total_r, foto.read()))
-                                conn.commit(); conn.close()
-                                texto_wa = f"Hola JM, soy {c_n}.\nHe leído el contrato y acepto los términos.\n🚗 Vehículo: {v['nombre']}\n🗓️ Periodo: {dt_i.strftime('%d/%m/%Y')} al {dt_f.strftime('%d/%m/%Y')}\n💰 Total: R$ {total_r}\nAdjunto comprobante."
-                                link_wa = f"https://wa.me/595991681191?text={urllib.parse.quote(texto_wa)}"
-                                st.markdown(f'<a href="{link_wa}" target="_blank" style="background-color:#25D366; color:white; padding:15px; border-radius:10px; text-align:center; display:block; text-decoration:none; font-weight:bold;">✅ ENVIAR COMPROBANTE POR WHATSAPP</a>', unsafe_allow_html=True)
-                                st.success("¡Reserva Guardada!")
-                            else:
-                                st.error("Por favor, adjunte el comprobante.")
-                        if not acepto:
-                            st.warning("Debes aceptar el contrato para habilitar el botón de confirmación.")
-                else:
-                    st.error("Vehículo no disponible en las fechas seleccionadas.")
+                        # --- FIN DEL BLOQUE DEL CONTRATO ---
 
 with t_ubi:
     st.markdown("<h3 style='text-align: center; color: #D4AF37;'>NUESTRA UBICACIÓN</h3>", unsafe_allow_html=True)
