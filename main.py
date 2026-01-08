@@ -12,8 +12,7 @@ import styles
 st.set_page_config(
     page_title="JM ASOCIADOS",
     layout="wide",
-    page_icon="https://i.ibb.co/PzsvxYrM/JM-Asociados-Logotipo-02.png" 
-)
+    page_icon="https://i.ibb.co/PzsvxYrM/JM-Asociados-Logotipo-02.png")
 
 # Intentar aplicar los estilos premium si el archivo existe
 try:
@@ -165,8 +164,7 @@ for idx, (m, a) in enumerate(meses_a_mostrar):
                             {dia}
                             {raya_html}
                         </div>''', 
-                        unsafe_allow_html=True
-                    )
+                        unsafe_allow_html=True)
 # --- FIN BLOQUE CALENDARIO ---
 
                 st.divider()
