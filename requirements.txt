@@ -1,9 +1,8 @@
 streamlit
 pandas
-reportlab
 requests
 plotly
+reportlab
 fpdf
 streamlit-js-eval
 streamlit-drawable-canvas
-locale
