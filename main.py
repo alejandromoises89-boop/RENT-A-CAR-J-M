@@ -188,7 +188,7 @@ st.text_area("Lea atentamente el contrato antes de reservar:", value=texto_legal
                         foto = st.file_uploader("Adjuntar Comprobante", key=f"f{v['nombre']}")
                         
                         # EL BOTÓN DEBE ESTAR AQUÍ ADENTRO
-                        if st.button("Reservar Ahora"):
+                       if st.button("Reservar Ahora"):
             if nombre and cedula and celular:
                 # --- 1. REDACCIÓN PROFESIONAL DEL CONTRATO ---
                 texto_legal = f"""CONTRATO DE LOCACIÓN DE VEHÍCULO - J&M ASOCIADOS
