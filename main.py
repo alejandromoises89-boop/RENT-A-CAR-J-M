@@ -94,15 +94,13 @@ with t_res:
             st.markdown(f'''<div class="card-auto"><h3>{v["nombre"]}</h3><img src="{v["img"]}" width="100%"><p style="font-weight:bold; font-size:20px; color:#D4AF37; margin-bottom:2px;">R$ {v["precio"]} / día</p><p style="color:#28a745; margin-top:0px;">Gs. {precio_gs:,.0f} / día</p></div>''', unsafe_allow_html=True)
             
             with st.expander(f"Ver Disponibilidad"):
-                # --- CALENDARIO TIPO AIRBNB HORIZONTAL FORZADO (HTML/CSS) ---
+                # --- CALENDARIO TIPO AIRBNB HORIZONTAL FORZADO ---
                 ocupadas = obtener_fechas_ocupadas(v['nombre'])
-                
                 meses_display = [
                     (date.today().month, date.today().year), 
                     ((date.today().month % 12) + 1, date.today().year if date.today().month < 12 else date.today().year + 1)
                 ]
 
-                # Generación del HTML para asegurar que sea horizontal y con rayas rojas fijas
                 html_cal = """
                 <style>
                     .airbnb-container { display: flex; flex-direction: row; gap: 25px; overflow-x: auto; padding: 10px 0; scrollbar-width: none; }
@@ -116,32 +114,24 @@ with t_res:
                 </style>
                 <div class="airbnb-container">
                 """
-
                 for m, a in meses_display:
                     nombre_mes = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"][m-1]
                     html_cal += f'<div class="airbnb-month"><div class="airbnb-header">{nombre_mes} {a}</div><div class="airbnb-grid">'
-                    
                     for d_nom in ["L","M","M","J","V","S","D"]:
                         html_cal += f'<div class="airbnb-day-name">{d_nom}</div>'
-                    
                     for semana in calendar.monthcalendar(a, m):
                         for dia in semana:
-                            if dia == 0:
-                                html_cal += '<div></div>'
+                            if dia == 0: html_cal += '<div></div>'
                             else:
                                 f_act = date(a, m, dia)
                                 es_ocu = f_act in ocupadas
-                                clase_ocu = "airbnb-ocupado" if es_ocu else ""
                                 raya = '<div class="airbnb-raya"></div>' if es_ocu else ""
-                                html_cal += f'<div class="airbnb-cell {clase_ocu}">{dia}{raya}</div>'
+                                html_cal += f'<div class="airbnb-cell {"airbnb-ocupado" if es_ocu else ""}">{dia}{raya}</div>'
                     html_cal += '</div></div>'
-                
                 html_cal += '</div>'
                 st.markdown(html_cal, unsafe_allow_html=True)
-                # --- FIN CALENDARIO ---
 
                 st.divider()
-                # --- FORMULARIO Y DATOS DEL CLIENTE ---
                 c1, c2 = st.columns(2)
                 dt_i = datetime.combine(c1.date_input("Inicio", key=f"d1{v['nombre']}"), c1.time_input("Hora 1", time(10,0), key=f"h1{v['nombre']}"))
                 dt_f = datetime.combine(c2.date_input("Fin", key=f"d2{v['nombre']}"), c2.time_input("Hora 2", time(12,0), key=f"h2{v['nombre']}"))
@@ -157,126 +147,51 @@ with t_res:
                     total_gs = total_r * COTIZACION_DIA
                     
                     if c_n and c_d and c_w:
-                                                # --- CONTRATO SCROLL COMPLETO (TEXTO INTEGRO) ---
-                        contrato_html = f"""
-                        <div style="
-                            background-color: #f9f9f9; 
-                            color: #333; 
-                            padding: 20px; 
-                            border-radius: 10px; 
-                            height: 400px; 
-                            overflow-y: scroll; 
-                            font-family: 'Courier New', monospace; 
-                            font-size: 13px; 
-                            border: 2px solid #D4AF37; 
-                            text-align: justify; 
-                            line-height: 1.5;
-                            display: block;
-                            -webkit-overflow-scrolling: touch;
-                        ">
-                            <center><b style="font-size: 16px;">CONTRATO DE ALQUILER DE VEHÍCULO Y AUTORIZACIÓN PARA CONDUCIR</b></center><br>
-                            Entre:<br>
-                            <b>ARRENDADOR:</b><br>
-                            Nombre: J&M ASOCIADOS<br>
-                            Cédula de Identidad: 1.702.076-0<br>
-                            Domicilio: CURUPAYTU ESQUINA FARID RAHAL<br>
-                            Teléfono: +595983635573<br><br>
-                            
-                            <b>Y, ARRENDATARIO:</b><br>
-                            Nombre: {c_n.upper()}<br>
-                            Cédula de Identidad: {c_d.upper()}<br>
-                            Domicilio: {c_pais.upper()}<br>
-                            Teléfono: {c_w}<br><br>
-                            
-                            Se acuerda lo siguiente:<br><br>
-                            
-                            <b>PRIMERA - Objeto del Contrato.</b><br>
-                            El arrendador otorga en alquiler al arrendatario el siguiente vehículo:<br>
-                            * Marca: {v['nombre'].split()[0].upper()}<br>
-                            * Modelo: {' '.join(v['nombre'].split()[1:]).upper()}<br>
-                            * Año de fabricación: 2012.<br>
-                            * Color: {v['color'].upper()}<br>
-                            * Número de CHAPA/Patente: {v['placa']}<br>
-                            El vehículo se encuentra en perfecto estado de funcionamiento y libre de cargas o gravámenes. El arrendatario confirma la recepción del vehículo en buen estado, tras realizar una inspección visual y técnica con soporte Técnico VIDEO del Vehículo. El ARRENDADOR AUTORIZA AL ARRENDATARIO A CONDUCIR EL VEHÍCULO EN TODO EL TERRITORIO PARAGUAYO Y EL MERCOSUR. ------------------------------------------------------------------------------------<br><br>
-                            
-                            <b>SEGUNDA - Duración del Contrato</b><br>
-                            El presente contrato tendrá una duración de {dias} días, comenzando el {dt_i.strftime('%d de %B')} a las {dt_i.strftime('%H:%M')}hs y finalizando el {dt_f.strftime('%d de %B')} del {dt_f.year}, {dt_f.strftime('%H:%M')} hs. de entrega. ------------------------------------------------------<br><br>
-                            
-                            <b>TERCERA - Precio y Forma de Pago</b><br>
-                            El arrendatario se compromete a pagar al arrendador la cantidad de Gs. {v['precio'] * COTIZACION_DIA:,.0f} por cada día de alquiler X {dias} DIÁS TOTAL DE: <b>Gs. {total_gs:,.0f}</b>.------------------------------------------------------------<br>
-                            Forma de pago: Efectivo y/o Transferencia Electrónica, El monto total será pagado por adelantado, en caso de exceder el tiempo se pagará a la entrega del vehículo lo excedido de acuerdo a lo que corresponda. ------------------------<br><br>
-                            
-                            <b>CUARTA - Depósito de Seguridad.</b><br>
-                            El arrendatario pagara cinco millones de guaraníes (Gs. 5.000.000) en caso de siniestro (accidente) para cubrir los daños al vehículo durante el periodo de alquiler. --------------------------------------------------------------------------------------<br><br>
-                            
-                            <b>QUINTA - Condiciones de Uso del Vehículo.</b><br>
-                            1. El vehículo será utilizado exclusivamente para fines personales dentro del territorio nacional. ---------------------------------------------------------------<br>
-                            2. El ARRENDATARIO es responsable PENAL y CIVIL, de todo lo ocurrido dentro del vehículo y/o encontrado durante el alquiler. --------------------<br>
-                            3. El arrendatario se compromete a no subarrendar el vehículo ni permitir que terceros lo conduzcan sin autorización previa del arrendador. -----------------------------------------------------------------------------<br>
-                            4. El uso del vehículo fuera de los límites del país deberá ser aprobado por el arrendador. ---------------------------------------------------------------------<br><br>
-                            
-                            <b>SEXTA - Kilometraje y Excesos</b><br>
-                            El alquiler incluye un límite de 200 kilómetros por día. En caso de superar este límite, el arrendatario pagará 100.000 guaraníes adicionales por los kilómetros excedente. ------------------------------------------------------------------------<br><br>
-                            
-                            <b>SÉPTIMA - Seguro.</b><br>
-                            • Cobertura Responsabilidad CIVIL en caso de daños a terceros.<br>
-                            • Cobertura en caso de accidentes y Servicio de rastreo satelital.<br>
-                            • El arrendatario será responsable de los daños que no estén cubiertos por el seguro, tales como daños por negligencia o uso inapropiado del vehículo. ---------------------------------------------------------------------------------<br><br>
-                            
-                            <b>OCTAVA - Mantenimiento y Reparaciones</b><br>
-                            El arrendatario se compromete a mantener el vehículo en buen estado (Agua, combustible, limpieza). En caso de desperfectos, el arrendatario deberá notificar inmediatamente al arrendador. Las reparaciones por uso indebido serán responsabilidad del arrendatario. --------------------<br><br>
-                            
-                            <b>NOVENA - Devolución del Vehículo.</b><br>
-                            El arrendatario devolverá el vehículo en la misma condición en la que lo recibió. Si no se devuelve en la fecha acordada, pagará una penalización de media diaria y/o una diaria completa por cada día adicional. -------------------------------<br><br>
-                            
-                            <b>DÉCIMA – Incumplimiento.</b><br>
-                            En caso de incumplimiento de alguna de las cláusulas, el arrendador podrá rescindir el mismo de manera inmediata. ----------------------------------------------------------------<br><br>
-                            
-                            <b>UNDÉCIMA - Jurisdicción y Ley Aplicable.</b><br>
-                            Para cualquier disputa, las partes se someten a la jurisdicción de los tribunales del Alto Paraná, Paraguay. ---------------------------------------------------------------<br><br>
-                            
-                            <b>DÉCIMA SEGUNDA - Firma de las Partes.</b><br>
-                            Ambas partes firman el presente contrato en señal de conformidad, en Ciudad del Este el {date.today().strftime('%d de %B del %Y')}.<br><br>
-                            El ARRENDADOR AUTORIZA AL ARRENDATARIO A CONDUCIR EL VEHÍCULO EN TODO EL TERRITORIO PARAGUAYO Y EL MERCOSUR.<br><br><br>
-                            
+                        # --- CONTRATO COMPLETO ---
+                        st.markdown(f"""
+                        <div style="background-color: #f9f9f9; color: #333; padding: 20px; border-radius: 10px; height: 350px; overflow-y: scroll; font-family: 'Courier New', monospace; font-size: 13px; border: 2px solid #D4AF37; text-align: justify; line-height: 1.5; -webkit-overflow-scrolling: touch;">
+                            <center><b>CONTRATO DE ALQUILER DE VEHÍCULO Y AUTORIZACIÓN PARA CONDUCIR</b></center><br>
+                            <b>ARRENDADOR:</b> J&M ASOCIADOS. CI: 1.702.076-0. Domicilio: CURUPAYTU ESQUINA FARID RAHAL.<br>
+                            <b>ARRENDATARIO:</b> {c_n.upper()}. Doc: {c_d.upper()}. Domicilio: {c_pais.upper()}.<br><br>
+                            <b>PRIMERA - OBJETO:</b> {v['nombre'].upper()}. Chapa: {v['placa']}. Color: {v['color'].upper()}. El vehículo se recibe en perfecto estado con soporte técnico VIDEO.<br><br>
+                            <b>SEGUNDA - DURACIÓN:</b> {dias} días. Desde {dt_i.strftime('%d/%m/%Y %H:%M')} hasta {dt_f.strftime('%d/%m/%Y %H:%M')}.<br><br>
+                            <b>TERCERA - PRECIO:</b> Gs. {v['precio']*COTIZACION_DIA:,.0f} / día. TOTAL: Gs. {total_gs:,.0f}.<br><br>
+                            <b>CUARTA - DEPÓSITO:</b> Gs. 5.000.000 en caso de siniestro.<br><br>
+                            <b>QUINTA - RESPONSABILIDAD:</b> El ARRENDATARIO es responsable PENAL y CIVIL de todo lo ocurrido dentro del vehículo.<br><br>
+                            <b>SEXTA - KILOMETRAJE:</b> Límite 200km/día. Excedente: 100.000 Gs adicionales.<br><br>
+                            <b>SÉPTIMA - SEGURO:</b> Cobertura civil, accidentes y rastreo satelital. Negligencia no cubierta.<br><br>
+                            <b>DÉCIMA SEGUNDA:</b> Firmado en CDE el {date.today().strftime('%d/%m/%Y')}.<br><br>
                             <div style="display: flex; justify-content: space-between;">
-                                <div>
-                                    __________________________<br>
-                                    <b>J&M ASOCIADOS</b><br>
-                                    R.U.C. 1.702.076-0<br>
-                                    Arrendador
-                                </div>
-                                <div>
-                                    __________________________<br>
-                                    <b>{c_n.upper()}</b><br>
-                                    Doc: {c_d.upper()}<br>
-                                    Arrendatario
-                                </div>
+                                <span>______________________<br>J&M ASOCIADOS</span>
+                                <span>______________________<br>{c_n.upper()}</span>
                             </div>
                         </div>
-                        """
+                        """, unsafe_allow_html=True)
+                        
+                        # --- CASILLA DE ACEPTACIÓN ---
+                        acepto = st.checkbox("He leído el contrato y acepto todos los términos y condiciones.", key=f"check{v['nombre']}")
                         
                         st.markdown(f'<div style="background-color:#1a1c23; padding:15px; border-radius:10px; border:1px solid #D4AF37; margin-top:10px;"><b>PAGO PIX: R$ {total_r}</b><br>Llave: 24510861818<br>Marina Baez</div>', unsafe_allow_html=True)
                         
                         foto = st.file_uploader("Adjuntar Comprobante de Pago", key=f"f{v['nombre']}")
                         
-                        if st.button("CONFIRMAR RESERVA", key=f"btn{v['nombre']}"):
+                        if st.button("CONFIRMAR RESERVA", key=f"btn{v['nombre']}", disabled=not acepto):
                             if foto:
                                 conn = sqlite3.connect(DB_NAME)
                                 conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante) VALUES (?,?,?,?,?,?,?,?)", 
                                              (c_n, c_d, c_w, v['nombre'], dt_i, dt_f, total_r, foto.read()))
                                 conn.commit(); conn.close()
-                                
-                                # --- MENSAJE DE WHATSAPP EXACTO ---
-                                texto_wa = f"Hola JM, soy {c_n}.\nHe leído el contrato y acepto los términos.\n🚗 Vehículo: {v['nombre']}\n🗓️ Periodo: {dt_i.strftime('%d/%m/%Y')} al {dt_f.strftime('%d/%m/%Y')}\n💰 Total: R$ {total_r}\nAdjunto mi comprobante de pago."
+                                texto_wa = f"Hola JM, soy {c_n}.\nHe leído el contrato y acepto los términos.\n🚗 Vehículo: {v['nombre']}\n🗓️ Periodo: {dt_i.strftime('%d/%m/%Y')} al {dt_f.strftime('%d/%m/%Y')}\n💰 Total: R$ {total_r}\nAdjunto comprobante."
                                 link_wa = f"https://wa.me/595991681191?text={urllib.parse.quote(texto_wa)}"
-                                
                                 st.markdown(f'<a href="{link_wa}" target="_blank" style="background-color:#25D366; color:white; padding:15px; border-radius:10px; text-align:center; display:block; text-decoration:none; font-weight:bold;">✅ ENVIAR COMPROBANTE POR WHATSAPP</a>', unsafe_allow_html=True)
-                                st.success("¡Reserva Guardada en el Sistema!")
+                                st.success("¡Reserva Guardada!")
                             else:
-                                st.error("Por favor, adjunte el comprobante antes de confirmar.")
+                                st.error("Por favor, adjunte el comprobante.")
+                        if not acepto:
+                            st.warning("Debes aceptar el contrato para habilitar el botón de confirmación.")
                 else:
                     st.error("Vehículo no disponible en las fechas seleccionadas.")
+
 
 with t_ubi:
     st.markdown("<h3 style='text-align: center; color: #D4AF37;'>NUESTRA UBICACIÓN</h3>", unsafe_allow_html=True)
