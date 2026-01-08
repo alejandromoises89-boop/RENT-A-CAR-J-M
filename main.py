@@ -277,7 +277,7 @@ with t_adm:
                     conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo_est, f['nombre']))
                     conn.commit(); st.rerun()
 
-                # --- SECCIÓN 6: REGISTRO Y PREVISUALIZACIÓN DE CONTRATO ---
+                        # --- SECCIÓN 6: REGISTRO Y PREVISUALIZACIÓN DE CONTRATO ---
         st.subheader("📑 RESERVAS Y PREVISUALIZACIÓN")
         
         with st.expander("📅 BLOQUEO MANUAL"):
