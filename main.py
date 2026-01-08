@@ -146,8 +146,7 @@ with t_res:
                     total_r = dias * v['precio']
                     total_gs = total_r * COTIZACION_DIA
                     
-               if c_n and c_d and c_w:
-                                               
+               if c_n and c_d and c_w:                                              
 st.markdown(f"""
 <div style="
     background-color: #f9f9f9; 
