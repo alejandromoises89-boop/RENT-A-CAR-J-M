@@ -141,15 +141,16 @@ with t_res:
                     c_d = st.text_input("CI / Cédula / RG", key=f"d{v['nombre']}")
                     c_w = st.text_input("WhatsApp", key=f"w{v['nombre']}")
                     c_pais = st.text_input("País / Domicilio", key=f"p{v['nombre']}")
-                    
+
                     dias = max(1, (dt_f.date() - dt_i.date()).days)
                     total_r = dias * v['precio']
                     total_gs = total_r * COTIZACION_DIA
-                    
-                    # --- CONTRATO (FUERA DEL IF DE DATOS PARA QUE SE VEA SIEMPRE) ---
-                    st.markdown(f"""
-                    <div style="background-color: #f9f9f9; color: #333; padding: 25px; border-radius: 10px; height: 350px; overflow-y: scroll; font-family: 'Courier New', monospace; font-size: 13px; border: 2px solid #D4AF37; text-align: justify; line-height: 1.5; -webkit-overflow-scrolling: touch;">
-                        <center><b style="font-size: 16px;">CONTRATO DE ALQUILER DE VEHÍCULO Y AUTORIZACIÓN PARA CONDUCIR</b></center><br>
+
+                    # --- CONDICIÓN: SOLO MOSTRAR SI RELLENÓ LOS DATOS ---
+                    if c_n and c_d and c_w:
+                        st.markdown(f"""
+                        <div style="background-color: #f9f9f9; color: #333; padding: 25px; border-radius: 10px; height: 350px; overflow-y: scroll; font-family: 'Courier New', monospace; font-size: 13px; border: 2px solid #D4AF37; text-align: justify; line-height: 1.5; -webkit-overflow-scrolling: touch;">
+                            <center><b style="font-size: 16px;">CONTRATO DE ALQUILER DE VEHÍCULO Y AUTORIZACIÓN PARA CONDUCIR</b></center><br>
                             Entre:<br>
                             <b>ARRENDADOR:</b> J&M ASOCIADOS. CI: 1.702.076-0. Domicilio: CURUPAYTU ESQUINA FARID RAHAL. Teléfono: +595983635573<br><br>
                             <b>ARRENDATARIO:</b> {c_n.upper()}. Doc: {c_d.upper()}. Domicilio: {c_pais.upper()}. Teléfono: {c_w}<br><br>
@@ -183,21 +184,21 @@ with t_res:
                             
                             <div style="display: flex; justify-content: space-between;">
                                 <div>
-                                    __________<br>
+                                    ____<br>
                                     <b>J&M ASOCIADOS</b><br>
                                     Arrendador
                                 </div>
                                 <div>
-                                    __________<br>
+                                    ____<br>
                                     <b>{c_n.upper()}</b><br>
                                     Arrendatario
                                 </div>
                             </div>
                         </div>
                         """, unsafe_allow_html=True)
-                    
-                    # --- CASILLA DE ACEPTACIÓN ---
-                    acepto = st.checkbox("He leído el contrato y acepto los términos y condiciones.", key=f"chk{v['nombre']}")
+                        
+                        # Casilla de verificación
+                        acepto = st.checkbox("He leído el contrato y acepto todos los términos y condiciones.", key=f"chk{v['nombre']}")
                     
                     st.info(f"PAGO PIX: R$ {total_r} | Llave: 24510861818")
                     foto = st.file_uploader("Adjuntar Comprobante", key=f"f{v['nombre']}")
