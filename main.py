@@ -147,26 +147,56 @@ with t_res:
                     total_gs = total_r * COTIZACION_DIA
                     
                     if c_n and c_d and c_w:
-                        # --- CONTRATO COMPLETO ---
+                                                # --- CONTRATO COMPLETO 12 CLÁUSULAS (INTEGRO) ---
                         st.markdown(f"""
-                        <div style="background-color: #f9f9f9; color: #333; padding: 20px; border-radius: 10px; height: 350px; overflow-y: scroll; font-family: 'Courier New', monospace; font-size: 13px; border: 2px solid #D4AF37; text-align: justify; line-height: 1.5; -webkit-overflow-scrolling: touch;">
-                            <center><b>CONTRATO DE ALQUILER DE VEHÍCULO Y AUTORIZACIÓN PARA CONDUCIR</b></center><br>
-                            <b>ARRENDADOR:</b> J&M ASOCIADOS. CI: 1.702.076-0. Domicilio: CURUPAYTU ESQUINA FARID RAHAL.<br>
-                            <b>ARRENDATARIO:</b> {c_n.upper()}. Doc: {c_d.upper()}. Domicilio: {c_pais.upper()}.<br><br>
-                            <b>PRIMERA - OBJETO:</b> {v['nombre'].upper()}. Chapa: {v['placa']}. Color: {v['color'].upper()}. El vehículo se recibe en perfecto estado con soporte técnico VIDEO.<br><br>
-                            <b>SEGUNDA - DURACIÓN:</b> {dias} días. Desde {dt_i.strftime('%d/%m/%Y %H:%M')} hasta {dt_f.strftime('%d/%m/%Y %H:%M')}.<br><br>
-                            <b>TERCERA - PRECIO:</b> Gs. {v['precio']*COTIZACION_DIA:,.0f} / día. TOTAL: Gs. {total_gs:,.0f}.<br><br>
-                            <b>CUARTA - DEPÓSITO:</b> Gs. 5.000.000 en caso de siniestro.<br><br>
-                            <b>QUINTA - RESPONSABILIDAD:</b> El ARRENDATARIO es responsable PENAL y CIVIL de todo lo ocurrido dentro del vehículo.<br><br>
-                            <b>SEXTA - KILOMETRAJE:</b> Límite 200km/día. Excedente: 100.000 Gs adicionales.<br><br>
-                            <b>SÉPTIMA - SEGURO:</b> Cobertura civil, accidentes y rastreo satelital. Negligencia no cubierta.<br><br>
-                            <b>DÉCIMA SEGUNDA:</b> Firmado en CDE el {date.today().strftime('%d/%m/%Y')}.<br><br>
-                            <div style="display: flex; justify-content: space-between;">
-                                <span>______________________<br>J&M ASOCIADOS</span>
-                                <span>______________________<br>{c_n.upper()}</span>
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        <div style="
+                            background-color: #f9f9f9; 
+                            color: #333; 
+                            padding: 25px; 
+                            border-radius: 10px; 
+                            height: 400px; 
+                            overflow-y: scroll; 
+                            font-family: 'Courier New', monospace; 
+                            font-size: 13px; 
+                            border: 2px solid #D4AF37; 
+                            text-align: justify; 
+                            line-height: 1.5;
+                            -webkit-overflow-scrolling: touch;
+                        ">
+                            <center><b style="font-size: 16px;">CONTRATO DE ALQUILER DE VEHÍCULO Y AUTORIZACIÓN PARA CONDUCIR</b></center><br>
+                            Entre:<br>
+                            <b>ARRENDADOR:</b><br>
+                            Nombre: J&M ASOCIADOS<br>
+                            Cédula de Identidad: 1.702.076-0<br>
+                            Domicilio: CURUPAYTU ESQUINA FARID RAHAL<br>
+                            Teléfono: +595983635573<br><br>
+                            
+                            <b>Y, ARRENDATARIO:</b><br>
+                            Nombre: {c_n.upper()}<br>
+                            Cédula de Identidad: {c_d.upper()}<br>
+                            Domicilio: {c_pais.upper()}<br>
+                            Teléfono: {c_w}<br><br>
+                            
+                            Se acuerda lo siguiente:<br><br>
+                            
+                            <b>PRIMERA - Objeto del Contrato.</b><br>
+                            El arrendador otorga en alquiler al arrendatario el siguiente vehículo:<br>
+                            * Marca: {v['nombre'].split()[0].upper()}<br>
+                            * Modelo: {' '.join(v['nombre'].split()[1:]).upper()}<br>
+                            * Año de fabricación: 2012.<br>
+                            * Color: {v['color'].upper()}<br>
+                            * Número de chasis: KMHJU81VBCU36106.<br>
+                            * Número de CHAPA: {v['placa']}<br>
+                            * Patente: {v['placa']}<br>
+                            El vehículo se encuentra en perfecto estado de funcionamiento y libre de cargas o gravámenes. El arrendatario confirma la recepción del vehículo en buen estado, tras realizar una inspección visual y técnica con soporte Técnico VIDEO del Vehículo. El ARRENDADOR AUTORIZA AL ARRENDATARIO A CONDUCIR EL VEHÍCULO EN TODO EL TERRITORIO PARAGUAYO Y EL MERCOSUR. ------------------------------------------------------------------------------------<br><br>
+
+                            <b>SEGUNDA - Duración del Contrato</b><br>
+                            El presente contrato tendrá una duración de {dias} días, comenzando el {dt_i.strftime('%d de %B')} a las {dt_i.strftime('%H:%M')}hs y finalizando el {dt_f.strftime('%d de %B')} del {dt_f.year}, {dt_f.strftime('%H:%M')} hs. de entrega, salvo que se acuerde otra cosa por ambas partes mediante una extensión o terminación anticipada. ------------------------------------------------------<br><br>
+
+                            <b>TERCERA - Precio y Forma de Pago</b><br>
+                            El arrendatario se compromete a pagar al arrendador la cantidad de Gs. {v['precio'] * COTIZACION_DIA:,.0f} por cada día de alquiler X {dias} DIÁS TOTAL DE: <b>Gs. {total_gs:,.0f}</b>.------------------------------------------------------------<br>
+                            El pago se realizará de la siguiente manera: Forma de pago: Efectivo y/o Transferencia Electrónica, El monto total será pagado por adelantado, en caso de exceder el tiempo se pagará a la entrega del vehículo lo excedido de acuerdo a lo que correspon
+
                         
                         # --- CASILLA DE ACEPTACIÓN ---
                         acepto = st.checkbox("He leído el contrato y acepto todos los términos y condiciones.", key=f"check{v['nombre']}")
