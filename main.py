@@ -207,7 +207,7 @@ with t_adm:
         
         st.title("📊 PANEL DE CONTROL ESTRATÉGICO")
 
-        # --- SECCIÓN 1: FINANZAS ---
+        # --- SECCIÓN 1: MÉTRICAS FINANCIERAS DUALES ---
         ing_r = res_df['total'].sum() if not res_df.empty else 0
         egr_r = egr_df['monto'].sum() if not egr_df.empty else 0
         util_r = ing_r - egr_r
@@ -223,9 +223,21 @@ with t_adm:
             st.metric("UTILIDAD NETA", f"R$ {util_r:,.2f}")
             st.caption(f"Gs. {util_r * COTIZACION_DIA:,.0f}")
 
-        # --- SECCIÓN 2: AJUSTE DE PRECIOS POR DÍA ---
+        # --- SECCIÓN 2: GRÁFICOS Y REPORTES (REINTEGRADO) ---
+        if not res_df.empty:
+            st.subheader("📈 ANÁLISIS DE VENTAS Y TENDENCIAS")
+            res_df['inicio_dt'] = pd.to_datetime(res_df['inicio'])
+            df_plot = res_df.sort_values('inicio_dt')
+            
+            fig_l = px.line(df_plot, x='inicio_dt', y='total', color='auto', markers=True, 
+                           title="Evolución de Ingresos (R$)", labels={'total':'Monto R$', 'inicio_dt':'Fecha'})
+            st.plotly_chart(fig_l, use_container_width=True)
+            
+            csv_data = df_plot.to_csv(index=False).encode('utf-8')
+            st.download_button("📥 Descargar Reporte de Ventas (CSV)", csv_data, "reporte_jm_asociados.csv", "text/csv")
+
+        # --- SECCIÓN 3: AJUSTE DE PRECIOS POR DÍA ---
         st.subheader("💰 AJUSTE DE PRECIOS DE ALQUILER")
-        st.info("Cambie el valor en Reales para actualizar lo que ve el cliente.")
         with st.expander("Ver y editar precios por día"):
             for _, f in flota_adm.iterrows():
                 cp1, cp2 = st.columns([3, 1])
@@ -235,9 +247,9 @@ with t_adm:
                     conn.execute("UPDATE flota SET precio=? WHERE nombre=?", (nuevo_p, f['nombre']))
                     conn.commit(); st.rerun()
 
-        # --- SECCIÓN 3: ESTADO DE LA FLOTA (TALLER/DISP) ---
+        # --- SECCIÓN 4: DISPONIBILIDAD (TALLER/DISP) ---
         st.subheader("🛠️ DISPONIBILIDAD DE VEHÍCULOS")
-        with st.expander("Cambiar estado (Disponible / En Taller)"):
+        with st.expander("Gestionar Estado (Disponible / En Taller)"):
             for _, f in flota_adm.iterrows():
                 ca1, ca2, ca3 = st.columns([2, 1, 1])
                 ca1.write(f"*{f['nombre']}*")
@@ -247,7 +259,7 @@ with t_adm:
                     conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo_est, f['nombre']))
                     conn.commit(); st.rerun()
 
-        # --- SECCIÓN 4: EGRESOS ---
+        # --- SECCIÓN 5: EGRESOS ---
         st.subheader("💸 DETALLE DE GASTOS")
         if not egr_df.empty:
             egr_df['Gs.'] = egr_df['monto'] * COTIZACION_DIA
@@ -264,7 +276,7 @@ with t_adm:
                     conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (d_g, final, date.today()))
                     conn.commit(); st.rerun()
 
-        # --- SECCIÓN 5: RESERVAS MANUALES Y CONTRATOS ---
+        # --- SECCIÓN 6: BLOQUEO MANUAL Y RESERVAS ---
         st.subheader("📑 REGISTRO DE RESERVAS Y CONTRATOS")
         with st.expander("📅 BLOQUEAR CALENDARIO (Contratos Manuales/Viejos)"):
             with st.form("f_ant"):
@@ -284,8 +296,7 @@ with t_adm:
             with st.expander(f"Reserva #{r['id']} - {r['cliente']} (DOC: {r['ci']})"):
                 st.write(f"Auto: {r['auto']} | Total: R$ {r['total']} (Gs. {r['total']*COTIZACION_DIA:,.0f})")
                 
-                # Texto del contrato completo para descargar
-                txt_c = f"CONTRATO J&M ASOCIADOS\n\nCLIENTE: {r['cliente']}\nDOCUMENTO: {r['ci']}\nAUTO: {r['auto']}\nPERIODO: {r['inicio']} al {r['fin']}\nTOTAL: R$ {r['total']}\n\nCLAUSULAS RESUMIDAS:\n1. Objeto: Alquiler de vehiculo.\n2. Arrendatario responsable civil y penalmente.\n3. Limite 200km/dia.\n4. Deposito Gs. 5.000.000.\n5. Valido en Paraguay y MERCOSUR."
+                txt_c = f"CONTRATO J&M ASOCIADOS\n\nCLIENTE: {r['cliente']}\nDOCUMENTO: {r['ci']}\nAUTO: {r['auto']}\nPERIODO: {r['inicio']} al {r['fin']}\nTOTAL: R$ {r['total']}\n\nCLAUSULAS RESUMIDAS:\n1. Alquiler de vehiculo en buen estado.\n2. Arrendatario responsable civil y penalmente.\n3. Límite 200km/día.\n4. Depósito de Gs. 5.000.000 por siniestro.\n5. Valido en Paraguay y MERCOSUR."
                 st.download_button(f"📥 Descargar Contrato {r['id']}", txt_c, file_name=f"Contrato_{r['cliente']}.txt")
                 
                 if r['comprobante']: st.image(r['comprobante'], width=200)
