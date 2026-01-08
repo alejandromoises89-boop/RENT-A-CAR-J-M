@@ -188,21 +188,49 @@ st.text_area("Lea atentamente el contrato antes de reservar:", value=texto_legal
                         foto = st.file_uploader("Adjuntar Comprobante", key=f"f{v['nombre']}")
                         
                         # EL BOTÓN DEBE ESTAR AQUÍ ADENTRO
-                        if st.button("CONFIRMAR RESERVA", key=f"btn{v['nombre']}", disabled=not acepto):
-                            if foto:
-                                conn = sqlite3.connect(DB_NAME)
-                                conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante) VALUES (?,?,?,?,?,?,?,?)", 
-                                             (c_n, c_d, c_w, v['nombre'], dt_i, dt_f, total_r, foto.read()))
-                                conn.commit(); conn.close()
+                        if if st.button("Reservar Ahora"):
+            if nombre and cedula and celular:
+                # --- REDACCIÓN PROFESIONAL DEL CONTRATO ---
+                texto_legal = f"""CONTRATO DE LOCACIÓN DE VEHÍCULO - J&M ASOCIADOS
+
+1. OBJETO: El Arrendador entrega al Arrendatario Sr./Sra. {nombre} el vehículo {auto} en perfecto estado.
+2. RESPONSABILIDAD: El Arrendatario asume la responsabilidad civil y penal por el uso del vehículo.
+3. KILOMETRAJE: Límite de 200 km diarios. El excedente costará Gs. 100.000 por cada 10 km adicionales.
+4. DEPÓSITO DE GARANTÍA: Se establece un compromiso de pago de Gs. 5.000.000 en caso de daños o siniestros.
+5. TERRITORIO: El uso está autorizado exclusivamente en Paraguay y países del MERCOSUR.
+6. VERACIDAD: El Arrendatario declara que su documento N° {cedula} es auténtico.
+
+--------------------------------------------------
+ACEPTACIÓN DIGITAL Y FIRMA:
+Yo, {nombre}, con documento N° {cedula}, acepto los términos y condiciones del presente contrato de forma digital.
+FECHA DE OPERACIÓN: {date.today().strftime('%d/%m/%Y')}
+ID DE SEGURIDAD: JM-CONFIRMED-{cedula[-3:]}
+--------------------------------------------------"""
+
+                # Mostramos el contrato con la firma ya incluida en el scroll
+                st.subheader("Contrato Generado")
+                st.text_area("Documento de Aceptación:", value=texto_legal, height=300, disabled=True)
+                
+                # Procesar la imagen del comprobante
+                img_byte = None
+                if comprobante:
+                    img_byte = comprobante.read()
+
+                # Guardar en la Base de Datos
+                conn = sqlite3.connect(DB_NAME)
+                conn.execute('''INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante) 
+                             VALUES (?,?,?,?,?,?,?,?)''', 
+                             (nombre, cedula, celular, auto, fecha_i, fecha_f, total, img_byte))
+                conn.commit()
+                conn.close()
                                 
                                 texto_wa = f"Hola JM, soy {c_n}.\nHe leído el contrato y acepto los términos.\n🚗 Vehículo: {v['nombre']}\n🗓️ Periodo: {dt_i.strftime('%d/%m/%Y')} al {dt_f.strftime('%d/%m/%Y')}\n💰 Total: R$ {total_r}\nAdjunto mi comprobante."
                                 link_wa = f"https://wa.me/595991681191?text={urllib.parse.quote(texto_wa)}"
                                 st.markdown(f'<a href="{link_wa}" target="_blank" style="background-color:#25D366; color:white; padding:15px; border-radius:10px; text-align:center; display:block; text-decoration:none; font-weight:bold;">✅ ENVIAR POR WHATSAPP</a>', unsafe_allow_html=True)
-                                st.success("¡Reserva Guardada!")
-                            else:
-                                st.error("Falta el comprobante de pago.")
-                else:
-                    st.error("Vehículo no disponible en las fechas seleccionadas.")
+                                st.success(f"¡Reserva confirmada para {nombre}! El contrato ha sido firmado digitalmente.")
+                st.balloons()
+            else:
+                st.error("Por favor, complete todos los campos (Nombre, Documento y Celular).")
                     
 # --- PESTAÑAS UBICACIÓN Y ADM (SIN CAMBIOS) ---
 with t_ubi:
