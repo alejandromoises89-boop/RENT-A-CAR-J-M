@@ -177,9 +177,7 @@ with t_res:
                         </div>
                         """, unsafe_allow_html=True)
                         
-                        acepto = st.checkbox("He leído y acepto los términos del contrato.", key=f"chk{v['nombre']}")
-
-                        acepto = st.checkbox("He leído y acepto los términos del contrato.", key=f"chk{v['nombre']}")
+                        acepto = st.checkbox("He leído y acepto los términos del contrato.", key=f"chk{v['nombre']}")      
 
                     # --- BLOQUE DE FIRMA DIGITAL ---
                     from streamlit_drawable_canvas import st_canvas
