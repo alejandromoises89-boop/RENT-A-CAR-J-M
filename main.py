@@ -137,9 +137,9 @@ with t_res:
                 dt_f = datetime.combine(c2.date_input("Fin", key=f"d2{v['nombre']}"), c2.time_input("Hora 2", time(12,0), key=f"h2{v['nombre']}"))
                 
                 if esta_disponible(v['nombre'], dt_i, dt_f):
-                    c_n = st.text_input("Nombre Completo", placeholder="Ej: Guillerme Oliveira", key=f"n{v['nombre']}")
+                    c_n = st.text_input("Nombre Completo", key=f"n{v['nombre']}")
                     c_d = st.text_input("CI / Cédula / RG", key=f"d{v['nombre']}")
-                    c_w = st.text_input("Número de WhatsApp", key=f"w{v['nombre']}")
+                    c_w = st.text_input("WhatsApp", key=f"w{v['nombre']}")
                     c_pais = st.text_input("País / Domicilio", key=f"p{v['nombre']}")
                     
                     dias = max(1, (dt_f.date() - dt_i.date()).days)
