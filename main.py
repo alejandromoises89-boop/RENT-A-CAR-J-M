@@ -178,6 +178,40 @@ with t_res:
                         """, unsafe_allow_html=True)
                         
                         acepto = st.checkbox("He leído y acepto los términos del contrato.", key=f"chk{v['nombre']}")
+
+                        acepto = st.checkbox("He leído y acepto los términos del contrato.", key=f"chk{v['nombre']}")
+
+                    # --- BLOQUE DE FIRMA DIGITAL ---
+                    from streamlit_drawable_canvas import st_canvas
+                    st.write("✍️ FIRME AQUÍ (Use su dedo):")
+                    canvas_result = st_canvas(
+                        fill_color="rgba(255, 255, 255, 1)",
+                        stroke_width=3,
+                        stroke_color="#000000",
+                        background_color="#ffffff",
+                        height=150,
+                        width=300, # Ideal para celulares
+                        drawing_mode="freedraw",
+                        key=f"canvas_{v['nombre']}",)
+
+                    st.markdown(f'<div style="background-color:#1a1c23; padding:15px; border-radius:10px; border:1px solid #D4AF37; margin-top:10px;"><b>PAGO PIX: R$ {total_r}</b><br>Llave: 24510861818 - Marina Baez</div>', unsafe_allow_html=True)
+                    
+                    foto = st.file_uploader("Adjuntar Comprobante", key=f"f{v['nombre']}")
+                    
+                    # Botón de confirmar (ahora valida que aceptó, firmó y subió la foto)
+                    if st.button("CONFIRMAR RESERVA", key=f"btn{v['nombre']}", disabled=not acepto):
+                        if foto and canvas_result.image_data is not None:
+                            conn = sqlite3.connect(DB_NAME)
+                            conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante) VALUES (?,?,?,?,?,?,?,?)", 
+                                         (c_n, c_d, c_w, v['nombre'], dt_i, dt_f, total_r, foto.read()))
+                            conn.commit(); conn.close()
+                            
+                            texto_wa = f"Hola JM, soy {c_n}.\nHe firmado el contrato y adjunto pago.\n🚗 Vehículo: {v['nombre']}\n💰 Total: R$ {total_r}"
+                            link_wa = f"https://wa.me/595991681191?text={urllib.parse.quote(texto_wa)}"
+                            st.markdown(f'<a href="{link_wa}" target="_blank" style="background-color:#25D366; color:white; padding:15px; border-radius:10px; text-align:center; display:block; text-decoration:none; font-weight:bold;">✅ ENVIAR POR WHATSAPP</a>', unsafe_allow_html=True)
+                            st.success("¡Reserva Guardada y Firmada!")
+                        else:
+                            st.error("Por favor, adjunte el comprobante y firme el contrato.")
                         
                         st.markdown(f'<div style="background-color:#1a1c23; padding:15px; border-radius:10px; border:1px solid #D4AF37; margin-top:10px;"><b>PAGO PIX: R$ {total_r}</b><br>Llave: 24510861818 - Marina Baez</div>', unsafe_allow_html=True)
                         
