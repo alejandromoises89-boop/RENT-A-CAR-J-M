@@ -153,33 +153,26 @@ with t_res:
                     total_gs = total_r * COTIZACION_DIA
                     
                     if c_n and c_d and c_w:
-                        # --- CONTRATO COMPLETO CON SCROLL ---
-                        st.markdown(f"""
-                        <div style="background-color: #f9f9f9; color: #333; padding: 25px; border-radius: 10px; height: 380px; overflow-y: scroll; font-family: 'Courier New', monospace; font-size: 13px; border: 2px solid #D4AF37; text-align: justify; line-height: 1.5; -webkit-overflow-scrolling: touch;">
-                            <center><b style="font-size: 16px;">CONTRATO DE ALQUILER DE VEHÍCULO Y AUTORIZACIÓN PARA CONDUCIR</b></center><br>
-                            Entre:<br>
-                            <b>ARRENDADOR:</b> J&M ASOCIADOS. C.I.: 1.702.076-0. Domicilio: CURUPAYTU ESQUINA FARID RAHAL. Tel: +595983635573.<br><br>
-                            <b>Y, ARRENDATARIO:</b> {c_n.upper()}. Doc: {c_d.upper()}. Domicilio: {c_pais.upper()}. Tel: {c_w}.<br><br>
-                            <b>PRIMERA - OBJETO:</b> El arrendador otorga en alquiler: {v['nombre'].upper()}. Chapa: {v['placa']}. Color: {v['color'].upper()}. El vehículo se recibe en perfecto estado con soporte técnico VIDEO. EL ARRENDADOR AUTORIZA LA CONDUCCIÓN EN TODO EL TERRITORIO PARAGUAYO Y MERCOSUR.<br><br>
-                            <b>SEGUNDA - DURACIÓN:</b> {dias} días. Comienza {dt_i.strftime('%d/%m/%Y')} {dt_i.strftime('%H:%M')}hs y finaliza {dt_f.strftime('%d/%m/%Y')} {dt_f.strftime('%H:%M')}hs.<br><br>
-                            <b>TERCERA - PRECIO:</b> Gs. {v['precio'] * COTIZACION_DIA:,.0f} por día. <b>TOTAL: Gs. {total_gs:,.0f}</b>.<br><br>
-                            <b>CUARTA - DEPÓSITO:</b> Gs. 5.000.000 en caso de siniestro (accidente).<br><br>
-                            <b>QUINTA - CONDICIONES:</b> El ARRENDATARIO es responsable PENAL y CIVIL de todo lo ocurrido dentro del vehículo y lo encontrado en él.<br><br>
-                            <b>SEXTA - KILOMETRAJE:</b> Límite 200km/día. Excedente: 100.000 Gs adicionales.<br><br>
-                            <b>SÉPTIMA - SEGURO:</b> Cobertura civil y accidentes. El arrendatario responde por daños por negligencia.<br><br>
-                            <b>OCTAVA - MANTENIMIENTO:</b> El arrendatario mantiene agua, combustible y limpieza.<br><br>
-                            <b>UNDÉCIMA - JURISDICCIÓN:</b> Tribunales del Alto Paraná, Paraguay.<br><br>
-                            <b>DÉCIMA SEGUNDA:</b> Ambas partes firman en Ciudad del Este el {date.today().strftime('%d/%m/%Y')}.<br><br>
-                            <div style="display: flex; justify-content: space-between;">
-                                <span>______________________<br>J&M ASOCIADOS<br>Arrendador</span>
-                                <span>______________________<br>{c_n.upper()}<br>Arrendatario</span>
-                            </div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        
-                        acepto = st.checkbox("He leído y acepto los términos", key=f"chk{v['nombre']}")
+                        # Texto profesional y corregido
+texto_legal = f"""CONTRATO DE LOCACIÓN DE VEHÍCULO - J&M ASOCIADOS
 
-                        # --- FIRMA ---
+1. OBJETO: El Arrendador entrega al Arrendatario {nombre} el vehículo {auto} en perfecto estado de funcionamiento.
+2. RESPONSABILIDAD: El Arrendatario asume la responsabilidad civil y penal por cualquier evento ocurrido durante la vigencia del contrato.
+3. KILOMETRAJE: Se establece un límite de 200 km diarios. El excedente tendrá un costo de Gs. 100.000 por cada 10 km.
+4. DEPÓSITO DE GARANTÍA: El Arrendatario acepta un compromiso de pago de Gs. 5.000.000 en caso de siniestro o daños.
+5. TERRITORIO: El uso del vehículo está autorizado exclusivamente en territorio de Paraguay y países del MERCOSUR.
+6. DOCUMENTACIÓN: El Arrendatario declara que los datos proporcionados (Doc/CPF: {cedula}) son verídicos.
+
+--------------------------------------------------
+ACEPTACIÓN DIGITAL:
+Yo, {nombre}, con documento N° {cedula}, acepto los términos y condiciones del presente contrato de forma digital.
+FECHA: {date.today().strftime('%d/%m/%Y')}
+ID DE REGISTRO: JM-DIGITAL-CONFIRMED
+--------------------------------------------------"""
+
+# El scroll para el cliente
+st.text_area("Lea atentamente el contrato antes de reservar:", value=texto_legal, height=300, disabled=True)
+
                         from streamlit_drawable_canvas import st_canvas
                         st.write("✍️ FIRME AQUÍ (Use su dedo):")
                         canvas_result = st_canvas(
@@ -295,50 +288,54 @@ with t_adm:
                     st.rerun()
 
         # AQUÍ EMPIEZA EL BUCLE (Asegúrate que esté alineado con el 'with' de arriba)
-        for _, r in res_df.iterrows():
+                for _, r in res_df.iterrows():
             unique_key = f"res_{r['id']}_{r['cliente'][:3]}"
             
             with st.expander(f"Reserva #{r['id']} - {r['cliente']} (DOC: {r['ci']})"):
-                # Cuerpo del contrato con firma digital
-                txt_c = f"""CONTRATO DE ALQUILER J&M ASOCIADOS
-----------------------------------------
-ARRENDATARIO: {r['cliente']}
-DOCUMENTO: {r['ci']}
+                
+                # Redacción corregida y formal del contrato
+                contrato_final = f"""CONTRATO DE ALQUILER - J&M ASOCIADOS
+========================================
+DATOS DEL ARRENDATARIO:
+CLIENTE: {r['cliente']}
+DOCUMENTO/CPF: {r['ci']}
 VEHÍCULO: {r['auto']}
-PERIODO: {r['inicio']} al {r['fin']}
-TOTAL: R$ {r['total']} (Gs. {r['total']*COTIZACION_DIA:,.0f})
+FECHAS: Desde {r['inicio']} hasta {r['fin']}
+MONTO TOTAL: R$ {r['total']} (Gs. {r['total']*COTIZACION_DIA:,.0f})
 
-CLÁUSULAS:
-1. OBJETO: Vehículo en perfecto estado.
-2. USO: Responsabilidad civil y penal del cliente.
-3. LÍMITE: 200km/día. Excedente Gs. 100.000.
-4. DEPÓSITO: Gs. 5.000.000 por siniestro.
-5. TERRITORIO: Paraguay y MERCOSUR.
-6. DEVOLUCIÓN: Misma condición recibida.
+CLÁUSULAS CONTRACTUALES:
+1. ESTADO DEL VEHÍCULO: Se entrega en óptimas condiciones de uso y limpieza.
+2. RESPONSABILIDAD LEGAL: El cliente es el único responsable civil y penal por el uso del vehículo.
+3. LÍMITE DE USO: 200 km por día. El excedente se cobrará a Gs. 100.000 por fracción.
+4. SEGURO Y DAÑOS: Cobertura con deducible de Gs. 5.000.000 a cargo del arrendatario.
+5. TERRITORIALIDAD: Autorizado para circular en Paraguay y países del MERCOSUR.
+6. DEVOLUCIÓN: El vehículo debe devolverse en el mismo estado en que fue recibido.
+
 ----------------------------------------
-ACEPTADO DIGITALMENTE POR: {r['cliente']}
-DOC: {r['ci']}
-FECHA DE FIRMA: {r['inicio']}
-ID TRANSACCIÓN: JM-{r['id']}
+FIRMA Y ACEPTACIÓN DIGITAL:
+Este documento ha sido aceptado digitalmente por el cliente {r['cliente']} 
+con número de documento {r['ci']} en la fecha de reserva.
+
+ID DE TRANSACCIÓN: JM-{r['id']}
+FECHA DE EMISIÓN: {date.today().strftime('%d/%m/%Y')}
 ----------------------------------------
 Firmado en Ciudad del Este, Paraguay."""
+
+                # Mostrar el contrato corregido en pantalla
+                st.code(contrato_final, language="markdown")
                 
-                # Previsualización
-                st.code(txt_c, language="markdown")
-                
-                # Botón de descarga
+                # Botón de descarga con el mismo texto corregido
                 st.download_button(
-                    label=f"📥 Descargar Contrato {r['id']}", 
-                    data=txt_c, 
-                    file_name=f"Contrato_{r['cliente']}.txt",
+                    label=f"📥 Descargar Contrato PDF/TXT #{r['id']}", 
+                    data=contrato_final, 
+                    file_name=f"Contrato_JM_{r['cliente']}.txt",
                     key=f"dl_{unique_key}"
                 )
                 
                 if r['comprobante']: 
-                    st.image(r['comprobante'], width=250)
+                    st.image(r['comprobante'], width=250, caption="Comprobante adjunto")
                 
-                # Botón de borrar
-                if st.button("🗑️ Borrar Reserva", key=f"del_{unique_key}"):
+                if st.button("🗑️ Eliminar Registro", key=f"del_{unique_key}"):
                     conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],))
                     conn.commit()
                     st.rerun()
