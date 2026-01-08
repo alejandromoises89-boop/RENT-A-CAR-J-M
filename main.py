@@ -202,7 +202,7 @@ with t_res:
                                              (c_n, c_d, c_w, v['nombre'], dt_i, dt_f, total_r, foto.read()))
                                 conn.commit(); conn.close()
                                 
-                                texto_wa = f"Hola JM, soy {c_n}. Reserva confirmada para {v['nombre']}."
+                                texto_wa = f"Hola JM, soy {c_n}.\nHe leído el contrato y acepto los términos.\n🚗 Vehículo: {v['nombre']}\n🗓️ Periodo: {dt_i.strftime('%d/%m/%Y')} al {dt_f.strftime('%d/%m/%Y')}\n💰 Total: R$ {total_r}\nAdjunto mi comprobante."
                                 link_wa = f"https://wa.me/595991681191?text={urllib.parse.quote(texto_wa)}"
                                 st.markdown(f'<a href="{link_wa}" target="_blank" style="background-color:#25D366; color:white; padding:15px; border-radius:10px; text-align:center; display:block; text-decoration:none; font-weight:bold;">✅ ENVIAR POR WHATSAPP</a>', unsafe_allow_html=True)
                                 st.success("¡Reserva Guardada!")
@@ -294,22 +294,19 @@ with t_adm:
                     conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (d_g, m_f, date.today()))
                     conn.commit(); st.rerun()
 
-        # --- SECCIÓN 6: REGISTRO Y PREVISUALIZACIÓN DE CONTRATO ---
+                # --- SECCIÓN 6: REGISTRO Y PREVISUALIZACIÓN DE CONTRATO ---
         st.subheader("📑 RESERVAS Y PREVISUALIZACIÓN")
-        with st.expander("📅 BLOQUEO MANUAL"):
-            with st.form("f_man"):
-                c_n = st.text_input("Cliente"); c_d = st.text_input("DOC/CPF")
-                c_a = st.selectbox("Auto", flota_adm['nombre'].tolist())
-                fi = st.date_input("Inicio"); ff = st.date_input("Fin")
-                m_r = st.number_input("Monto R$")
-                if st.form_submit_button("Bloquear"):
-                    conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total) VALUES (?,?,?,?,?,?,?)",
-                                 (f"[M] {c_n}", c_d, "000", c_a, fi, ff, m_r))
-                    conn.commit(); st.rerun()
+        
+        # ... (aquí va tu expander de Bloqueo Manual que ya tienes) ...
 
         for _, r in res_df.iterrows():
             with st.expander(f"Reserva #{r['id']} - {r['cliente']} (DOC: {r['ci']})"):
-                # Cuerpo del contrato (Texto exacto del contrato)
+                
+                # Definimos el texto de la firma digital
+                firma_digital = f"ACEPTADO DIGITALMENTE POR: {r['cliente']} (DOC: {r['ci']})"
+                fecha_firma = f"FECHA DE FIRMA: {r['inicio']}" # O puedes usar la fecha actual
+
+                # Cuerpo del contrato completo con firma al final
                 txt_c = f"""CONTRATO DE ALQUILER J&M ASOCIADOS
 ----------------------------------------
 ARRENDATARIO: {r['cliente']}
@@ -326,10 +323,30 @@ CLÁUSULAS:
 5. TERRITORIO: Paraguay y MERCOSUR.
 6. DEVOLUCIÓN: Misma condición recibida.
 ----------------------------------------
+{firma_digital}
+{fecha_firma}
+ID DE TRANSACCIÓN: JM-00{r['id']}
+----------------------------------------
 Firmado en Ciudad del Este, Paraguay."""
                 
-                # Previsualización estética
-                st.code(txt_c, language="markdown") # Esto muestra la previsualización en un cuadro gris profesional
+                # Previsualización en el Panel Admin
+                st.code(txt_c, language="markdown")
+                
+                # Botón de descarga con el mismo texto
+                st.download_button(
+                    label=f"📥 Descargar Contrato {r['id']}", 
+                    data=txt_c, 
+                    file_name=f"Contrato_{r['cliente']}_JM.txt"
+                )
+                
+                if r['comprobante']: 
+                    st.write("**Comprobante de Pago:**")
+                    st.image(r['comprobante'], width=250)
+                
+                if st.button("🗑️ Borrar Reserva", key=f"del_{r['id']}"):
+                    conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],))
+                    conn.commit(); st.rerun()
+
                 
                 st.download_button(f"📥 Descargar Contrato {r['id']}", txt_c, file_name=f"Contrato_{r['cliente']}.txt")
                 
