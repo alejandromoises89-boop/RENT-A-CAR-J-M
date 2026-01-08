@@ -294,19 +294,13 @@ with t_adm:
                     conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (d_g, m_f, date.today()))
                     conn.commit(); st.rerun()
 
-                # --- SECCIÓN 6: REGISTRO Y PREVISUALIZACIÓN DE CONTRATO ---
-        st.subheader("📑 RESERVAS Y PREVISUALIZACIÓN")
-        
-        # ... (aquí va tu expander de Bloqueo Manual que ya tienes) ...
-
-        for _, r in res_df.iterrows():
+                        for _, r in res_df.iterrows():
+            # Creamos una llave única combinando ID y Cliente para evitar el error Duplicate Key
+            unique_key = f"res_{r['id']}_{r['cliente'][:5]}"
+            
             with st.expander(f"Reserva #{r['id']} - {r['cliente']} (DOC: {r['ci']})"):
                 
-                # Definimos el texto de la firma digital
-                firma_digital = f"ACEPTADO DIGITALMENTE POR: {r['cliente']} (DOC: {r['ci']})"
-                fecha_firma = f"FECHA DE FIRMA: {r['inicio']}" # O puedes usar la fecha actual
-
-                # Cuerpo del contrato completo con firma al final
+                # --- CUERPO DEL CONTRATO CON FIRMA ---
                 txt_c = f"""CONTRATO DE ALQUILER J&M ASOCIADOS
 ----------------------------------------
 ARRENDATARIO: {r['cliente']}
@@ -323,34 +317,31 @@ CLÁUSULAS:
 5. TERRITORIO: Paraguay y MERCOSUR.
 6. DEVOLUCIÓN: Misma condición recibida.
 ----------------------------------------
-{firma_digital}
-{fecha_firma}
-ID DE TRANSACCIÓN: JM-00{r['id']}
+ACEPTADO DIGITALMENTE POR: {r['cliente']}
+DOC: {r['ci']}
+FECHA: {r['inicio']}
+ID TRANSACCIÓN: JM-{r['id']}
 ----------------------------------------
 Firmado en Ciudad del Este, Paraguay."""
                 
-                # Previsualización en el Panel Admin
+                # Previsualización profesional
                 st.code(txt_c, language="markdown")
                 
-                # Botón de descarga con el mismo texto
+                # Botón de descarga
                 st.download_button(
                     label=f"📥 Descargar Contrato {r['id']}", 
                     data=txt_c, 
-                    file_name=f"Contrato_{r['cliente']}_JM.txt"
+                    file_name=f"Contrato_{r['cliente']}.txt",
+                    key=f"dl_btn_{unique_key}" # Llave única para el botón de descarga
                 )
                 
                 if r['comprobante']: 
-                    st.write("**Comprobante de Pago:**")
                     st.image(r['comprobante'], width=250)
                 
-                if st.button("🗑️ Borrar Reserva", key=f"del_{r['id']}"):
+                # BOTÓN DE BORRAR (Aquí estaba el error, ahora tiene llave única)
+                if st.button("🗑️ Borrar Reserva", key=f"btn_del_{unique_key}"):
+                    conn = sqlite3.connect(DB_NAME)
                     conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],))
-                    conn.commit(); st.rerun()
-
-                
-                st.download_button(f"📥 Descargar Contrato {r['id']}", txt_c, file_name=f"Contrato_{r['cliente']}.txt")
-                
-                if r['comprobante']: st.image(r['comprobante'], width=200)
-                if st.button("🗑️ Borrar", key=f"del_{r['id']}"):
-                    conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],)); conn.commit(); st.rerun()
-        conn.close()
+                    conn.commit()
+                    conn.close()
+                    st.rerun()
