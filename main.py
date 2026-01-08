@@ -54,18 +54,10 @@ st.markdown(f"""
         background-color: #25D366; color: white !important; padding: 12px 20px; 
         border-radius: 10px; text-decoration: none; font-weight: bold; display: block; text-align: center; margin-top: 10px;
     }}
-    /* Estilo para el Scroll del Contrato */
     .contrato-container {{
-        background-color: #1a1a1a; 
-        color: #f1f1f1; 
-        padding: 20px; 
-        border-radius: 10px; 
-        font-size: 12px; 
-        border: 1px solid #D4AF37;
-        height: 350px;
-        overflow-y: scroll;
-        line-height: 1.6;
-        text-align: justify;
+        background-color: #1a1a1a; color: #f1f1f1; padding: 20px; border-radius: 10px; 
+        font-size: 12px; border: 1px solid #D4AF37; height: 350px; overflow-y: scroll; 
+        line-height: 1.6; text-align: justify;
     }}
     </style>
 """, unsafe_allow_html=True)
@@ -118,7 +110,20 @@ with t_res:
                     with [c_iz, c_de][idx]:
                         st.markdown(f'<div class="cal-header">{calendar.month_name[m]} {a}</div>', unsafe_allow_html=True)
                         d_h = "".join([f'<div class="cal-day-name-fijo">{d}</div>' for d in ["L","M","M","J","V","S","D"]])
-                        d_b = "".join([f'<div class="cal-box-fijo {"ocupado" if date(a, m, d) in ocupadas else ""}">{d if d != 0 else ""}{"<div class=\"raya-roja-h\"></div>" if d != 0 and date(a,m,d) in ocupadas else ""}</div>' for sem in calendar.monthcalendar(a, m) for d in sem])
+                        
+                        # Corrección del error de sintaxis en el loop del calendario
+                        d_b = ""
+                        for sem in calendar.monthcalendar(a, m):
+                            for d in sem:
+                                if d == 0:
+                                    d_b += '<div class="cal-box-fijo" style="background:transparent; border:none;"></div>'
+                                else:
+                                    f_act = date(a, m, d)
+                                    es_o = f_act in ocupadas
+                                    clase = "cal-box-fijo ocupado" if es_o else "cal-box-fijo"
+                                    raya = '<div class="raya-roja-h"></div>' if es_o else ""
+                                    d_b += f'<div class="{clase}">{d}{raya}</div>'
+                        
                         st.markdown(f'<div class="cal-grid-fijo">{d_h}{d_b}</div>', unsafe_allow_html=True)
                 
                 st.divider()
@@ -133,7 +138,6 @@ with t_res:
                     dias = max(1, (ff - fi).days); total_r = dias * v['precio']
                     
                     if c_n and c_ci and c_wa:
-                        # --- SECCIÓN DEL CONTRATO LEGAL ---
                         st.markdown(f"""
                         <div class="contrato-container">
                             <center><b>CONTRATO DE ALQUILER DE VEHÍCULO Y AUTORIZACIÓN PARA CONDUCIR</b></center><br>
@@ -173,13 +177,11 @@ with t_adm:
         st.title("📊 BALANCE GENERAL (Cotización: 1 R$ = " + str(COTIZACION_DIA) + " Gs.)")
         c1, c2, c3 = st.columns(3)
         c1.metric("INGRESOS", f"R$ {i_r:,.2f}", f"Gs. {i_r*COTIZACION_DIA:,.0f}")
-        c2.metric("EGRESOS", f"R$ {e_r:,.2f}", f"Gs. {e_r*COTIZACION_DIA:,.0f}", delta_color="inverse")
+        c2.metric("EGRESOS", f"R$ {e_r:,.2f}", f"Gs. {e_r*COTIZACION_DIA:,.0f}")
         c3.metric("UTILIDAD", f"R$ {i_r-e_r:,.2f}", f"Gs. {(i_r-e_r)*COTIZACION_DIA:,.0f}")
-
-        col_g1, col_g2 = st.columns(2)
+        
         if not res_df.empty:
-            with col_g1: st.plotly_chart(px.pie(res_df, values='total', names='auto', title="Ingresos por Vehículo"))
-            with col_g2: st.plotly_chart(px.bar(res_df, x='inicio', y='total', title="Ventas en el Tiempo"))
+            st.plotly_chart(px.pie(res_df, values='total', names='auto', title="Ingresos por Vehículo"))
 
         with st.expander("💸 CARGAR GASTO"):
             with st.form("g"):
