@@ -230,24 +230,24 @@ with t_adm:
             fig_l = px.line(res_df.sort_values('inicio_dt'), x='inicio_dt', y='total', color='auto', markers=True, title="Ingresos R$ por Fecha")
             st.plotly_chart(fig_l, use_container_width=True)
 
-        # --- GESTIÓN DE FLOTA (MODIFICAR PRECIOS Y ESTADOS) ---
+        # --- GESTIÓN DE FLOTA (CORREGIDO EL ERROR DE KEY ID) ---
         st.subheader("🚗 GESTIÓN DE FLOTA Y PRECIOS")
         for _, f in flota_adm.iterrows():
             with st.container():
                 ca1, ca2, ca3, ca4 = st.columns([2, 1, 1, 1])
                 ca1.write(f"*{f['nombre']}*\n({f['placa']})")
                 
-                # Modificar Precio
-                nuevo_p = ca2.number_input(f"Precio R$", value=float(f['precio']), key=f"p_{f['id']}")
+                # Modificar Precio - Usamos 'nombre' como llave única para evitar el error 'id'
+                nuevo_p = ca2.number_input(f"Precio R$", value=float(f['precio']), key=f"p_{f['nombre']}")
                 if nuevo_p != f['precio']:
-                    conn.execute("UPDATE flota SET precio=? WHERE id=?", (nuevo_p, f['id']))
+                    conn.execute("UPDATE flota SET precio=? WHERE nombre=?", (nuevo_p, f['nombre']))
                     conn.commit(); st.rerun()
                 
                 # Estado
                 ca3.write("🟢 Disp." if f['estado'] == "Disponible" else "🔴 Taller")
-                if ca4.button("CAMBIAR", key=f"btn_st_{f['id']}"):
+                if ca4.button("CAMBIAR", key=f"btn_st_{f['nombre']}"):
                     nuevo_est = "En Taller" if f['estado'] == "Disponible" else "Disponible"
-                    conn.execute("UPDATE flota SET estado=? WHERE id=?", (nuevo_est, f['id']))
+                    conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo_est, f['nombre']))
                     conn.commit(); st.rerun()
             st.divider()
 
@@ -289,7 +289,6 @@ with t_adm:
             with st.expander(f"Reserva #{r['id']} - {r['cliente']} (DOC: {r['ci']})"):
                 st.write(f"Auto: {r['auto']} | Total: R$ {r['total']} (Gs. {r['total']*COTIZACION_DIA:,.0f})")
                 
-                # Contrato completo para descarga
                 txt_c = f"CONTRATO J&M ASOCIADOS\n\nCLIENTE: {r['cliente']}\nDOCUMENTO: {r['ci']}\nAUTO: {r['auto']}\nPERIODO: {r['inicio']} al {r['fin']}\nTOTAL: R$ {r['total']}\n\nCLAUSULAS:\n1. Alquiler de vehiculo en buen estado.\n2. Arrendatario responsable civil y penalmente.\n3. Límite 200km/día.\n4. Depósito de Gs. 5.000.000 por siniestro.\n5. Valido en Paraguay y MERCOSUR."
                 st.download_button(f"📥 Descargar Contrato {r['id']}", txt_c, file_name=f"Contrato_{r['cliente']}.txt")
                 
