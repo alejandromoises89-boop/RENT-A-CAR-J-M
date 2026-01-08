@@ -94,45 +94,51 @@ with t_res:
             st.markdown(f'''<div class="card-auto"><h3>{v["nombre"]}</h3><img src="{v["img"]}" width="100%"><p style="font-weight:bold; font-size:20px; color:#D4AF37; margin-bottom:2px;">R$ {v["precio"]} / día</p><p style="color:#28a745; margin-top:0px;">Gs. {precio_gs:,.0f} / día</p></div>''', unsafe_allow_html=True)
             
             with st.expander(f"Ver Disponibilidad"):
-                                # --- CALENDARIO TIPO AIRBNB HORIZONTAL Y COMPACTO ---
+                # --- CALENDARIO TIPO AIRBNB HORIZONTAL FORZADO (HTML/CSS) ---
                 ocupadas = obtener_fechas_ocupadas(v['nombre'])
                 
-                # Usamos 2 columnas para que los meses salgan uno al lado del otro
-                c_mes1, c_mes2 = st.columns(2)
                 meses_display = [
                     (date.today().month, date.today().year), 
                     ((date.today().month % 12) + 1, date.today().year if date.today().month < 12 else date.today().year + 1)
                 ]
 
-                for idx, (m, a) in enumerate(meses_display):
-                    with [c_mes1, c_mes2][idx]:
-                        # Título del mes pequeño y alineado a la izquierda como la imagen
-                        nombre_mes = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"][m-1]
-                        st.markdown(f'<div style="font-weight:600; font-size:16px; margin-bottom:10px;">{nombre_mes} {a}</div>', unsafe_allow_html=True)
-                        
-                        # Encabezados de días (L M M J V S D)
-                        cols_dias = st.columns(7)
-                        for d_idx, d_nom in enumerate(["L","M","M","J","V","S","D"]):
-                            cols_dias[d_idx].markdown(f'<div style="text-align:center; font-size:11px; color:#717171;">{d_nom}</div>', unsafe_allow_html=True)
-                        
-                        # Grilla de días
-                        for semana in calendar.monthcalendar(a, m):
-                            cols_sem = st.columns(7)
-                            for d_idx, dia in enumerate(semana):
-                                if dia != 0:
-                                    f_act = date(a, m, dia)
-                                    es_ocu = f_act in ocupadas
-                                    
-                                    # Estilo: Si está ocupado, color gris y raya roja horizontal
-                                    color_texto = "#b0b0b0" if es_ocu else "#222222"
-                                    raya = '<div style="position:absolute; width:100%; height:1.5px; background-color:#ff385c; top:50%; left:0;"></div>' if es_ocu else ""
-                                    
-                                    cols_sem[d_idx].markdown(
-                                        f'''<div style="position:relative; height:35px; display:flex; align-items:center; justify-content:center; font-size:13px; color:{color_texto}; font-weight:500;">
-                                            {dia}{raya}
-                                        </div>''', unsafe_allow_html=True)
-                # --- FIN CALENDARIO ---
+                # Generación del HTML para asegurar que sea horizontal y con rayas rojas fijas
+                html_cal = """
+                <style>
+                    .airbnb-container { display: flex; flex-direction: row; gap: 25px; overflow-x: auto; padding: 10px 0; scrollbar-width: none; }
+                    .airbnb-month { min-width: 200px; flex: 1; font-family: sans-serif; }
+                    .airbnb-header { font-weight: 600; font-size: 15px; margin-bottom: 12px; color: white; text-transform: capitalize; }
+                    .airbnb-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+                    .airbnb-day-name { font-size: 11px; color: #888; padding-bottom: 5px; }
+                    .airbnb-cell { position: relative; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: white; }
+                    .airbnb-raya { position: absolute; width: 100%; height: 2px; background-color: #ff385c; top: 50%; left: 0; z-index: 1; }
+                    .airbnb-ocupado { color: #555 !important; }
+                </style>
+                <div class="airbnb-container">
+                """
 
+                for m, a in meses_display:
+                    nombre_mes = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"][m-1]
+                    html_cal += f'<div class="airbnb-month"><div class="airbnb-header">{nombre_mes} {a}</div><div class="airbnb-grid">'
+                    
+                    for d_nom in ["L","M","M","J","V","S","D"]:
+                        html_cal += f'<div class="airbnb-day-name">{d_nom}</div>'
+                    
+                    for semana in calendar.monthcalendar(a, m):
+                        for dia in semana:
+                            if dia == 0:
+                                html_cal += '<div></div>'
+                            else:
+                                f_act = date(a, m, dia)
+                                es_ocu = f_act in ocupadas
+                                clase_ocu = "airbnb-ocupado" if es_ocu else ""
+                                raya = '<div class="airbnb-raya"></div>' if es_ocu else ""
+                                html_cal += f'<div class="airbnb-cell {clase_ocu}">{dia}{raya}</div>'
+                    html_cal += '</div></div>'
+                
+                html_cal += '</div>'
+                st.markdown(html_cal, unsafe_allow_html=True)
+                # --- FIN CALENDARIO ---
 
                 st.divider()
                 # --- FORMULARIO Y DATOS DEL CLIENTE ---
@@ -141,7 +147,7 @@ with t_res:
                 dt_f = datetime.combine(c2.date_input("Fin", key=f"d2{v['nombre']}"), c2.time_input("Hora 2", time(12,0), key=f"h2{v['nombre']}"))
                 
                 if esta_disponible(v['nombre'], dt_i, dt_f):
-                    c_n = st.text_input("Nombre Completo (como en su documento)", key=f"n{v['nombre']}")
+                    c_n = st.text_input("Nombre Completo", placeholder="Ej: Guillerme Oliveira", key=f"n{v['nombre']}")
                     c_d = st.text_input("CI / Cédula / RG", key=f"d{v['nombre']}")
                     c_w = st.text_input("Número de WhatsApp", key=f"w{v['nombre']}")
                     c_pais = st.text_input("País / Domicilio", key=f"p{v['nombre']}")
@@ -175,14 +181,14 @@ with t_res:
                         
                         foto = st.file_uploader("Adjuntar Comprobante de Pago", key=f"f{v['nombre']}")
                         
-                        if st.button("CONFIRMAR RESERVA Y ACEPTAR CONTRATO", key=f"btn{v['nombre']}"):
+                        if st.button("CONFIRMAR RESERVA", key=f"btn{v['nombre']}"):
                             if foto:
                                 conn = sqlite3.connect(DB_NAME)
                                 conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante) VALUES (?,?,?,?,?,?,?,?)", 
                                              (c_n, c_d, c_w, v['nombre'], dt_i, dt_f, total_r, foto.read()))
                                 conn.commit(); conn.close()
                                 
-                                # --- MENSAJE DE WHATSAPP ---
+                                # --- MENSAJE DE WHATSAPP EXACTO ---
                                 texto_wa = f"Hola JM, soy {c_n}.\nHe leído el contrato y acepto los términos.\n🚗 Vehículo: {v['nombre']}\n🗓️ Periodo: {dt_i.strftime('%d/%m/%Y')} al {dt_f.strftime('%d/%m/%Y')}\n💰 Total: R$ {total_r}\nAdjunto mi comprobante de pago."
                                 link_wa = f"https://wa.me/595991681191?text={urllib.parse.quote(texto_wa)}"
                                 
@@ -191,7 +197,7 @@ with t_res:
                             else:
                                 st.error("Por favor, adjunte el comprobante antes de confirmar.")
                 else:
-                    st.error("Vehículo no disponible en las fechas seleccionadas o se encuentra en Taller.")
+                    st.error("Vehículo no disponible en las fechas seleccionadas.")
 
 with t_ubi:
     st.markdown("<h3 style='text-align: center; color: #D4AF37;'>NUESTRA UBICACIÓN</h3>", unsafe_allow_html=True)
