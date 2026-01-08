@@ -207,101 +207,83 @@ with t_adm:
         
         st.title("📊 PANEL DE CONTROL ESTRATÉGICO")
         
-        # --- CÁLCULOS DUALES (R$ y Gs.) ---
+        # --- CÁLCULOS TOTALES ---
         ing_r = res_df['total'].sum() if not res_df.empty else 0
-        ing_gs = ing_r * COTIZACION_DIA
         egr_r = egr_df['monto'].sum() if not egr_df.empty else 0
-        egr_gs = egr_r * COTIZACION_DIA # Asumiendo base en R$, ajustamos según tu necesidad
+        utilidad_r = ing_r - egr_r
         
-        c_m1, c_m2 = st.columns(2)
+        # --- MÉTRICAS EN DOS MONEDAS ---
+        c_m1, c_m2, c_m3 = st.columns(3)
         with c_m1:
-            st.metric("INGRESOS TOTALES", f"R$ {ing_r:,.2f}")
-            st.caption(f"Equivale a: Gs. {ing_gs:,.0f}")
+            st.metric("INGRESOS (R$ / Gs.)", f"R$ {ing_r:,.2f}")
+            st.caption(f"Gs. {ing_r * COTIZACION_DIA:,.0f}")
         with c_m2:
-            st.metric("UTILIDAD NETA", f"R$ {ing_r - egr_r:,.2f}")
-            st.caption(f"Equivale a: Gs. {(ing_r - egr_r) * COTIZACION_DIA:,.0f}")
+            st.metric("GASTOS (R$ / Gs.)", f"R$ {egr_r:,.2f}")
+            st.caption(f"Gs. {egr_r * COTIZACION_DIA:,.0f}")
+        with c_m3:
+            st.metric("UTILIDAD (R$ / Gs.)", f"R$ {utilidad_r:,.2f}")
+            st.caption(f"Gs. {utilidad_r * COTIZACION_DIA:,.0f}")
 
-        # --- GRÁFICO DE LÍNEAS DETALLADO Y DESCARGABLE ---
-        st.subheader("📈 Evolución de Reservas por Vehículo")
+        # --- GRÁFICO DE LÍNEAS DESCARGABLE ---
         if not res_df.empty:
+            st.subheader("📈 Evolución y Tendencia")
             res_df['inicio_dt'] = pd.to_datetime(res_df['inicio'])
-            # Agrupamos por fecha e inicio para ver la tendencia de precios/ventas
             df_linea = res_df.sort_values('inicio_dt')
-            fig_linea = px.line(df_linea, x='inicio_dt', y='total', color='auto',
-                                title="Ingresos R$ por Fecha y Vehículo",
-                                markers=True,
-                                labels={'total': 'Monto R$', 'inicio_dt': 'Fecha de Inicio', 'auto': 'Vehículo'},
-                                color_discrete_sequence=px.colors.qualitative.Antique)
+            fig_linea = px.line(df_linea, x='inicio_dt', y='total', color='auto', markers=True,
+                                title="Ingresos R$ por Fecha", labels={'total':'Monto R$'})
             st.plotly_chart(fig_linea, use_container_width=True)
-            
-            # Botón para descargar datos del gráfico
             csv = df_linea.to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Descargar Reporte Excel (CSV)", csv, "reporte_jm_asociados.csv", "text/csv")
+            st.download_button("📥 Descargar Reporte (Excel/CSV)", csv, "reporte_jm.csv", "text/csv")
 
-        # --- FUNCIÓN DE CARGA RETROACTIVA (BLOQUEO DE FECHAS PASADAS) ---
-        with st.expander("📅 CARGAR CONTRATOS ANTIGUOS (Enero en adelante)"):
-            st.info("Use esta sección para cargar alquileres ya realizados. Esto bloqueará automáticamente el calendario.")
-            with st.form("form_retroactivo"):
-                col_r1, col_r2 = st.columns(2)
-                r_cliente = col_r1.text_input("Nombre del Cliente")
-                r_auto = col_r1.selectbox("Vehículo", flota_adm['nombre'].tolist())
-                r_inicio = col_r2.date_input("Fecha Inicio", value=date(2026, 1, 1))
-                r_fin = col_r2.date_input("Fecha Fin", value=date(2026, 1, 2))
-                r_monto_ant = st.number_input("Monto Total Cobrado (R$)", min_value=0.0)
-                
-                if st.form_submit_button("Registrar y Bloquear Fechas"):
-                    if r_cliente and r_monto_ant > 0:
-                        # Forzamos horas estándar para contratos antiguos
-                        dt_i_r = datetime.combine(r_inicio, time(10, 0))
-                        dt_f_r = datetime.combine(r_fin, time(10, 0))
-                        conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total) VALUES (?,?,?,?,?,?,?)",
-                                     (f"[ANTIGUO] {r_cliente}", "000", "S/D", r_auto, dt_i_r, dt_f_r, r_monto_ant))
-                        conn.commit()
-                        st.success(f"Contrato de {r_cliente} cargado. Fechas bloqueadas.")
-                        st.rerun()
+        # --- CARGA RETROACTIVA (CONTRATOS VIEJOS) ---
+        with st.expander("📅 BLOQUEAR FECHAS PASADAS (Desde Enero)"):
+            with st.form("form_antiguo"):
+                col1, col2 = st.columns(2)
+                cli_ant = col1.text_input("Cliente")
+                auto_ant = col1.selectbox("Vehículo", flota_adm['nombre'].tolist())
+                f_ini = col2.date_input("Inicio", value=date(2026, 1, 1))
+                f_fin = col2.date_input("Fin", value=date(2026, 1, 2))
+                monto_ant = st.number_input("Precio cobrado en R$", min_value=0.0)
+                if st.form_submit_button("Guardar y Bloquear Calendario"):
+                    conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total) VALUES (?,?,?,?,?,?,?)",
+                                 (f"[ANT] {cli_ant}", "000", "000", auto_ant, f_ini, f_fin, monto_ant))
+                    conn.commit(); st.rerun()
 
-        # --- CARGAR GASTOS EN GS. ---
-        with st.expander("💸 CARGAR GASTO (Gs. o R$)"):
-            with st.form("g"):
-                c_g = st.text_input("Concepto (Ej: Lavado, Taller)")
-                col_g1, col_g2 = st.columns(2)
-                m_g_gs = col_g1.number_input("Monto en Guaraníes (Gs.)", step=1000)
-                m_g_r = col_g2.number_input("O Monto en Reales (R$)", step=1.0)
-                
+        # --- EGRESOS DETALLADOS ---
+        st.subheader("💸 LISTADO DE EGRESOS")
+        if not egr_df.empty:
+            egr_df['Gs.'] = egr_df['monto'] * COTIZACION_DIA
+            st.dataframe(egr_df.rename(columns={'monto':'R$', 'concepto':'Detalle'}).style.format({'R$':'{:.2f}', 'Gs.':'{:,.0f}'}))
+        
+        with st.expander("➕ AGREGAR GASTO"):
+            with st.form("nuevo_gasto"):
+                con_g = st.text_input("Concepto")
+                g_gs = st.number_input("Monto en Gs.", value=0)
+                g_r = st.number_input("O Monto en R$", value=0.0)
                 if st.form_submit_button("Guardar Gasto"):
-                    # Si cargó en Gs, convertimos a R para la base de datos unificada
-                    monto_final_r = m_g_r if m_g_r > 0 else (m_g_gs / COTIZACION_DIA)
-                    conn.execute("INSERT INTO egresos (concept, monto, fecha) VALUES (?,?,?)", 
-                                 (c_g, monto_final_r, date.today()))
-                    conn.commit()
-                    st.success("Gasto registrado correctamente.")
-                    st.rerun()
+                    f_monto = g_r if g_r > 0 else (g_gs / COTIZACION_DIA)
+                    conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (con_g, f_monto, date.today()))
+                    conn.commit(); st.rerun()
 
-        # --- ESTADO DE FLOTA ---
+        # --- GESTIÓN DE FLOTA Y RESERVAS ---
         st.subheader("🛠️ ESTADO DE FLOTA")
         for _, f in flota_adm.iterrows():
-            ca1, ca2, ca3 = st.columns([2,1,1])
-            ca1.write(f"*{f['nombre']}* ({f['placa']})")
-            ca2.write("🟢 Disponible" if f['estado'] == "Disponible" else "🔴 Taller")
-            if ca3.button("CAMBIAR", key=f"sw_{f['nombre']}"):
+            c1, c2, c3 = st.columns([2,1,1])
+            c1.write(f"*{f['nombre']}* ({f['placa']})")
+            c2.write("🟢" if f['estado'] == "Disponible" else "🔴 Taller")
+            if c3.button("CAMBIAR", key=f"f_{f['nombre']}"):
                 nuevo = "En Taller" if f['estado'] == "Disponible" else "Disponible"
                 conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo, f['nombre']))
                 conn.commit(); st.rerun()
 
-        # --- REGISTRO DE RESERVAS Y DESCARGA DE CONTRATO ---
         st.subheader("📑 REGISTRO DE RESERVAS")
         for _, r in res_df.iterrows():
             with st.expander(f"Reserva #{r['id']} - {r['cliente']}"):
-                st.write(f"Auto: {r['auto']} | Periodo: {r['inicio']} al {r['fin']} | Total: R$ {r['total']}")
-                
-                # Botón de Descargar Contrato (Genera un texto plano descargable)
-                contrato_text = f"""CONTRATO DE RESERVA JM ASOCIADOS\nID: {r['id']}\nCLIENTE: {r['cliente']}\nVEHICULO: {r['auto']}\nFECHAS: {r['inicio']} a {r['fin']}\nTOTAL: R$ {r['total']}"""
-                st.download_button("📄 Descargar Info Contrato", contrato_text, file_name=f"contrato_{r['id']}.txt")
-                
-                if r['comprobante']: 
-                    st.image(r['comprobante'], width=300, caption="Comprobante de Pago")
-                
-                if st.button("🗑️ BORRAR", key=f"del{r['id']}"):
+                st.write(f"Auto: {r['auto']} | Total: R$ {r['total']}")
+                txt_c = f"CONTRATO JM ASOCIADOS\nID: {r['id']}\nCliente: {r['cliente']}\nAuto: {r['auto']}\nTotal: R$ {r['total']}"
+                st.download_button("📄 Descargar Contrato (.txt)", txt_c, file_name=f"contrato_{r['id']}.txt")
+                if r['comprobante']: st.image(r['comprobante'], width=250)
+                if st.button("🗑️ ELIMINAR", key=f"del_{r['id']}"):
                     conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],))
                     conn.commit(); st.rerun()
         conn.close()
