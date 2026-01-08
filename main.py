@@ -32,24 +32,6 @@ def obtener_cotizacion_real_guarani():
 COTIZACION_DIA = obtener_cotizacion_real_guarani()
 DB_NAME = 'jm_corporativo_permanente.db'
 
-# --- ESTILOS CSS (CALENDARIO AIRBNB Y TARJETAS) ---
-st.markdown("""
-    <style>
-    .cal-header { font-size: 14px; font-weight: 600; text-align: center; margin-bottom: 8px; color: #222; text-transform: capitalize; }
-    .cal-grid-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0; }
-    .cal-day-name { text-align: center; font-size: 10px; color: #717171; padding: 4px 0; }
-    .cal-box { 
-        aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center; 
-        font-size: 13px; position: relative; border: 0.5px solid #f0f0f0; background: white; color: #222;
-    }
-    .ocupado { color: #b0b0b0 !important; background-color: #fafafa; }
-    .raya-roja-h { 
-        position: absolute; width: 80%; height: 1.5px; 
-        background-color: #ff385c; z-index: 1; top: 50%;
-    }
-    .card-auto img { filter: drop-shadow(0px 8px 8px rgba(0,0,0,0.25)); }
-    </style>
-""", unsafe_allow_html=True)
 
 # --- BASE DE DATOS ---
 def init_db():
