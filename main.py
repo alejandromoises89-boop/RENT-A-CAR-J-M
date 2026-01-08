@@ -146,7 +146,7 @@ with t_res:
                     total_r = dias * v['precio']
                     total_gs = total_r * COTIZACION_DIA
                     
-                    if c_n and c_d and c_w:
+               if c_n and c_d and c_w:
                                                
 st.markdown(f"""
 <div style="
@@ -161,8 +161,7 @@ st.markdown(f"""
     border: 2px solid #D4AF37; 
     text-align: justify; 
     line-height: 1.5;
-    -webkit-overflow-scrolling: touch;
-">
+    -webkit-overflow-scrolling: touch;">
     <center><b style="font-size: 16px;">CONTRATO DE ALQUILER DE VEHÍCULO Y AUTORIZACIÓN PARA CONDUCIR</b></center><br>
     Entre:<br>
     <b>ARRENDADOR:</b><br>
@@ -240,8 +239,6 @@ st.markdown(f"""
     </div>
 </div>
 """, unsafe_allow_html=True)
-# --- HASTA AQUÍ ---
-
                         
                         # --- CASILLA DE ACEPTACIÓN ---
                         acepto = st.checkbox("He leído el contrato y acepto todos los términos y condiciones.", key=f"check{v['nombre']}")
@@ -266,7 +263,6 @@ st.markdown(f"""
                             st.warning("Debes aceptar el contrato para habilitar el botón de confirmación.")
                 else:
                     st.error("Vehículo no disponible en las fechas seleccionadas.")
-
 
 with t_ubi:
     st.markdown("<h3 style='text-align: center; color: #D4AF37;'>NUESTRA UBICACIÓN</h3>", unsafe_allow_html=True)
