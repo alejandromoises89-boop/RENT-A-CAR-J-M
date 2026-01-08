@@ -223,84 +223,96 @@ with t_adm:
             st.metric("UTILIDAD NETA", f"R$ {util_r:,.2f}")
             st.caption(f"Gs. {util_r * COTIZACION_DIA:,.0f}")
 
-        # --- SECCIÓN 2: GRÁFICOS Y REPORTES (REINTEGRADO) ---
+        # --- SECCIÓN 2: GRÁFICOS Y REPORTES ---
         if not res_df.empty:
-            st.subheader("📈 ANÁLISIS DE VENTAS Y TENDENCIAS")
+            st.subheader("📈 ANÁLISIS DE VENTAS")
             res_df['inicio_dt'] = pd.to_datetime(res_df['inicio'])
             df_plot = res_df.sort_values('inicio_dt')
-            
-            fig_l = px.line(df_plot, x='inicio_dt', y='total', color='auto', markers=True, 
-                           title="Evolución de Ingresos (R$)", labels={'total':'Monto R$', 'inicio_dt':'Fecha'})
+            fig_l = px.line(df_plot, x='inicio_dt', y='total', color='auto', markers=True, title="Evolución R$")
             st.plotly_chart(fig_l, use_container_width=True)
-            
             csv_data = df_plot.to_csv(index=False).encode('utf-8')
-            st.download_button("📥 Descargar Reporte de Ventas (CSV)", csv_data, "reporte_jm_asociados.csv", "text/csv")
+            st.download_button("📥 Descargar Excel (CSV)", csv_data, "reporte_jm.csv", "text/csv")
 
         # --- SECCIÓN 3: AJUSTE DE PRECIOS POR DÍA ---
-        st.subheader("💰 AJUSTE DE PRECIOS DE ALQUILER")
-        with st.expander("Ver y editar precios por día"):
+        st.subheader("💰 PRECIOS DE ALQUILER")
+        with st.expander("Editar precios por día"):
             for _, f in flota_adm.iterrows():
                 cp1, cp2 = st.columns([3, 1])
                 cp1.write(f"*{f['nombre']}* ({f['placa']})")
-                nuevo_p = cp2.number_input(f"R$ / día", value=float(f['precio']), key=f"price_{f['nombre']}")
+                nuevo_p = cp2.number_input(f"R$/día", value=float(f['precio']), key=f"p_{f['nombre']}")
                 if nuevo_p != f['precio']:
                     conn.execute("UPDATE flota SET precio=? WHERE nombre=?", (nuevo_p, f['nombre']))
                     conn.commit(); st.rerun()
 
-        # --- SECCIÓN 4: DISPONIBILIDAD (TALLER/DISP) ---
-        st.subheader("🛠️ DISPONIBILIDAD DE VEHÍCULOS")
-        with st.expander("Gestionar Estado (Disponible / En Taller)"):
+        # --- SECCIÓN 4: DISPONIBILIDAD ---
+        st.subheader("🛠️ ESTADO DE FLOTA")
+        with st.expander("Gestionar Taller / Disponible"):
             for _, f in flota_adm.iterrows():
                 ca1, ca2, ca3 = st.columns([2, 1, 1])
                 ca1.write(f"*{f['nombre']}*")
-                ca2.write("🟢 Disponible" if f['estado'] == "Disponible" else "🔴 En Taller")
-                if ca3.button("CAMBIAR", key=f"status_{f['nombre']}"):
+                ca2.write("🟢 Disp." if f['estado'] == "Disponible" else "🔴 Taller")
+                if ca3.button("CAMBIAR", key=f"s_{f['nombre']}"):
                     nuevo_est = "En Taller" if f['estado'] == "Disponible" else "Disponible"
                     conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo_est, f['nombre']))
                     conn.commit(); st.rerun()
 
         # --- SECCIÓN 5: EGRESOS ---
-        st.subheader("💸 DETALLE DE GASTOS")
+        st.subheader("💸 GASTOS")
         if not egr_df.empty:
             egr_df['Gs.'] = egr_df['monto'] * COTIZACION_DIA
             st.dataframe(egr_df.rename(columns={'monto':'R$', 'concepto':'Detalle'}).style.format({'R$':'{:.2f}', 'Gs.':'{:,.0f}'}))
         
         with st.expander("➕ CARGAR NUEVO GASTO"):
-            with st.form("nuevo_g"):
+            with st.form("g_final"):
                 d_g = st.text_input("Concepto")
                 cg1, cg2 = st.columns(2)
-                v_gs = cg1.number_input("Monto Gs.", step=1000)
-                v_r = cg2.number_input("Monto R$", step=1.0)
-                if st.form_submit_button("Guardar Gasto"):
-                    final = v_r if v_r > 0 else (v_gs / COTIZACION_DIA)
-                    conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (d_g, final, date.today()))
+                v_gs = cg1.number_input("Gs.", step=1000)
+                v_r = cg2.number_input("R$", step=1.0)
+                if st.form_submit_button("Guardar"):
+                    m_f = v_r if v_r > 0 else (v_gs / COTIZACION_DIA)
+                    conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (d_g, m_f, date.today()))
                     conn.commit(); st.rerun()
 
-        # --- SECCIÓN 6: BLOQUEO MANUAL Y RESERVAS ---
-        st.subheader("📑 REGISTRO DE RESERVAS Y CONTRATOS")
-        with st.expander("📅 BLOQUEAR CALENDARIO (Contratos Manuales/Viejos)"):
-            with st.form("f_ant"):
-                c_n_m = st.text_input("Nombre Cliente")
-                c_d_m = st.text_input("CPF / Documento")
-                c_a_m = st.selectbox("Vehículo", flota_adm['nombre'].tolist())
-                fi, ff = st.columns(2)
-                d_i = fi.date_input("Inicio")
-                d_f = ff.date_input("Fin")
-                m_r = st.number_input("Monto Cobrado R$", value=0.0)
-                if st.form_submit_button("Registrar y Bloquear"):
+        # --- SECCIÓN 6: REGISTRO Y PREVISUALIZACIÓN DE CONTRATO ---
+        st.subheader("📑 RESERVAS Y PREVISUALIZACIÓN")
+        with st.expander("📅 BLOQUEO MANUAL"):
+            with st.form("f_man"):
+                c_n = st.text_input("Cliente"); c_d = st.text_input("DOC/CPF")
+                c_a = st.selectbox("Auto", flota_adm['nombre'].tolist())
+                fi = st.date_input("Inicio"); ff = st.date_input("Fin")
+                m_r = st.number_input("Monto R$")
+                if st.form_submit_button("Bloquear"):
                     conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total) VALUES (?,?,?,?,?,?,?)",
-                                 (f"[M] {c_n_m}", c_d_m, "000", c_a_m, d_i, d_f, m_r))
+                                 (f"[M] {c_n}", c_d, "000", c_a, fi, ff, m_r))
                     conn.commit(); st.rerun()
 
         for _, r in res_df.iterrows():
             with st.expander(f"Reserva #{r['id']} - {r['cliente']} (DOC: {r['ci']})"):
-                st.write(f"Auto: {r['auto']} | Total: R$ {r['total']} (Gs. {r['total']*COTIZACION_DIA:,.0f})")
+                # Cuerpo del contrato (Texto exacto del contrato)
+                txt_c = f"""CONTRATO DE ALQUILER J&M ASOCIADOS
+----------------------------------------
+ARRENDATARIO: {r['cliente']}
+DOCUMENTO: {r['ci']}
+VEHÍCULO: {r['auto']}
+PERIODO: {r['inicio']} al {r['fin']}
+TOTAL: R$ {r['total']} (Gs. {r['total']*COTIZACION_DIA:,.0f})
+
+CLÁUSULAS:
+1. OBJETO: Vehículo en perfecto estado.
+2. USO: Responsabilidad civil y penal del cliente.
+3. LÍMITE: 200km/día. Excedente Gs. 100.000.
+4. DEPÓSITO: Gs. 5.000.000 por siniestro.
+5. TERRITORIO: Paraguay y MERCOSUR.
+6. DEVOLUCIÓN: Misma condición recibida.
+----------------------------------------
+Firmado en Ciudad del Este, Paraguay."""
                 
-                txt_c = f"CONTRATO J&M ASOCIADOS\n\nCLIENTE: {r['cliente']}\nDOCUMENTO: {r['ci']}\nAUTO: {r['auto']}\nPERIODO: {r['inicio']} al {r['fin']}\nTOTAL: R$ {r['total']}\n\nCLAUSULAS RESUMIDAS:\n1. Alquiler de vehiculo en buen estado.\n2. Arrendatario responsable civil y penalmente.\n3. Límite 200km/día.\n4. Depósito de Gs. 5.000.000 por siniestro.\n5. Valido en Paraguay y MERCOSUR."
+                # Previsualización estética
+                st.code(txt_c, language="markdown") # Esto muestra la previsualización en un cuadro gris profesional
+                
                 st.download_button(f"📥 Descargar Contrato {r['id']}", txt_c, file_name=f"Contrato_{r['cliente']}.txt")
                 
                 if r['comprobante']: st.image(r['comprobante'], width=200)
                 if st.button("🗑️ Borrar", key=f"del_{r['id']}"):
-                    conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],))
-                    conn.commit(); st.rerun()
+                    conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],)); conn.commit(); st.rerun()
         conn.close()
