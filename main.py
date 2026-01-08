@@ -113,8 +113,8 @@ with t_res:
             st.markdown(f'''<div class="card-auto"><h3>{v["nombre"]}</h3><img src="{v["img"]}" width="100%"><p style="font-weight:bold; font-size:20px; color:#D4AF37; margin-bottom:2px;">R$ {v["precio"]} / día</p><p style="color:#28a745; margin-top:0px;">Gs. {precio_gs:,.0f} / día</p></div>''', unsafe_allow_html=True)
             
             with st.expander(f"Ver Disponibilidad"):
+                # --- CALENDARIO AIRBNB CON RAYA ROJA HORIZONTAL ---
                 ocupadas = obtener_fechas_ocupadas(v['nombre'])
-                # CALENDARIO AIRBNB HORIZONTAL
                 c_m1, c_m2 = st.columns(2)
                 meses = [(date.today().month, date.today().year), ((date.today().month % 12) + 1, date.today().year if date.today().month < 12 else date.today().year + 1)]
                 
@@ -131,31 +131,69 @@ with t_res:
                                 if dia != 0:
                                     f_act = date(a, m, dia)
                                     es_ocu = f_act in ocupadas
-                                    style = "ocupado" if es_ocu else ""
-                                    raya = '<div class="raya-roja-h"></div>' if es_ocu else ""
-                                    cdi[d_idx].markdown(f'<div class="cal-box {style}">{dia}{raya}</div>', unsafe_allow_html=True)
+                                    # Forzamos la raya horizontal con style directo para que no se mueva en móviles
+                                    style = "color: #ccc; background-color: #f0f0f0;" if es_ocu else ""
+                                    raya = '<div style="position:absolute; width:100%; height:2px; background-color:#ff385c; top:50%; left:0;"></div>' if es_ocu else ""
+                                    cdi[d_idx].markdown(f'<div class="cal-box" style="position:relative; {style}">{dia}{raya}</div>', unsafe_allow_html=True)
                 
                 st.divider()
-                # FORMULARIO
+                # --- FORMULARIO Y DATOS DEL CLIENTE ---
                 c1, c2 = st.columns(2)
-                dt_i = datetime.combine(c1.date_input("Inicio", key=f"d1{v['nombre']}"), c1.time_input("Hora 1", time(9,0), key=f"h1{v['nombre']}"))
-                dt_f = datetime.combine(c2.date_input("Fin", key=f"d2{v['nombre']}"), c2.time_input("Hora 2", time(10,0), key=f"h2{v['nombre']}"))
+                dt_i = datetime.combine(c1.date_input("Inicio", key=f"d1{v['nombre']}"), c1.time_input("Hora 1", time(10,0), key=f"h1{v['nombre']}"))
+                dt_f = datetime.combine(c2.date_input("Fin", key=f"d2{v['nombre']}"), c2.time_input("Hora 2", time(12,0), key=f"h2{v['nombre']}"))
                 
                 if esta_disponible(v['nombre'], dt_i, dt_f):
-                    c_n = st.text_input("Nombre Completo", key=f"n{v['nombre']}")
-                    c_d = st.text_input("CI / Documento", key=f"d{v['nombre']}")
-                    c_w = st.text_input("WhatsApp", key=f"w{v['nombre']}")
-                    dias = max(1, (dt_f - dt_i).days); total_r = dias * v['precio']; total_gs = total_r * COTIZACION_DIA
+                    c_n = st.text_input("Nombre Completo (como en su documento)", key=f"n{v['nombre']}")
+                    c_d = st.text_input("CI / Cédula / RG", key=f"d{v['nombre']}")
+                    c_w = st.text_input("Número de WhatsApp", key=f"w{v['nombre']}")
+                    c_pais = st.text_input("País / Domicilio", key=f"p{v['nombre']}")
+                    
+                    dias = max(1, (dt_f.date() - dt_i.date()).days)
+                    total_r = dias * v['precio']
+                    total_gs = total_r * COTIZACION_DIA
                     
                     if c_n and c_d and c_w:
-                        st.markdown(f'<div style="background-color:#2b0606; color:#f1f1f1; padding:20px; border:1px solid #D4AF37; border-radius:10px; height:250px; overflow-y:scroll; font-size:13px;"><b>CONTRATO JM ASOCIADOS</b><br>Arrendatario: {c_n.upper()}<br>Vehículo: {v["nombre"]}<br>Total: Gs. {total_gs:,.0f}<br><br>Al confirmar, usted acepta todos los términos y condiciones de uso y responsabilidad civil/penal.</div>', unsafe_allow_html=True)
-                        st.markdown(f'<div class="pix-box"><b>PAGO PIX: R$ {total_r}</b><br>Llave: 24510861818<br>Marina Baez</div>', unsafe_allow_html=True)
-                        foto = st.file_uploader("Adjuntar Comprobante", key=f"f{v['nombre']}")
-                        if st.button("CONFIRMAR RESERVA", key=f"btn{v['nombre']}") and foto:
-                            conn = sqlite3.connect(DB_NAME); conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante) VALUES (?,?,?,?,?,?,?,?)", (c_n, c_d, c_w, v['nombre'], dt_i, dt_f, total_r, foto.read())); conn.commit(); conn.close()
-                            st.success("¡Reserva Guardada!"); st.rerun()
+                        # --- CONTRATO SCROLL COMPLETO ---
+                        contrato_html = f"""
+                        <div class="contrato-scroll" style="background-color: #f9f9f9; color: #333; padding: 20px; border-radius: 10px; height: 350px; overflow-y: scroll; font-family: 'Courier New', monospace; font-size: 12px; border: 2px solid #D4AF37; text-align: justify;">
+                            <center><b>CONTRATO DE ALQUILER DE VEHÍCULO Y AUTORIZACIÓN PARA CONDUCIR</b></center><br>
+                            <b>ARRENDADOR:</b> J&M ASOCIADOS. CI: 1.702.076-0. Domicilio: CURUPAYTU ESQUINA FARID RAHAL. Tel: +595983635573.<br>
+                            <b>ARRENDATARIO:</b> {c_n.upper()}. Doc: {c_d}. Domicilio: {c_pais.upper()}. Tel: {c_w}.<br><br>
+                            <b>PRIMERA - Objeto:</b> El arrendador otorga en alquiler el vehículo {v['nombre'].upper()}. Chapa: {v['placa']}. Color: {v['color'].upper()}.<br>
+                            El vehículo se encuentra en perfecto estado... El ARRENDADOR AUTORIZA AL ARRENDATARIO A CONDUCIR EL VEHÍCULO EN TODO EL TERRITORIO PARAGUAYO Y EL MERCOSUR.<br><br>
+                            <b>SEGUNDA - Duración:</b> {dias} días, comenzando el {dt_i.strftime('%d/%m/%Y')} a las {dt_i.strftime('%H:%M')}hs y finalizando el {dt_f.strftime('%d/%m/%Y')} a las {dt_f.strftime('%H:%M')}hs.<br><br>
+                            <b>TERCERA - Precio:</b> Gs. {v['precio'] * COTIZACION_DIA:,.0f} por día. <b>TOTAL: Gs. {total_gs:,.0f}</b>.<br><br>
+                            <b>CUARTA - Depósito:</b> Gs. 5.000.000 en caso de siniestro.<br><br>
+                            <b>QUINTA - Condiciones:</b> El ARRENDATARIO es responsable PENAL y CIVIL de todo lo ocurrido dentro del vehículo.<br><br>
+                            <i>(Resto de cláusulas legales omitidas para el resumen...)</i><br><br>
+                            <b>DÉCIMA SEGUNDA:</b> Ambas partes firman en Ciudad del Este el {date.today().strftime('%d/%m/%Y')}.<br><br>
+                            __________________________ &nbsp;&nbsp;&nbsp;&nbsp; __________________________<br>
+                            J&M ASOCIADOS (Arrendador) &nbsp;&nbsp;&nbsp;&nbsp; {c_n.upper()} (Arrendatario)
+                        </div>
+                        """
+                        st.markdown(contrato_html, unsafe_allow_html=True)
+                        
+                        st.markdown(f'<div style="background-color:#1a1c23; padding:15px; border-radius:10px; border:1px solid #D4AF37; margin-top:10px;"><b>PAGO PIX: R$ {total_r}</b><br>Llave: 24510861818<br>Marina Baez</div>', unsafe_allow_html=True)
+                        
+                        foto = st.file_uploader("Adjuntar Comprobante de Pago", key=f"f{v['nombre']}")
+                        
+                        if st.button("CONFIRMAR RESERVA Y ACEPTAR CONTRATO", key=f"btn{v['nombre']}"):
+                            if foto:
+                                conn = sqlite3.connect(DB_NAME)
+                                conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante) VALUES (?,?,?,?,?,?,?,?)", 
+                                             (c_n, c_d, c_w, v['nombre'], dt_i, dt_f, total_r, foto.read()))
+                                conn.commit(); conn.close()
+                                
+                                # --- MENSAJE DE WHATSAPP ---
+                                texto_wa = f"Hola JM, soy {c_n}.\nHe leído el contrato y acepto los términos.\n🚗 Vehículo: {v['nombre']}\n🗓️ Periodo: {dt_i.strftime('%d/%m/%Y')} al {dt_f.strftime('%d/%m/%Y')}\n💰 Total: R$ {total_r}\nAdjunto mi comprobante de pago."
+                                link_wa = f"https://wa.me/595991681191?text={urllib.parse.quote(texto_wa)}"
+                                
+                                st.markdown(f'<a href="{link_wa}" target="_blank" style="background-color:#25D366; color:white; padding:15px; border-radius:10px; text-align:center; display:block; text-decoration:none; font-weight:bold;">✅ ENVIAR COMPROBANTE POR WHATSAPP</a>', unsafe_allow_html=True)
+                                st.success("¡Reserva Guardada en el Sistema!")
+                            else:
+                                st.error("Por favor, adjunte el comprobante antes de confirmar.")
                 else:
-                    st.error("No disponible en esas fechas.")
+                    st.error("Vehículo no disponible en las fechas seleccionadas o se encuentra en Taller.")
 
 with t_ubi:
     st.markdown("<h3 style='text-align: center; color: #D4AF37;'>NUESTRA UBICACIÓN</h3>", unsafe_allow_html=True)
