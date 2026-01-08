@@ -188,9 +188,9 @@ st.text_area("Lea atentamente el contrato antes de reservar:", value=texto_legal
                         foto = st.file_uploader("Adjuntar Comprobante", key=f"f{v['nombre']}")
                         
                         # EL BOTÓN DEBE ESTAR AQUÍ ADENTRO
-                        if if         if st.button("Reservar Ahora"):
+                        if st.button("Reservar Ahora"):
             if nombre and cedula and celular:
-                # --- REDACCIÓN PROFESIONAL DEL CONTRATO ---
+                # --- 1. REDACCIÓN PROFESIONAL DEL CONTRATO ---
                 texto_legal = f"""CONTRATO DE LOCACIÓN DE VEHÍCULO - J&M ASOCIADOS
 
 1. OBJETO: El Arrendador entrega al Arrendatario Sr./Sra. {nombre} el vehículo {auto} en perfecto estado.
@@ -207,16 +207,15 @@ FECHA DE OPERACIÓN: {date.today().strftime('%d/%m/%Y')}
 ID DE SEGURIDAD: JM-CONFIRMED-{cedula[-3:]}
 --------------------------------------------------"""
 
-                # 1. Mostramos el contrato generado
+                # --- 2. MOSTRAR CONTRATO EN PANTALLA ---
                 st.subheader("📝 Contrato de Locación Generado")
                 st.text_area("Documento de Aceptación:", value=texto_legal, height=300, disabled=True)
                 
-                # 2. Procesar la imagen del comprobante
+                # --- 3. PROCESAR COMPROBANTE Y GUARDAR EN DB ---
                 img_byte = None
                 if comprobante:
                     img_byte = comprobante.read()
 
-                # 3. Guardar en la Base de Datos
                 conn = sqlite3.connect(DB_NAME)
                 conn.execute('''INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante) 
                              VALUES (?,?,?,?,?,?,?,?)''', 
@@ -224,17 +223,22 @@ ID DE SEGURIDAD: JM-CONFIRMED-{cedula[-3:]}
                 conn.commit()
                 conn.close()
                 
-                # 4. PREPARAR EL MENSAJE DE WHATSAPP
-                # Usamos urllib.parse.quote para que el texto sea válido para un link
+                # --- 4. PREPARAR Y MOSTRAR BOTÓN DE WHATSAPP ---
                 import urllib.parse
-                texto_wa = f"Hola J&M ASOCIADOS, soy {nombre}.\nHe realizado una reserva y acepto el contrato digital.\n🚗 Vehículo: {auto}\n🗓️ Periodo: {fecha_i.strftime('%d/%m/%Y')} al {fecha_f.strftime('%d/%m/%Y')}\n💰 Total: R$ {total:.2f}\nDocumento: {cedula}"
+                texto_wa = (
+                    f"Hola J&M ASOCIADOS, soy {nombre}.\n"
+                    f"He realizado una reserva y acepto el contrato digital.\n"
+                    f"🚗 Vehículo: {auto}\n"
+                    f"🗓️ Periodo: {fecha_i.strftime('%d/%m/%Y')} al {fecha_f.strftime('%d/%m/%Y')}\n"
+                    f"💰 Total: R$ {total:.2f}\n"
+                    f"Documento: {cedula}"
+                )
                 mensaje_encoded = urllib.parse.quote(texto_wa)
                 link_wa = f"https://wa.me/595991681191?text={mensaje_encoded}"
                 
-                # 5. MOSTRAR BOTÓN DE WHATSAPP Y ÉXITO
                 st.markdown(f'''
                     <a href="{link_wa}" target="_blank" style="text-decoration:none;">
-                        <div style="background-color:#25D366; color:white; padding:15px; border-radius:10px; text-align:center; font-weight:bold; font-size:18px; margin-top:20px;">
+                        <div style="background-color:#25D366; color:white; padding:15px; border-radius:10px; text-align:center; font-weight:bold; font-size:18px; margin-top:20px; box-shadow: 2px 2px 5px rgba(0,0,0,0.2);">
                             ✅ ENVIAR COMPROBANTE POR WHATSAPP
                         </div>
                     </a>
@@ -243,7 +247,7 @@ ID DE SEGURIDAD: JM-CONFIRMED-{cedula[-3:]}
                 st.success(f"¡Reserva confirmada para {nombre}!")
                 st.balloons()
             else:
-                st.error("⚠️ Por favor, complete todos los campos (Nombre, Documento y Celular).")
+                st.error("⚠️ Por favor, complete todos los campos obligatorios (Nombre, Documento y Celular).")
                     
 # --- PESTAÑAS UBICACIÓN Y ADM (SIN CAMBIOS) ---
 with t_ubi:
