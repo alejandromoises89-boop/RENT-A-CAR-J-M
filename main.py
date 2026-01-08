@@ -147,7 +147,7 @@ with t_res:
                     total_gs = total_r * COTIZACION_DIA
                     
                     if c_n and c_d and c_w:
-                                                # --- COPIAR DESDE AQUÍ ---
+                                               
 st.markdown(f"""
 <div style="
     background-color: #f9f9f9; 
