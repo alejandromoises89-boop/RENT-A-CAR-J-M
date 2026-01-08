@@ -146,24 +146,10 @@ with t_res:
                     total_r = dias * v['precio']
                     total_gs = total_r * COTIZACION_DIA
                     
-if c_n and c_d and c_w:
-                        # --- INICIO DEL BLOQUE DEL CONTRATO ---
-                        st.markdown(f"""
-                        <div style="
-                            background-color: #f9f9f9; 
-                            color: #333; 
-                            padding: 25px; 
-                            border-radius: 10px; 
-                            height: 400px; 
-                            overflow-y: scroll; 
-                            font-family: 'Courier New', monospace; 
-                            font-size: 13px; 
-                            border: 2px solid #D4AF37; 
-                            text-align: justify; 
-                            line-height: 1.5;
-                            -webkit-overflow-scrolling: touch;
-                        ">
-                            <center><b style="font-size: 16px;">CONTRATO DE ALQUILER DE VEHÍCULO Y AUTORIZACIÓN PARA CONDUCIR</b></center><br>
+                    # --- CONTRATO (FUERA DEL IF DE DATOS PARA QUE SE VEA SIEMPRE) ---
+                    st.markdown(f"""
+                    <div style="background-color: #f9f9f9; color: #333; padding: 25px; border-radius: 10px; height: 350px; overflow-y: scroll; font-family: 'Courier New', monospace; font-size: 13px; border: 2px solid #D4AF37; text-align: justify; line-height: 1.5; -webkit-overflow-scrolling: touch;">
+                        <center><b style="font-size: 16px;">CONTRATO DE ALQUILER DE VEHÍCULO Y AUTORIZACIÓN PARA CONDUCIR</b></center><br>
                             Entre:<br>
                             <b>ARRENDADOR:</b> J&M ASOCIADOS. CI: 1.702.076-0. Domicilio: CURUPAYTU ESQUINA FARID RAHAL. Teléfono: +595983635573<br><br>
                             <b>ARRENDATARIO:</b> {c_n.upper()}. Doc: {c_d.upper()}. Domicilio: {c_pais.upper()}. Teléfono: {c_w}<br><br>
