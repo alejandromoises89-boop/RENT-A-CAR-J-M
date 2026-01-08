@@ -207,7 +207,7 @@ with t_adm:
         
         st.title("📊 PANEL DE CONTROL ESTRATÉGICO")
 
-        # --- MÉTRICAS FINANCIERAS DUALES ---
+        # --- SECCIÓN 1: FINANZAS ---
         ing_r = res_df['total'].sum() if not res_df.empty else 0
         egr_r = egr_df['monto'].sum() if not egr_df.empty else 0
         util_r = ing_r - egr_r
@@ -223,41 +223,37 @@ with t_adm:
             st.metric("UTILIDAD NETA", f"R$ {util_r:,.2f}")
             st.caption(f"Gs. {util_r * COTIZACION_DIA:,.0f}")
 
-        # --- GRÁFICOS ---
-        if not res_df.empty:
-            st.subheader("📈 Análisis de Ventas")
-            res_df['inicio_dt'] = pd.to_datetime(res_df['inicio'])
-            fig_l = px.line(res_df.sort_values('inicio_dt'), x='inicio_dt', y='total', color='auto', markers=True, title="Ingresos R$ por Fecha")
-            st.plotly_chart(fig_l, use_container_width=True)
-
-        # --- GESTIÓN DE FLOTA (CORREGIDO EL ERROR DE KEY ID) ---
-        st.subheader("🚗 GESTIÓN DE FLOTA Y PRECIOS")
-        for _, f in flota_adm.iterrows():
-            with st.container():
-                ca1, ca2, ca3, ca4 = st.columns([2, 1, 1, 1])
-                ca1.write(f"*{f['nombre']}*\n({f['placa']})")
-                
-                # Modificar Precio - Usamos 'nombre' como llave única para evitar el error 'id'
-                nuevo_p = ca2.number_input(f"Precio R$", value=float(f['precio']), key=f"p_{f['nombre']}")
+        # --- SECCIÓN 2: AJUSTE DE PRECIOS POR DÍA ---
+        st.subheader("💰 AJUSTE DE PRECIOS DE ALQUILER")
+        st.info("Cambie el valor en Reales para actualizar lo que ve el cliente.")
+        with st.expander("Ver y editar precios por día"):
+            for _, f in flota_adm.iterrows():
+                cp1, cp2 = st.columns([3, 1])
+                cp1.write(f"*{f['nombre']}* ({f['placa']})")
+                nuevo_p = cp2.number_input(f"R$ / día", value=float(f['precio']), key=f"price_{f['nombre']}")
                 if nuevo_p != f['precio']:
                     conn.execute("UPDATE flota SET precio=? WHERE nombre=?", (nuevo_p, f['nombre']))
                     conn.commit(); st.rerun()
-                
-                # Estado
-                ca3.write("🟢 Disp." if f['estado'] == "Disponible" else "🔴 Taller")
-                if ca4.button("CAMBIAR", key=f"btn_st_{f['nombre']}"):
+
+        # --- SECCIÓN 3: ESTADO DE LA FLOTA (TALLER/DISP) ---
+        st.subheader("🛠️ DISPONIBILIDAD DE VEHÍCULOS")
+        with st.expander("Cambiar estado (Disponible / En Taller)"):
+            for _, f in flota_adm.iterrows():
+                ca1, ca2, ca3 = st.columns([2, 1, 1])
+                ca1.write(f"*{f['nombre']}*")
+                ca2.write("🟢 Disponible" if f['estado'] == "Disponible" else "🔴 En Taller")
+                if ca3.button("CAMBIAR", key=f"status_{f['nombre']}"):
                     nuevo_est = "En Taller" if f['estado'] == "Disponible" else "Disponible"
                     conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo_est, f['nombre']))
                     conn.commit(); st.rerun()
-            st.divider()
 
-        # --- SECCIÓN DE EGRESOS ---
-        st.subheader("💸 Detalle de Gastos")
+        # --- SECCIÓN 4: EGRESOS ---
+        st.subheader("💸 DETALLE DE GASTOS")
         if not egr_df.empty:
             egr_df['Gs.'] = egr_df['monto'] * COTIZACION_DIA
             st.dataframe(egr_df.rename(columns={'monto':'R$', 'concepto':'Detalle'}).style.format({'R$':'{:.2f}', 'Gs.':'{:,.0f}'}))
         
-        with st.expander("➕ Cargar Gasto"):
+        with st.expander("➕ CARGAR NUEVO GASTO"):
             with st.form("nuevo_g"):
                 d_g = st.text_input("Concepto")
                 cg1, cg2 = st.columns(2)
@@ -268,8 +264,9 @@ with t_adm:
                     conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (d_g, final, date.today()))
                     conn.commit(); st.rerun()
 
-        # --- BLOQUEO MANUAL / CONTRATOS ANTIGUOS ---
-        with st.expander("📅 Bloquear Fechas (Contratos Manuales)"):
+        # --- SECCIÓN 5: RESERVAS MANUALES Y CONTRATOS ---
+        st.subheader("📑 REGISTRO DE RESERVAS Y CONTRATOS")
+        with st.expander("📅 BLOQUEAR CALENDARIO (Contratos Manuales/Viejos)"):
             with st.form("f_ant"):
                 c_n_m = st.text_input("Nombre Cliente")
                 c_d_m = st.text_input("CPF / Documento")
@@ -283,13 +280,12 @@ with t_adm:
                                  (f"[M] {c_n_m}", c_d_m, "000", c_a_m, d_i, d_f, m_r))
                     conn.commit(); st.rerun()
 
-        # --- LISTA DE RESERVAS Y DESCARGA ---
-        st.subheader("📑 Reservas y Contratos")
         for _, r in res_df.iterrows():
             with st.expander(f"Reserva #{r['id']} - {r['cliente']} (DOC: {r['ci']})"):
                 st.write(f"Auto: {r['auto']} | Total: R$ {r['total']} (Gs. {r['total']*COTIZACION_DIA:,.0f})")
                 
-                txt_c = f"CONTRATO J&M ASOCIADOS\n\nCLIENTE: {r['cliente']}\nDOCUMENTO: {r['ci']}\nAUTO: {r['auto']}\nPERIODO: {r['inicio']} al {r['fin']}\nTOTAL: R$ {r['total']}\n\nCLAUSULAS:\n1. Alquiler de vehiculo en buen estado.\n2. Arrendatario responsable civil y penalmente.\n3. Límite 200km/día.\n4. Depósito de Gs. 5.000.000 por siniestro.\n5. Valido en Paraguay y MERCOSUR."
+                # Texto del contrato completo para descargar
+                txt_c = f"CONTRATO J&M ASOCIADOS\n\nCLIENTE: {r['cliente']}\nDOCUMENTO: {r['ci']}\nAUTO: {r['auto']}\nPERIODO: {r['inicio']} al {r['fin']}\nTOTAL: R$ {r['total']}\n\nCLAUSULAS RESUMIDAS:\n1. Objeto: Alquiler de vehiculo.\n2. Arrendatario responsable civil y penalmente.\n3. Limite 200km/dia.\n4. Deposito Gs. 5.000.000.\n5. Valido en Paraguay y MERCOSUR."
                 st.download_button(f"📥 Descargar Contrato {r['id']}", txt_c, file_name=f"Contrato_{r['cliente']}.txt")
                 
                 if r['comprobante']: st.image(r['comprobante'], width=200)
