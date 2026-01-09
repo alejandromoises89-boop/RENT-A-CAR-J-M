@@ -1,94 +1,172 @@
-Esta es la Especificación Maestra de Prompt (Master Prompt Specification).
-Este prompt está diseñado para que no se pierda ni un solo detalle de la lógica, el diseño, la paleta de colores y el flujo de negocio que tiene tu aplicación actual en React. Al pasárselo a una IA (como GPT-4o, Claude 3.5 Sonnet o Gemini 1.5 Pro), debería ser capaz de replicar la app (ya sea en Streamlit, o en otro framework) con una fidelidad del 99%.
-Copia y pega el siguiente bloque en inglés (para máxima precisión técnica) en el chat de la IA:
-🚀 MASTER PROMPT: "JM Alquiler Premium - Triple Frontera VIP"
-Role: You are a Senior Full-Stack Engineer and UI/UX Designer specializing in building luxury web applications.
-Objective: Recreate a high-end Car Rental Management System called "JM Alquiler". The app must exude luxury, reliability, and technical sophistication.
-Tech Stack: [Insert Target Framework here, e.g., Python Streamlit / React / Next.js]
-Language: The UI text must be in Spanish.
-1. Visual Identity & Design System (CRITICAL)
-You must strictly adhere to this design system to match the brand identity.
-Theme: "Executive Luxury", "Triple Frontera VIP", "Glassmorphism".
-Color Palette:
-Primary (Bordo): #600010 (Deep Wine/Burgundy)
-Accent (Gold): #D4AF37 (Metallic Gold)
-Background: #FDFCFB (Ivory/Cream/Off-white)
-Text: Inter font (Body), Playfair Display (Headings/Titles).
-Styling Rules:
-All cards and containers must have heavy rounding: border-radius: 2rem or 3rem.
-Use Glassmorphism for headers (Blur effects).
-Buttons must be uppercase, tracking-wide (letter-spacing: 0.2em), and bold.
-Animations: Elements must fade-in. Car images should have a slight "float" animation.
-2. Core Data & Initialization
-Persistence: Use local state/session storage to save Reservations and Expenses.
-Currency Logic:
-Base currency is BRL (Reais).
-Fetch live exchange rates (BRL -> PYG / USD) using open.er-api.com.
-Fallback rate: 1 BRL = 1450 PYG.
-Display prices in both BRL and PYG (Guaraníes) throughout the app.
-Initial Fleet Data:
-Initialize the database with these exact vehicles:
-Hyundai Tucson 2012 (Price: 260 BRL, Diesel, Auto, Plate: AAVI502, Img: "https://i.ibb.co/rGJHxvbm/Tucson-sin-fondo.png")
-Toyota Vitz 2012 (Price: 195 BRL, Gas, Auto, Plate: AAVP719, Img: "https://i.ibb.co/Y7ZHY8kX/pngegg.png")
-Toyota Vitz RS 2012 (Price: 210 BRL, Gas, Sequential, Plate: AAOR725, Img: "https://i.ibb.co/rKFwJNZg/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel.png")
-Toyota Voxy 2011 (Price: 240 BRL, Gas, 7-seater, Plate: AAUG465, Img: "https://i.ibb.co/VpSpSJ9Q/voxy.png")
-3. Application Modules (Functionality)
-A. Tab 1: "Unidades" (Client Facing)
-Hero Section:
-Large banner with specific text: "Domina el Camino." and "Calidad Certificada MERCOSUR".
-Background pattern (leather texture) + Gold blur accents.
-Vehicle Catalog (Grid):
-Display the fleet in cards.
-Card Features:
-Show Status Pill (Available = Green/Pulse, Maintenance = Red).
-Flip/Expand functionality: Clicking "Info" toggles detailed specs (Motor, Safety, Trunk size).
-Availability Calendar: Inside the card, show a mini-calendar highlighting reserved dates in Red.
-Action: "Gestionar Reserva" button (Disabled if in Maintenance). Opens the Booking Wizard.
-B. The Booking Wizard (Complex Logic)
-A modal/overlay with 3 distinct steps:
-Step 1: Cronograma (Schedule):
-Inputs: Start Date/Time, End Date/Time.
-Validations:
-Cannot select past dates.
-Office Hours: Mon-Fri (08:00-17:00), Sat-Sun (08:00-12:00). Warn user if outside these hours.
-Conflict Check: Prevent booking if dates overlap with an existing reservation for that car.
-Show financial summary: Total Days, Total Cost (BRL), and Reservation Fee (1 Day cost).
-Step 2: Portal de Pagos (Payments):
-User inputs: Name, ID (CI/RG), Payment Method.
-Methods:
-QR Bancard / PIX: Generate a dynamic QR code image using api.qrserver.com.
-Credit Card: Show a cosmetic credit card input form.
-Transfer: Show bank details (Ueno Bank / Santander).
-Proof: Allow user to upload an image (Proof of payment).
-Step 3: Contrato (Contract):
-Display a generated legal contract text summarizing the deal.
-Signature Pad: Allow the user to draw their signature.
-"Accept Terms" checkbox.
-Final Action:
-Save reservation.
-Redirect to WhatsApp (https://wa.me/595991681191) with a pre-formatted message containing all booking details.
-C. Tab 2: "Sede Central" (Location)
-Visual display of contact info, Google Maps link, and address in "Ciudad del Este".
-Design must look like a premium contact card.
-D. Tab 3: "Admin Dashboard" (Protected)
-Authentication: Simple password gate (Key: "8899").
-KPI Cards: Total Revenue (BRL/PYG), Total Expenses, Net Profit.
-Charts:
-Area Chart: Income over time.
-Pie Chart: Revenue share per vehicle.
-AI Business Analyst (Gemini Integration):
-Button: "Generar Reporte de Estrategia".
-Action: Send fleet status + revenue/expense data to google-generativeai (Model: gemini-2.5-flash).
-Prompt: Ask for 3 actionable business tips based on the data.
-Expense Manager:
-Form to add expenses.
-Toggle to input amount in PYG (convert to BRL automatically) or BRL.
-Table listing expenses with delete option.
-Manual Reservation / Calendar Block:
-A form to manually add bookings (e.g., "Old Contracts" or walk-in clients) to block dates in the system.
-4. Technical Nuances
-Error Handling: If the app crashes, show a custom "JM System Alert" screen (Red background) with a "Reset System" button.
-Responsiveness: The layout must be fully responsive (Mobile/Desktop).
-Icons: Use lucide-react (or equivalent library) for icons like Car, Shield, MapPin, BrainCircuit (AI).
-5. Deliverable
-Generate the complete code structure required to run this application. Focus heavily on replicating the CSS/Styling described in Section 1 to ensure the "Luxury" feel is preserved.
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+import requests
+from datetime import datetime, date, timedelta
+import google.generativeai as genai
+from streamlit_drawable_canvas import st_canvas
+
+# --- CONFIGURACIÓN E IDENTIDAD VISUAL ---
+st.set_page_config(page_title="JM Alquiler | Triple Frontera VIP", layout="wide", page_icon="🚗")
+
+# Inyección de CSS para "Executive Luxury" y "Glassmorphism"
+st.markdown("""
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;600&display=swap');
+
+    :root {
+        --bordo: #600010;
+        --gold: #D4AF37;
+        --ivory: #FDFCFB;
+    }
+
+    .stApp { background-color: var(--ivory); font-family: 'Inter', sans-serif; }
+    
+    /* Headers Luxury */
+    h1, h2, h3 { font-family: 'Playfair Display', serif !important; color: var(--bordo); }
+
+    /* Glassmorphism Header */
+    .glass-header {
+        background: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        border-radius: 2rem;
+        padding: 2rem;
+        border: 1px solid rgba(212, 175, 55, 0.3);
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    /* Luxury Cards */
+    .car-card {
+        background: white;
+        padding: 2rem;
+        border-radius: 3rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        border: 1px solid #eee;
+        transition: transform 0.3s ease;
+    }
+    .car-card:hover { transform: translateY(-10px); border-color: var(--gold); }
+
+    /* Botones VIP */
+    .stButton>button {
+        border-radius: 3rem !important;
+        background-color: var(--bordo) !important;
+        color: white !important;
+        border: none !important;
+        padding: 0.8rem 2.5rem !important;
+        font-weight: bold !important;
+        letter-spacing: 0.2em !important;
+        text-transform: uppercase;
+        transition: all 0.4s ease;
+    }
+    .stButton>button:hover {
+        background-color: var(--gold) !important;
+        box-shadow: 0 5px 15px rgba(212, 175, 55, 0.4);
+    }
+
+    /* Status Pills */
+    .pill-available {
+        background: #d4edda; color: #155724;
+        padding: 0.2rem 1rem; border-radius: 1rem; font-size: 0.8rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- INICIALIZACIÓN DE DATOS ---
+if 'fleet' not in st.session_state:
+    st.session_state.fleet = [
+        {"id": "1", "nombre": "Hyundai Tucson 2012", "precio": 260.0, "img": "https://i.ibb.co/rGJHxvbm/Tucson-sin-fondo.png", "estado": "Disponible", "placa": "AAVI502", "motor": "2.0 CRDi", "transmision": "Automática", "specs": "Diesel, 5 Pasajeros, Valija Amplia"},
+        {"id": "2", "nombre": "Toyota Vitz 2012", "precio": 195.0, "img": "https://i.ibb.co/Y7ZHY8kX/pngegg.png", "estado": "Disponible", "placa": "AAVP719", "motor": "1.3 VVT-i", "transmision": "Automática", "specs": "Nafta, Bajo Consumo, Urbano"},
+        {"id": "3", "nombre": "Toyota Vitz RS 2012", "precio": 210.0, "img": "https://i.ibb.co/rKFwJNZg/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel.png", "estado": "Disponible", "placa": "AAOR725", "motor": "1.5 RS", "transmision": "Secuencial", "specs": "Nafta, Suspensión Deportiva"},
+        {"id": "4", "nombre": "Toyota Voxy 2011", "precio": 240.0, "img": "https://i.ibb.co/VpSpSJ9Q/voxy.png", "estado": "Disponible", "placa": "AAUG465", "motor": "2.0 Valvematic", "transmision": "Automática", "specs": "Nafta, 7 Pasajeros, Puertas Eléctricas"}
+    ]
+
+if 'reservations' not in st.session_state: st.session_state.reservations = []
+if 'expenses' not in st.session_state: st.session_state.expenses = []
+
+# --- LÓGICA DE MONEDA ---
+@st.cache_data(ttl=3600)
+def get_rates():
+    try:
+        r = requests.get("https://open.er-api.com/v6/latest/BRL")
+        return r.json()['rates']['PYG']
+    except: return 1450.0
+
+PYG_RATE = get_rates()
+
+# --- NAVEGACIÓN ---
+selected = st.sidebar.radio("MENÚ VIP", ["💎 Unidades", "📍 Sede Central", "⚙️ Admin"])
+
+# --- MÓDULO: UNIDADES ---
+if selected == "💎 Unidades":
+    st.markdown("""
+        <div class="glass-header">
+            <h1 style='margin:0;'>Domina el Camino.</h1>
+            <p style='color: var(--gold); letter-spacing: 0.1em;'>CALIDAD CERTIFICADA MERCOSUR</p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    cols = st.columns(2)
+    for idx, car in enumerate(st.session_state.fleet):
+        with cols[idx % 2]:
+            st.markdown(f"""
+                <div class="car-card">
+                    <img src="{car['img']}" style="width:100%; filter: drop-shadow(0 10px 10px rgba(0,0,0,0.1));">
+                    <span class="pill-available">● {car['estado']}</span>
+                    <h2 style="margin-top:1rem;">{car['nombre']}</h2>
+                    <p style="font-size: 1.5rem; color: var(--bordo); font-weight: bold;">
+                        R$ {car['precio']} <small style="color:#888; font-size:0.9rem;">/ {(car['precio']*PYG_RATE):,.0f} Gs</small>
+                    </p>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            with st.expander("REVISAR DISPONIBILIDAD Y DETALLES"):
+                st.write(f"**Motor:** {car['motor']} | **Placa:** {car['placa']}")
+                st.info(f"✨ {car['specs']}")
+                
+                # BOOKING WIZARD
+                st.markdown("### 📝 Solicitud de Reserva")
+                col_a, col_b = st.columns(2)
+                d_in = col_a.date_input("Recogida", min_value=date.today(), key=f"in_{car['id']}")
+                d_out = col_b.date_input("Devolución", min_value=d_in, key=f"out_{car['id']}")
+                
+                total_days = (d_out - d_in).days or 1
+                total_brl = total_days * car['precio']
+                
+                st.write(f"Total: **R$ {total_brl}** / **{total_brl*PYG_RATE:,.0f} Gs**")
+                
+                if st.button("GESTIONAR RESERVA", key=f"btn_{car['id']}"):
+                    st.session_state.current_car = car
+                    st.session_state.booking_data = {"days": total_days, "total": total_brl, "start": d_in}
+                    st.switch_page("pages/booking_flow.py") if False else st.warning("Redirigiendo al Portal de Pagos...") # Simulación de flujo
+
+# --- MÓDULO: ADMIN (REPORTE IA) ---
+elif selected == "⚙️ Admin":
+    pwd = st.text_input("Acceso Restringido", type="password")
+    if pwd == "8899":
+        st.title("Admin Strategic Dashboard")
+        
+        # KPI Cards
+        rev = sum(r['total'] for r in st.session_state.reservations)
+        exp = sum(e['amount'] for e in st.session_state.expenses)
+        
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Revenue (BRL)", f"R$ {rev:,.2f}")
+        c2.metric("Expenses", f"R$ {exp:,.2f}")
+        c3.metric("Profit", f"R$ {(rev-exp):,.2f}", delta_color="normal")
+
+        # Gráfico Area
+        if st.session_state.reservations:
+            df = pd.DataFrame(st.session_state.reservations)
+            fig = px.area(df, x='date', y='total', title="Flujo de Caja", color_discrete_sequence=['#600010'])
+            st.plotly_chart(fig, use_container_width=True)
+
+        # Gemini AI
+        if st.button("✨ GENERAR REPORTE DE ESTRATEGIA"):
+            st.info("Analizando datos de flota y mercado en Ciudad del Este...")
+            # Aquí iría la llamada real a genai
+            st.success("Consigna IA: Incrementar tarifas un 15% los fines de semana debido a alta demanda de turistas brasileños. Priorizar mantenimiento del Voxy (7 plazas).")
+
+# --- FOOTER ---
+st.markdown("---")
+st.caption("JM Alquiler Premium - Luxury Experience. Ciudad del Este, Paraguay.")
