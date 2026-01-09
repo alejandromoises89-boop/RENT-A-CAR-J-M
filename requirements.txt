@@ -6,3 +6,4 @@ reportlab
 fpdf
 streamlit-js-eval
 streamlit-drawable-canvas
+google-generativeai
