@@ -178,10 +178,13 @@ with t_res:
                 else:
                     if horario_valido: st.error("Vehículo no disponible en las fechas seleccionadas.")
 
-# --- PESTAÑAS UBICACIÓN Y ADM ---
+# --- PESTAÑAS UBICACIÓN Y ADM (SIN CAMBIOS) ---
 with t_ubi:
     st.markdown("<h3 style='text-align: center; color: #D4AF37;'>NUESTRA UBICACIÓN</h3>", unsafe_allow_html=True)
-    st.markdown('<div style="border: 2px solid #D4AF37; border-radius: 15px; overflow: hidden;"><iframe width="100%" height="400" src="https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d3601.3783350117467!2d-54.614364!3d-25.509062!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1ses!2spy!4v1700000000000"></iframe></div>', unsafe_allow_html=True)
+    st.markdown('<div style="border: 2px solid #D4AF37; border-radius: 15px; overflow: hidden;"><iframe width="100%" height="400" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d57604.246417743!2d-54.67759567832031!3d-25.530374699999997!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f68595fe36b1d1%3A0xce33cb9eeec10b1e!2sCiudad%20del%20Este!5e0!3m2!1ses!2spy!4v1709564821000!5m2!1ses!2spy"></iframe></div>', unsafe_allow_html=True)
+    cs1, cs2 = st.columns(2)
+    cs1.markdown('<a href="https://instagram.com/jm_asociados_consultoria" target="_blank"><div style="background: linear-gradient(45deg, #f09433, #bc1888); color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold;">📸 INSTAGRAM</div></a>', unsafe_allow_html=True)
+    cs2.markdown('<a href="https://wa.me/595991681191" target="_blank"><div style="background-color:#25D366; color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold;">💬 WHATSAPP</div></a>', unsafe_allow_html=True)
 
 with t_adm:
     if st.text_input("Clave de Acceso", type="password") == "8899":
@@ -190,6 +193,102 @@ with t_adm:
         egr_df = pd.read_sql_query("SELECT * FROM egresos", conn)
         flota_adm = pd.read_sql_query("SELECT * FROM flota", conn)
         
-        st.title("📊 PANEL DE CONTROL")
-        st.dataframe(res_df)
+        st.title("📊 PANEL DE CONTROL ESTRATÉGICO")
+
+        # --- SECCIÓN 1: MÉTRICAS FINANCIERAS DUALES ---
+        ing_r = res_df['total'].sum() if not res_df.empty else 0
+        egr_r = egr_df['monto'].sum() if not egr_df.empty else 0
+        util_r = ing_r - egr_r
+
+        c_m1, c_m2, c_m3 = st.columns(3)
+        with c_m1:
+            st.metric("INGRESOS TOTALES", f"R$ {ing_r:,.2f}")
+            st.caption(f"Gs. {ing_r * COTIZACION_DIA:,.0f}")
+        with c_m2:
+            st.metric("GASTOS TOTALES", f"R$ {egr_r:,.2f}")
+            st.caption(f"Gs. {egr_r * COTIZACION_DIA:,.0f}")
+        with c_m3:
+            st.metric("UTILIDAD NETA", f"R$ {util_r:,.2f}")
+            st.caption(f"Gs. {util_r * COTIZACION_DIA:,.0f}")
+
+        # --- SECCIÓN 2: GRÁFICOS Y REPORTES (REINTEGRADO) ---
+        if not res_df.empty:
+            st.subheader("📈 ANÁLISIS DE VENTAS Y TENDENCIAS")
+            res_df['inicio_dt'] = pd.to_datetime(res_df['inicio'])
+            df_plot = res_df.sort_values('inicio_dt')
+            
+            fig_l = px.line(df_plot, x='inicio_dt', y='total', color='auto', markers=True, 
+                           title="Evolución de Ingresos (R$)", labels={'total':'Monto R$', 'inicio_dt':'Fecha'})
+            st.plotly_chart(fig_l, use_container_width=True)
+            
+            csv_data = df_plot.to_csv(index=False).encode('utf-8')
+            st.download_button("📥 Descargar Reporte de Ventas (CSV)", csv_data, "reporte_jm_asociados.csv", "text/csv")
+
+        # --- SECCIÓN 3: AJUSTE DE PRECIOS POR DÍA ---
+        st.subheader("💰 AJUSTE DE PRECIOS DE ALQUILER")
+        with st.expander("Ver y editar precios por día"):
+            for _, f in flota_adm.iterrows():
+                cp1, cp2 = st.columns([3, 1])
+                cp1.write(f"{f['nombre']} ({f['placa']})")
+                nuevo_p = cp2.number_input(f"R$ / día", value=float(f['precio']), key=f"price_{f['nombre']}")
+                if nuevo_p != f['precio']:
+                    conn.execute("UPDATE flota SET precio=? WHERE nombre=?", (nuevo_p, f['nombre']))
+                    conn.commit(); st.rerun()
+
+        # --- SECCIÓN 4: DISPONIBILIDAD (TALLER/DISP) ---
+        st.subheader("🛠️ DISPONIBILIDAD DE VEHÍCULOS")
+        with st.expander("Gestionar Estado (Disponible / En Taller)"):
+            for _, f in flota_adm.iterrows():
+                ca1, ca2, ca3 = st.columns([2, 1, 1])
+                ca1.write(f"{f['nombre']}")
+                ca2.write("🟢 Disponible" if f['estado'] == "Disponible" else "🔴 En Taller")
+                if ca3.button("CAMBIAR", key=f"status_{f['nombre']}"):
+                    nuevo_est = "En Taller" if f['estado'] == "Disponible" else "Disponible"
+                    conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo_est, f['nombre']))
+                    conn.commit(); st.rerun()
+
+        # --- SECCIÓN 5: EGRESOS ---
+        st.subheader("💸 DETALLE DE GASTOS")
+        if not egr_df.empty:
+            egr_df['Gs.'] = egr_df['monto'] * COTIZACION_DIA
+            st.dataframe(egr_df.rename(columns={'monto':'R$', 'concepto':'Detalle'}).style.format({'R$':'{:.2f}', 'Gs.':'{:,.0f}'}))
+        
+        with st.expander("➕ CARGAR NUEVO GASTO"):
+            with st.form("nuevo_g"):
+                d_g = st.text_input("Concepto")
+                cg1, cg2 = st.columns(2)
+                v_gs = cg1.number_input("Monto Gs.", step=1000)
+                v_r = cg2.number_input("Monto R$", step=1.0)
+                if st.form_submit_button("Guardar Gasto"):
+                    final = v_r if v_r > 0 else (v_gs / COTIZACION_DIA)
+                    conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (d_g, final, date.today()))
+                    conn.commit(); st.rerun()
+
+        # --- SECCIÓN 6: BLOQUEO MANUAL Y RESERVAS ---
+        st.subheader("📑 REGISTRO DE RESERVAS Y CONTRATOS")
+        with st.expander("📅 BLOQUEAR CALENDARIO (Contratos Manuales/Viejos)"):
+            with st.form("f_ant"):
+                c_n_m = st.text_input("Nombre Cliente")
+                c_d_m = st.text_input("CPF / Documento")
+                c_a_m = st.selectbox("Vehículo", flota_adm['nombre'].tolist())
+                fi, ff = st.columns(2)
+                d_i = fi.date_input("Inicio")
+                d_f = ff.date_input("Fin")
+                m_r = st.number_input("Monto Cobrado R$", value=0.0)
+                if st.form_submit_button("Registrar y Bloquear"):
+                    conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total) VALUES (?,?,?,?,?,?,?)",
+                                 (f"[M] {c_n_m}", c_d_m, "000", c_a_m, d_i, d_f, m_r))
+                    conn.commit(); st.rerun()
+
+        for _, r in res_df.iterrows():
+            with st.expander(f"Reserva #{r['id']} - {r['cliente']} (DOC: {r['ci']})"):
+                st.write(f"Auto: {r['auto']} | Total: R$ {r['total']} (Gs. {r['total']*COTIZACION_DIA:,.0f})")
+                
+                txt_c = f"CONTRATO J&M ASOCIADOS\n\nCLIENTE: {r['cliente']}\nDOCUMENTO: {r['ci']}\nAUTO: {r['auto']}\nPERIODO: {r['inicio']} al {r['fin']}\nTOTAL: R$ {r['total']}\n\nCLAUSULAS RESUMIDAS:\n1. Alquiler de vehiculo en buen estado.\n2. Arrendatario responsable civil y penalmente.\n3. Límite 200km/día.\n4. Depósito de Gs. 5.000.000 por siniestro.\n5. Valido en Paraguay y MERCOSUR."
+                st.download_button(f"📥 Descargar Contrato {r['id']}", txt_c, file_name=f"Contrato_{r['cliente']}.txt")
+                
+                if r['comprobante']: st.image(r['comprobante'], width=200)
+                if st.button("🗑️ Borrar", key=f"del_{r['id']}"):
+                    conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],))
+                    conn.commit(); st.rerun()
         conn.close()
