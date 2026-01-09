@@ -17,30 +17,27 @@ st.set_page_config(
 # --- ESTILO DORADO BLINDADO ---
 st.markdown("""
     <style>
-    /* Color dorado para todas las etiquetas de campos (Nombre, Fechas, etc) */
     label, .stDateInput label, .stTimeInput label, .stTextInput label, .stSelectbox label, .stNumberInput label {
         color: #D4AF37 !important;
         font-weight: bold !important;
         font-size: 1.1rem !important;
     }
-    /* Color para los títulos de los Expanders */
-    .streamlit-expanderHeader {
+    .streamlit-expanderHeader, button[data-baseweb="tab"] p {
         color: #D4AF37 !important;
         font-weight: bold !important;
     }
-    /* Color de los Tabs (Pestañas) */
-    button[data-baseweb="tab"] p {
-        color: #D4AF37 !important;
-        font-weight: bold !important;
-    }
-    /* Descripciones y subtítulos */
-    .stMarkdown p, .stMarkdown h3 {
-        color: #FFFFFF !important;
-    }
-    /* Ajuste para que el texto dentro de los botones no sea gris */
-    .stButton button {
-        color: white !important;
-        border: 1px solid #D4AF37 !important;
+    .contrato-dorado {
+        background-color: #1a1c23; 
+        color: #D4AF37; 
+        padding: 25px; 
+        border-radius: 10px; 
+        height: 380px; 
+        overflow-y: scroll; 
+        font-family: 'Courier New', monospace; 
+        font-size: 13px; 
+        border: 2px solid #D4AF37; 
+        text-align: justify; 
+        line-height: 1.5;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -56,8 +53,7 @@ def obtener_cotizacion_real_guarani():
         url = "https://open.er-api.com/v6/latest/BRL"
         data = requests.get(url, timeout=5).json()
         return round(data['rates']['PYG'], 0)
-    except:
-        return 1450.0
+    except: return 1450.0
 
 COTIZACION_DIA = obtener_cotizacion_real_guarani()
 DB_NAME = 'jm_corporativo_permanente.db'
@@ -76,10 +72,8 @@ def init_db():
         ("Toyota Vitz Negro", 195.0, "https://i.ibb.co/rKFwJNZg/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel.png", "Disponible", "AAOR725", "Negro"),
         ("Toyota Voxy Gris", 240.0, "https://i.ibb.co/VpSpSJ9Q/voxy.png", "Disponible", "AAUG465", "Gris")
     ]
-    for a in autos:
-        c.execute("INSERT OR IGNORE INTO flota VALUES (?,?,?,?,?,?)", a)
-    conn.commit()
-    conn.close()
+    for a in autos: c.execute("INSERT OR IGNORE INTO flota VALUES (?,?,?,?,?,?)", a)
+    conn.commit(); conn.close()
 
 init_db()
 
@@ -122,54 +116,68 @@ with t_res:
             st.markdown(f'''<div class="card-auto"><h3>{v["nombre"]}</h3><img src="{v["img"]}" width="100%"><p style="font-weight:bold; font-size:20px; color:#D4AF37; margin-bottom:2px;">R$ {v["precio"]} / día</p><p style="color:#28a745; margin-top:0px;">Gs. {precio_gs:,.0f} / día</p></div>''', unsafe_allow_html=True)
             
             with st.expander(f"Ver Disponibilidad"):
-                # Calendario y Selección de Horarios con Dorado Blindado
+                # Calendario Airbnb
+                ocupadas = obtener_fechas_ocupadas(v['nombre'])
+                meses_display = [(date.today().month, date.today().year), ((date.today().month % 12) + 1, date.today().year if date.today().month < 12 else date.today().year + 1)]
+                html_cal = """<style>.airbnb-container { display: flex; flex-direction: row; gap: 25px; overflow-x: auto; padding: 10px 0; }.airbnb-month { min-width: 200px; flex: 1; }.airbnb-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }.airbnb-cell { position: relative; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: white; }.airbnb-raya { position: absolute; width: 100%; height: 2px; background-color: #ff385c; top: 50%; left: 0; z-index: 1; }</style><div class="airbnb-container">"""
+                for m, a in meses_display:
+                    nombre_mes = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"][m-1]
+                    html_cal += f'<div class="airbnb-month"><div style="color:#D4AF37; font-weight:600; margin-bottom:10px; text-transform:capitalize;">{nombre_mes} {a}</div><div class="airbnb-grid">'
+                    for d_nom in ["L","M","M","J","V","S","D"]: html_cal += f'<div style="font-size:11px; color:#888;">{d_nom}</div>'
+                    for semana in calendar.monthcalendar(a, m):
+                        for dia in semana:
+                            if dia == 0: html_cal += '<div></div>'
+                            else:
+                                f_act = date(a, m, dia); es_ocu = f_act in ocupadas; raya = '<div class="airbnb-raya"></div>' if es_ocu else ""
+                                html_cal += f'<div class="airbnb-cell {"airbnb-ocupado" if es_ocu else ""}">{dia}{raya}</div>'
+                    html_cal += '</div></div>'
+                st.markdown(html_cal + "</div>", unsafe_allow_html=True)
+
+                st.divider()
                 c1, c2 = st.columns(2)
                 f_ini = c1.date_input("Fecha Inicio", key=f"d1{v['nombre']}")
                 f_fin = c2.date_input("Fecha Fin", key=f"d2{v['nombre']}")
-
+                
+                # Horarios dinámicos
                 es_finde_i = f_ini.weekday() >= 5
                 es_finde_f = f_fin.weekday() >= 5
                 h_max_i = time(12, 0) if es_finde_i else time(17, 0)
                 h_max_f = time(12, 0) if es_finde_f else time(17, 0)
-                
                 h_ini = c1.time_input(f"Hora Entrega (8:00 - {h_max_i.strftime('%H:%M')})", time(8,0), key=f"h1{v['nombre']}")
                 h_fin = c2.time_input(f"Hora Retorno (8:00 - {h_max_f.strftime('%H:%M')})", h_max_f, key=f"h2{v['nombre']}")
-
-                horario_valido = True
-                if h_ini < time(8,0) or h_ini > h_max_i:
-                    st.error(f"⚠️ Entrega permitida solo de 08:00 a {h_max_i.strftime('%H:%M')}")
-                    horario_valido = False
-                if h_fin < time(8,0) or h_fin > h_max_f:
-                    st.error(f"⚠️ Retorno permitido solo de 08:00 a {h_max_f.strftime('%H:%M')}")
-                    horario_valido = False
 
                 dt_i = datetime.combine(f_ini, h_ini)
                 dt_f = datetime.combine(f_fin, h_fin)
                 
-                if esta_disponible(v['nombre'], dt_i, dt_f) and horario_valido:
+                if esta_disponible(v['nombre'], dt_i, dt_f):
                     c_n = st.text_input("Nombre Completo", key=f"n{v['nombre']}")
                     c_d = st.text_input("CI / Cédula / RG", key=f"d{v['nombre']}")
                     c_w = st.text_input("Número de WhatsApp", key=f"w{v['nombre']}")
                     
                     dias = max(1, (dt_f.date() - dt_i.date()).days)
                     total_r = dias * v['precio']
+                    total_gs = total_r * COTIZACION_DIA
                     
                     if c_n and c_d and c_w:
-                        acepto = st.checkbox("He leído y acepto los términos", key=f"chk{v['nombre']}")
-                        foto = st.file_uploader("Adjuntar Comprobante", key=f"f{v['nombre']}")
+                        st.markdown(f'<div class="contrato-dorado"><b>CONTRATO J&M ASOCIADOS</b><br>Arrendatario: {c_n.upper()}<br>Vehículo: {v["nombre"]}<br>Periodo: {dt_i.strftime("%d/%m/%Y %H:%M")} al {dt_f.strftime("%d/%m/%Y %H:%M")}<br>Total: R$ {total_r}</div>', unsafe_allow_html=True)
+                        acepto = st.checkbox("Acepto términos", key=f"chk{v['nombre']}")
+                        foto = st.file_uploader("Comprobante PIX", key=f"f{v['nombre']}")
                         
                         if st.button("CONFIRMAR RESERVA", key=f"btn{v['nombre']}", disabled=not acepto):
                             if foto:
+                                conn = sqlite3.connect(DB_NAME)
+                                conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante) VALUES (?,?,?,?,?,?,?,?)", (c_n, c_d, c_w, v['nombre'], dt_i, dt_f, total_r, foto.read()))
+                                conn.commit(); conn.close()
+                                
+                                # --- MENSAJE PERSONALIZADO RESTAURADO ---
+                                msg = f"Hola JM, soy {c_n}. He aceptado el contrato.\n🚗 Vehículo: {v['nombre']}\n🗓️ Retiro: {dt_i.strftime('%d/%m/%Y %H:%M')}\n🗓️ Retorno: {dt_f.strftime('%d/%m/%Y %H:%M')}\n💰 Pago Realizado: R$ {total_r}"
+                                link = f"https://wa.me/595991681191?text={urllib.parse.quote(msg)}"
+                                st.markdown(f'<a href="{link}" target="_blank" style="background-color:#25D366; color:white; padding:15px; border-radius:10px; text-align:center; display:block; text-decoration:none; font-weight:bold;">✅ ENVIAR POR WHATSAPP</a>', unsafe_allow_html=True)
                                 st.success("¡Reserva Guardada!")
                             else: st.error("Falta comprobante.")
-                else:
-                    if horario_valido: st.error("Vehículo no disponible.")
 
-# --- PESTAÑAS UBICACIÓN Y ADM ---
-with t_ubi:
-    st.markdown("<h3 style='text-align: center; color: #D4AF37;'>NUESTRA UBICACIÓN</h3>", unsafe_allow_html=True)
-
+# --- UBICACIÓN Y ADMINISTRACIÓN ---
+with t_ubi: st.write("Sección Ubicación")
 with t_adm:
-    if st.text_input("Clave de Acceso", type="password") == "8899":
-        st.markdown("<h2 style='color:#D4AF37;'>Panel de Control</h2>", unsafe_allow_html=True)
-        # El código administrativo se mantiene aquí para ver métricas y gastos.
+    if st.text_input("Clave", type="password") == "8899":
+        st.write("Panel Admin Activo")
