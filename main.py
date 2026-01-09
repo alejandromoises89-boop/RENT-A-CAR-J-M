@@ -10,7 +10,7 @@ import styles
 
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(
-    page_title="JM ASOCIADOS",
+    page_title="JM ALQUILER DE VEHICULOS",
     layout="wide",
     page_icon="https://i.ibb.co/PzsvxYrM/JM-Asociados-Logotipo-02.png")
 
@@ -79,7 +79,7 @@ def esta_disponible(auto, t_ini, t_fin):
     return disponible
 
 # --- INTERFAZ ---
-st.markdown("<h1>JM ASOCIADOS</h1>", unsafe_allow_html=True)
+st.markdown("<h1>JM ALQUILER DE VEHICULOS</h1>", unsafe_allow_html=True)
 t_res, t_ubi, t_adm = st.tabs(["📋 RESERVAS", "📍 UBICACIÓN", "🛡️ ADMINISTRADOR"])
 
 with t_res:
