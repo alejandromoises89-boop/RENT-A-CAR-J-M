@@ -291,4 +291,4 @@ with t_adm:
                 if st.button("🗑️ Borrar", key=f"del_{r['id']}"):
                     conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],))
                     conn.commit(); st.rerun()
-        conn.close()
+        conn.close() 
