@@ -10,7 +10,7 @@ import styles
 
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(
-    page_title="JM ALQUILER DE VEHICULOS",
+    page_title="JM ASOCIADOS",
     layout="wide",
     page_icon="https://i.ibb.co/PzsvxYrM/JM-Asociados-Logotipo-02.png")
 
@@ -35,23 +35,19 @@ DB_NAME = 'jm_corporativo_permanente.db'
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    # Crear tablas
     c.execute('CREATE TABLE IF NOT EXISTS reservas (id INTEGER PRIMARY KEY, cliente TEXT, ci TEXT, celular TEXT, auto TEXT, inicio TIMESTAMP, fin TIMESTAMP, total REAL, comprobante BLOB)')
     c.execute('CREATE TABLE IF NOT EXISTS egresos (id INTEGER PRIMARY KEY, concepto TEXT, monto REAL, fecha DATE)')
     c.execute('CREATE TABLE IF NOT EXISTS flota (nombre TEXT PRIMARY KEY, precio REAL, img TEXT, estado TEXT, placa TEXT, color TEXT)')
     
-    # VERIFICACIÓN: Solo insertar si la tabla flota está vacía
-    c.execute("SELECT COUNT(*) FROM flota")
-    if c.fetchone()[0] == 0:
-        autos = [
-            ("Hyundai Tucson Blanco", 260.0, "https://i.ibb.co/rGJHxvbm/Tucson-sin-fondo.png", "Disponible", "AAVI502", "Blanco"),
-            ("Toyota Vitz Blanco", 195.0, "https://i.ibb.co/Y7ZHY8kX/pngegg.png", "Disponible", "AAVP719", "Blanco"),
-            ("Toyota Vitz Negro", 195.0, "https://i.ibb.co/rKFwJNZg/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel.png", "Disponible", "AAOR725", "Negro"),
-            ("Toyota Voxy Gris", 240.0, "https://i.ibb.co/VpSpSJ9Q/voxy.png", "Disponible", "AAUG465", "Gris")
-        ]
-        c.executemany("INSERT INTO flota VALUES (?,?,?,?,?,?)", autos)
-        conn.commit()
-    
+    autos = [
+        ("Hyundai Tucson Blanco", 260.0, "https://i.ibb.co/rGJHxvbm/Tucson-sin-fondo.png", "Disponible", "AAVI502", "Blanco"),
+        ("Toyota Vitz Blanco", 195.0, "https://i.ibb.co/Y7ZHY8kX/pngegg.png", "Disponible", "AAVP719", "Blanco"),
+        ("Toyota Vitz Negro", 195.0, "https://i.ibb.co/rKFwJNZg/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel.png", "Disponible", "AAOR725", "Negro"),
+        ("Toyota Voxy Gris", 240.0, "https://i.ibb.co/VpSpSJ9Q/voxy.png", "Disponible", "AAUG465", "Gris")
+    ]
+    for a in autos:
+        c.execute("INSERT OR IGNORE INTO flota VALUES (?,?,?,?,?,?)", a)
+    conn.commit()
     conn.close()
 
 init_db()
@@ -83,7 +79,7 @@ def esta_disponible(auto, t_ini, t_fin):
     return disponible
 
 # --- INTERFAZ ---
-st.markdown("<h1>JM ALQUILER DE VEHICULOS</h1>", unsafe_allow_html=True)
+st.markdown("<h1>JM ASOCIADOS</h1>", unsafe_allow_html=True)
 t_res, t_ubi, t_adm = st.tabs(["📋 RESERVAS", "📍 UBICACIÓN", "🛡️ ADMINISTRADOR"])
 
 with t_res:
@@ -95,52 +91,50 @@ with t_res:
             st.markdown(f'''<div class="card-auto"><h3>{v["nombre"]}</h3><img src="{v["img"]}" width="100%"><p style="font-weight:bold; font-size:20px; color:#D4AF37; margin-bottom:2px;">R$ {v["precio"]} / día</p><p style="color:#28a745; margin-top:0px;">Gs. {precio_gs:,.0f} / día</p></div>''', unsafe_allow_html=True)
             
             with st.expander(f"Ver Disponibilidad"):
+                # --- CALENDARIO TIPO AIRBNB (INTACTO) ---
                 ocupadas = obtener_fechas_ocupadas(v['nombre'])
-                meses_display = [(date.today().month, date.today().year), ((date.today().month % 12) + 1, date.today().year if date.today().month < 12 else date.today().year + 1)]
+                meses_display = [
+                    (date.today().month, date.today().year), 
+                    ((date.today().month % 12) + 1, date.today().year if date.today().month < 12 else date.today().year + 1)
+                ]
 
-                html_cal = """<style>.airbnb-container { display: flex; flex-direction: row; gap: 25px; overflow-x: auto; padding: 10px 0; scrollbar-width: none; }.airbnb-month { min-width: 200px; flex: 1; }.airbnb-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }.airbnb-cell { position: relative; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: white; }.airbnb-raya { position: absolute; width: 100%; height: 2px; background-color: #ff385c; top: 50%; left: 0; z-index: 1; }</style><div class="airbnb-container">"""
+                html_cal = """
+                <style>
+                    .airbnb-container { display: flex; flex-direction: row; gap: 25px; overflow-x: auto; padding: 10px 0; scrollbar-width: none; }
+                    .airbnb-month { min-width: 200px; flex: 1; font-family: sans-serif; }
+                    .airbnb-header { font-weight: 600; font-size: 15px; margin-bottom: 12px; color: white; text-transform: capitalize; }
+                    .airbnb-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+                    .airbnb-day-name { font-size: 11px; color: #888; padding-bottom: 5px; }
+                    .airbnb-cell { position: relative; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: white; }
+                    .airbnb-raya { position: absolute; width: 100%; height: 2px; background-color: #ff385c; top: 50%; left: 0; z-index: 1; }
+                    .airbnb-ocupado { color: #555 !important; }
+                </style>
+                <div class="airbnb-container">
+                """
                 for m, a in meses_display:
                     nombre_mes = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"][m-1]
-                    html_cal += f'<div class="airbnb-month"><div style="font-weight: 600; color: white; margin-bottom: 12px; text-transform: capitalize;">{nombre_mes} {a}</div><div class="airbnb-grid">'
-                    for d_nom in ["L","M","M","J","V","S","D"]: html_cal += f'<div style="font-size: 11px; color: #888; padding-bottom: 5px;">{d_nom}</div>'
+                    html_cal += f'<div class="airbnb-month"><div class="airbnb-header">{nombre_mes} {a}</div><div class="airbnb-grid">'
+                    for d_nom in ["L","M","M","J","V","S","D"]:
+                        html_cal += f'<div class="airbnb-day-name">{d_nom}</div>'
                     for semana in calendar.monthcalendar(a, m):
                         for dia in semana:
                             if dia == 0: html_cal += '<div></div>'
                             else:
-                                f_act = date(a, m, dia); es_ocu = f_act in ocupadas; raya = '<div class="airbnb-raya"></div>' if es_ocu else ""
+                                f_act = date(a, m, dia)
+                                es_ocu = f_act in ocupadas
+                                raya = '<div class="airbnb-raya"></div>' if es_ocu else ""
                                 html_cal += f'<div class="airbnb-cell {"airbnb-ocupado" if es_ocu else ""}">{dia}{raya}</div>'
                     html_cal += '</div></div>'
-                st.markdown(html_cal + "</div>", unsafe_allow_html=True)
+                html_cal += '</div>'
+                st.markdown(html_cal, unsafe_allow_html=True)
 
                 st.divider()
                 # --- DATOS DEL CLIENTE ---
                 c1, c2 = st.columns(2)
-                f_ini = c1.date_input("Fecha Inicio", key=f"d1{v['nombre']}")
-                f_fin = c2.date_input("Fecha Fin", key=f"d2{v['nombre']}")
-
-                # --- LÓGICA DE HORARIOS ESPECÍFICA INSERTADA ---
-                es_finde_i = f_ini.weekday() >= 5
-                es_finde_f = f_fin.weekday() >= 5
+                dt_i = datetime.combine(c1.date_input("Inicio", key=f"d1{v['nombre']}"), c1.time_input("Hora 1", time(10,0), key=f"h1{v['nombre']}"))
+                dt_f = datetime.combine(c2.date_input("Fin", key=f"d2{v['nombre']}"), c2.time_input("Hora 2", time(12,0), key=f"h2{v['nombre']}"))
                 
-                h_max_i = time(12, 0) if es_finde_i else time(17, 0)
-                h_max_f = time(12, 0) if es_finde_f else time(17, 0)
-                
-                h_ini = c1.time_input(f"Hora Entrega (8:00 - {h_max_i.strftime('%H:%M')})", time(8,0), key=f"h1{v['nombre']}")
-                h_fin = c2.time_input(f"Hora Retorno (8:00 - {h_max_f.strftime('%H:%M')})", h_max_f, key=f"h2{v['nombre']}")
-
-                # Validación de límites
-                horario_valido = True
-                if h_ini < time(8,0) or h_ini > h_max_i:
-                    st.error(f"⚠️ Entrega permitida solo de 08:00 a {h_max_i.strftime('%H:%M')}")
-                    horario_valido = False
-                if h_fin < time(8,0) or h_fin > h_max_f:
-                    st.error(f"⚠️ Retorno permitido solo de 08:00 a {h_max_f.strftime('%H:%M')}")
-                    horario_valido = False
-
-                dt_i = datetime.combine(f_ini, h_ini)
-                dt_f = datetime.combine(f_fin, h_fin)
-                
-                if esta_disponible(v['nombre'], dt_i, dt_f) and horario_valido:
+                if esta_disponible(v['nombre'], dt_i, dt_f):
                     c_n = st.text_input("Nombre Completo", placeholder="Ej: Guillerme Oliveira", key=f"n{v['nombre']}")
                     c_d = st.text_input("CI / Cédula / RG", key=f"d{v['nombre']}")
                     c_w = st.text_input("Número de WhatsApp", key=f"w{v['nombre']}")
@@ -151,18 +145,32 @@ with t_res:
                     total_gs = total_r * COTIZACION_DIA
                     
                     if c_n and c_d and c_w:
+                        # --- CONTRATO COMPLETO CON SCROLL ---
                         st.markdown(f"""
-                        <div style="background-color: #f9f9f9; color: #333; padding: 25px; border-radius: 10px; height: 380px; overflow-y: scroll; font-family: 'Courier New', monospace; font-size: 13px; border: 2px solid #D4AF37; text-align: justify; line-height: 1.5;">
+                        <div style="background-color: #f9f9f9; color: #333; padding: 25px; border-radius: 10px; height: 380px; overflow-y: scroll; font-family: 'Courier New', monospace; font-size: 13px; border: 2px solid #D4AF37; text-align: justify; line-height: 1.5; -webkit-overflow-scrolling: touch;">
                             <center><b style="font-size: 16px;">CONTRATO DE ALQUILER DE VEHÍCULO Y AUTORIZACIÓN PARA CONDUCIR</b></center><br>
-                            <b>ARRENDADOR:</b> J&M ASOCIADOS. C.I.: 1.702.076-0.<br>
-                            <b>ARRENDATARIO:</b> {c_n.upper()}. Doc: {c_d.upper()}.<br><br>
-                            <b>DURACIÓN:</b> {dias} días. Desde {dt_i.strftime('%d/%m/%Y %H:%M')} hasta {dt_f.strftime('%d/%m/%Y %H:%M')}.<br><br>
-                            <b>PRECIO TOTAL:</b> Gs. {total_gs:,.0f} / R$ {total_r:,.2f}.<br><br>
-                            <b>CLAUSULAS:</b> El arrendatario es responsable civil y penal. Límite 200km diarios. Depósito Gs. 5.000.000 por siniestros.<br>
+                            Entre:<br>
+                            <b>ARRENDADOR:</b> J&M ASOCIADOS. C.I.: 1.702.076-0. Domicilio: CURUPAYTU ESQUINA FARID RAHAL. Tel: +595983635573.<br><br>
+                            <b>Y, ARRENDATARIO:</b> {c_n.upper()}. Doc: {c_d.upper()}. Domicilio: {c_pais.upper()}. Tel: {c_w}.<br><br>
+                            <b>PRIMERA - OBJETO:</b> El arrendador otorga en alquiler: {v['nombre'].upper()}. Chapa: {v['placa']}. Color: {v['color'].upper()}. El vehículo se recibe en perfecto estado con soporte técnico VIDEO. EL ARRENDADOR AUTORIZA LA CONDUCCIÓN EN TODO EL TERRITORIO PARAGUAYO Y MERCOSUR.<br><br>
+                            <b>SEGUNDA - DURACIÓN:</b> {dias} días. Comienza {dt_i.strftime('%d/%m/%Y')} {dt_i.strftime('%H:%M')}hs y finaliza {dt_f.strftime('%d/%m/%Y')} {dt_f.strftime('%H:%M')}hs.<br><br>
+                            <b>TERCERA - PRECIO:</b> Gs. {v['precio'] * COTIZACION_DIA:,.0f} por día. <b>TOTAL: Gs. {total_gs:,.0f}</b>.<br><br>
+                            <b>CUARTA - DEPÓSITO:</b> Gs. 5.000.000 en caso de siniestro (accidente).<br><br>
+                            <b>QUINTA - CONDICIONES:</b> El ARRENDATARIO es responsable PENAL y CIVIL de todo lo ocurrido dentro del vehículo y lo encontrado en él.<br><br>
+                            <b>SEXTA - KILOMETRAJE:</b> Límite 200km/día. Excedente: 100.000 Gs adicionales.<br><br>
+                            <b>SÉPTIMA - SEGURO:</b> Cobertura civil y accidentes. El arrendatario responde por daños por negligencia.<br><br>
+                            <b>OCTAVA - MANTENIMIENTO:</b> El arrendatario mantiene agua, combustible y limpieza.<br><br>
+                            <b>UNDÉCIMA - JURISDICCIÓN:</b> Tribunales del Alto Paraná, Paraguay.<br><br>
+                            <b>DÉCIMA SEGUNDA:</b> Ambas partes firman en Ciudad del Este el {date.today().strftime('%d/%m/%Y')}.<br><br>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>________<br>J&M ASOCIADOS<br>Arrendador</span>
+                                <span>________<br>{c_n.upper()}<br>Arrendatario</span>
+                            </div>
                         </div>
                         """, unsafe_allow_html=True)
                         
                         acepto = st.checkbox("He leído y acepto los términos del contrato.", key=f"chk{v['nombre']}")
+                        
                         st.markdown(f'<div style="background-color:#1a1c23; padding:15px; border-radius:10px; border:1px solid #D4AF37; margin-top:10px;"><b>PAGO PIX: R$ {total_r}</b><br>Llave: 24510861818 - Marina Baez</div>', unsafe_allow_html=True)
                         
                         foto = st.file_uploader("Adjuntar Comprobante", key=f"f{v['nombre']}")
@@ -173,14 +181,14 @@ with t_res:
                                 conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante) VALUES (?,?,?,?,?,?,?,?)", 
                                              (c_n, c_d, c_w, v['nombre'], dt_i, dt_f, total_r, foto.read()))
                                 conn.commit(); conn.close()
-                                texto_wa = f"Hola JM, soy {c_n}.\nHe aceptado el contrato.\n🚗 Vehículo: {v['nombre']}\n🗓️ Periodo: {dt_i.strftime('%d/%m/%Y %H:%M')} al {dt_f.strftime('%d/%m/%Y %H:%M')}\n💰 Total: R$ {total_r}"
+                                texto_wa = f"Hola JM, soy {c_n}.\nHe leído el contrato y acepto los términos.\n🚗 Vehículo: {v['nombre']}\n🗓️ Periodo: {dt_i.strftime('%d/%m/%Y')} al {dt_f.strftime('%d/%m/%Y')}\n💰 Total: R$ {total_r}\nAdjunto mi comprobante."
                                 link_wa = f"https://wa.me/595991681191?text={urllib.parse.quote(texto_wa)}"
                                 st.markdown(f'<a href="{link_wa}" target="_blank" style="background-color:#25D366; color:white; padding:15px; border-radius:10px; text-align:center; display:block; text-decoration:none; font-weight:bold;">✅ ENVIAR POR WHATSAPP</a>', unsafe_allow_html=True)
                                 st.success("¡Reserva Guardada!")
                             else:
                                 st.error("Por favor, adjunte el comprobante.")
                 else:
-                    if horario_valido: st.error("Vehículo no disponible en las fechas seleccionadas.")
+                    st.error("Vehículo no disponible en las fechas seleccionadas.")
 
 # --- PESTAÑAS UBICACIÓN Y ADM (SIN CAMBIOS) ---
 with t_ubi:
@@ -295,4 +303,4 @@ with t_adm:
                 if st.button("🗑️ Borrar", key=f"del_{r['id']}"):
                     conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],))
                     conn.commit(); st.rerun()
-        conn.close() 
+        conn.close()
