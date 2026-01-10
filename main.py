@@ -4,7 +4,6 @@ import plotly.express as px
 import requests
 from datetime import datetime, date, time
 from streamlit_drawable_canvas import st_canvas
-from streamlit_gsheets import GSheetsConnection
 
 # --- CONFIGURACIÓN DE PÁGINA Y ESTILO ---
 st.set_page_config(page_title="JM Alquiler | Triple Frontera VIP", layout="wide", page_icon="🚗")
