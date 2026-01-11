@@ -1,14 +1,16 @@
 import streamlit as st
 import pandas as pd
+import sqlite3
 import plotly.express as px
 import google.generativeai as genai
 from streamlit_drawable_canvas import st_canvas
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, time
 import uuid
 import json
 import requests
-import time
 import os
+import calendar
+import urllib.parse
 
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(
@@ -27,279 +29,231 @@ COLORS = {
     "dark": "#1A1A1A"
 }
 
-DATA_FILE = "jm_premium_data.json"
+DB_NAME = 'jm_corporativo_v3.db'
 ADMIN_KEY = "8899"
 CORPORATE_WA = "595991681191"
 
-# CSS Personalizado para Look SPA de Lujo
+# --- ESTILOS CSS PREMIUM ---
 st.markdown(f"""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@300;400;600&display=swap');
-    
     .stApp {{ background-color: {COLORS['ivory']}; font-family: 'Inter', sans-serif; }}
+    h1, h2, h3 {{ font-family: 'Playfair Display', serif; color: {COLORS['bordo']}; }}
     
-    h1, h2, h3, .luxury-text {{ font-family: 'Playfair Display', serif; color: {COLORS['bordo']}; }}
-    
-    /* Tarjeta de Vehículo Asimétrica */
     .vehicle-container {{
-        background: white;
-        border-radius: 30px;
-        padding: 25px;
-        margin-bottom: 30px;
-        border-left: 8px solid {COLORS['bordo']};
-        box-shadow: 0 15px 35px rgba(0,0,0,0.05);
-        transition: transform 0.3s ease;
+        background: white; border-radius: 30px; padding: 25px; margin-bottom: 30px;
+        border-left: 8px solid {COLORS['bordo']}; box-shadow: 0 15px 35px rgba(0,0,0,0.05);
     }}
-    .vehicle-container:hover {{ transform: scale(1.01); border-left-color: {COLORS['gold']}; }}
-    
-    /* Botones */
     .stButton>button {{
         background: linear-gradient(135deg, {COLORS['bordo']} 0%, #3a000a 100%);
-        color: white; border-radius: 12px; border: none;
-        padding: 15px; font-weight: 600; letter-spacing: 1px; width: 100%;
+        color: white; border-radius: 12px; border: none; padding: 12px; font-weight: 600;
     }}
-    .stButton>button:hover {{ background: {COLORS['gold']}; color: white; border: none; }}
+    .stButton>button:hover {{ background: {COLORS['gold']}; color: white; }}
     
-    /* Indicadores */
-    .status-pill {{
-        padding: 5px 15px; border-radius: 20px; font-size: 0.7rem; font-weight: bold;
-        text-transform: uppercase; letter-spacing: 1px;
-    }}
-    .available {{ background: #e6fffa; color: #234e52; }}
-    .maintenance {{ background: #fff5f5; color: #742a2a; }}
+    /* Airbnb Calendar Style */
+    .airbnb-container {{ display: flex; gap: 20px; overflow-x: auto; padding: 10px; }}
+    .airbnb-month {{ background: #1a1c23; padding: 15px; border-radius: 15px; min-width: 250px; }}
+    .airbnb-grid {{ display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; text-align: center; }}
+    .airbnb-cell {{ position: relative; color: white; font-size: 12px; padding: 5px; }}
+    .airbnb-ocupado {{ color: #ff385c; text-decoration: line-through; opacity: 0.5; }}
+    .airbnb-raya {{ position: absolute; width: 100%; height: 2px; background: #ff385c; top: 50%; left: 0; }}
     </style>
 """, unsafe_allow_html=True)
 
-# --- LÓGICA DE DATOS ---
-
-def get_default_data():
-    return {
-        "fleet": [
-            {"id": "1", "nombre": "Hyundai Tucson 2012", "precio": 260.0, "img": "https://i.ibb.co/rGJHxvbm/Tucson-sin-fondo.png", "estado": "Disponible", "placa": "AAVI502", "specs": {"trans": "Automática", "fuel": "Diesel", "pax": 5}},
-            {"id": "2", "nombre": "Toyota Vitz 2012", "precio": 195.0, "img": "https://i.ibb.co/Y7ZHY8kX/pngegg.png", "estado": "Disponible", "placa": "AAVP719", "specs": {"trans": "Automática", "fuel": "Nafta", "pax": 5}},
-            {"id": "3", "nombre": "Toyota Vitz RS 2012", "precio": 195.0, "img": "https://i.ibb.co/rKFwJNZg/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel.png", "estado": "Disponible", "placa": "AAOR725", "specs": {"trans": "Secuencial", "fuel": "Nafta", "pax": 5}},
-            {"id": "4", "nombre": "Toyota Voxy 2011", "precio": 240.0, "img": "https://i.ibb.co/VpSpSJ9Q/voxy.png", "estado": "Disponible", "placa": "AAUG465", "specs": {"trans": "Automática", "fuel": "Nafta", "pax": 7}}
-        ],
-        "reservations": [],
-        "expenses": []
-    }
-
-def init_session():
-    if 'data' not in st.session_state:
-        if os.path.exists(DATA_FILE):
-            try:
-                with open(DATA_FILE, "r") as f:
-                    st.session_state.data = json.load(f)
-            except:
-                st.session_state.data = get_default_data()
-        else:
-            st.session_state.data = get_default_data()
+# --- LÓGICA DE BASE DE DATOS ---
+def init_db():
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS reservas 
+                 (id TEXT PRIMARY KEY, cliente TEXT, ci TEXT, celular TEXT, auto TEXT, 
+                  inicio TIMESTAMP, fin TIMESTAMP, total REAL, comprobante BLOB, status TEXT)''')
+    c.execute('CREATE TABLE IF NOT EXISTS egresos (id TEXT PRIMARY KEY, concepto TEXT, monto REAL, fecha DATE)')
+    c.execute('CREATE TABLE IF NOT EXISTS flota (nombre TEXT PRIMARY KEY, precio REAL, img TEXT, estado TEXT, placa TEXT, specs TEXT)')
     
-    if 'view' not in st.session_state: st.session_state.view = 'HOME'
-    if 'rates' not in st.session_state: st.session_state.rates = {"PYG": 1460}
+    # Datos iniciales de flota
+    autos = [
+        ("Hyundai Tucson 2012", 260.0, "https://i.ibb.co/rGJHxvbm/Tucson-sin-fondo.png", "Disponible", "AAVI502", '{"trans": "Auto", "fuel": "Diesel", "pax": 5}'),
+        ("Toyota Vitz 2012", 195.0, "https://i.ibb.co/Y7ZHY8kX/pngegg.png", "Disponible", "AAVP719", '{"trans": "Auto", "fuel": "Nafta", "pax": 5}'),
+        ("Toyota Vitz RS 2012", 195.0, "https://i.ibb.co/rKFwJNZg/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel.png", "Disponible", "AAOR725", '{"trans": "Secuencial", "fuel": "Nafta", "pax": 5}'),
+        ("Toyota Voxy 2011", 240.0, "https://i.ibb.co/VpSpSJ9Q/voxy.png", "Disponible", "AAUG465", '{"trans": "Auto", "fuel": "Nafta", "pax": 7}')
+    ]
+    for a in autos:
+        c.execute("INSERT OR IGNORE INTO flota VALUES (?,?,?,?,?,?)", a)
+    conn.commit()
+    conn.close()
 
-def save_db():
-    with open(DATA_FILE, "w") as f:
-        json.dump(st.session_state.data, f, indent=4)
-
-def get_rates():
+# --- FUNCIONES AUXILIARES ---
+def get_cotizacion():
     try:
-        r = requests.get("https://open.er-api.com/v6/latest/BRL", timeout=5).json()
-        st.session_state.rates["PYG"] = r['rates']['PYG']
-    except: pass
+        return requests.get("https://open.er-api.com/v6/latest/BRL").json()['rates']['PYG']
+    except: return 1460.0
 
-# --- COMPONENTES DE INTERFAZ ---
+def get_fechas_ocupadas(auto):
+    conn = sqlite3.connect(DB_NAME)
+    df = pd.read_sql_query("SELECT inicio, fin FROM reservas WHERE auto = ?", conn, params=(auto,))
+    conn.close()
+    ocupadas = set()
+    for _, r in df.iterrows():
+        start, end = pd.to_datetime(r['inicio']).date(), pd.to_datetime(r['fin']).date()
+        for i in range((end - start).days + 1): ocupadas.add(start + timedelta(days=i))
+    return ocupadas
 
-def render_header():
-    col_logo, col_text, col_rate = st.columns([1, 4, 2])
-    with col_logo:
-        st.image("https://i.ibb.co/PzsvxYrM/JM-Asociados-Logotipo-02.png", width=80)
-    with col_text:
-        st.markdown(f"<h1 style='margin:0;'>JM <span style='color:{COLORS['gold']}'>ALQUILER</span></h1>", unsafe_allow_html=True)
-        st.markdown("<p style='letter-spacing:4px; font-size:0.7rem; color:gray; margin:0;'>TRIPLE FRONTERA VIP SERVICE</p>", unsafe_allow_html=True)
-    with col_rate:
+# --- INICIALIZACIÓN ---
+init_db()
+if 'view' not in st.session_state: st.session_state.view = 'HOME'
+if 'cotizacion' not in st.session_state: st.session_state.cotizacion = get_cotizacion()
+
+# --- HEADER Y NAVEGACIÓN ---
+col_l, col_r = st.columns([4, 1])
+with col_l:
+    st.markdown(f"<h1>JM <span style='color:{COLORS['gold']}'>ALQUILER</span></h1>", unsafe_allow_html=True)
+with col_r:
+    st.markdown(f"**1 BRL = {st.session_state.cotizacion:,.0f} PYG**")
+
+nav = st.columns(4)
+if nav[0].button("🚗 FLOTA"): st.session_state.view = 'HOME'; st.rerun()
+if nav[1].button("📍 SEDE"): st.session_state.view = 'MAP'; st.rerun()
+if nav[2].button("🔐 ADMIN"): st.session_state.view = 'ADMIN'; st.rerun()
+if nav[3].button("🔄"): st.session_state.cotizacion = get_cotizacion(); st.rerun()
+st.divider()
+
+# --- VISTA: HOME (FLOTA) ---
+if st.session_state.view == 'HOME':
+    conn = sqlite3.connect(DB_NAME)
+    flota = pd.read_sql_query("SELECT * FROM flota", conn)
+    conn.close()
+
+    for _, car in flota.iterrows():
+        specs = json.loads(car['specs'])
+        col_img, col_info = st.columns([1.5, 2])
+        with col_img:
+            st.image(car['img'], use_container_width=True)
+        with col_info:
+            st.markdown(f"""
+                <div class="vehicle-container">
+                    <h2 style="margin:0;">{car['nombre']}</h2>
+                    <p style="color:{COLORS['gold']}; font-weight:bold;">{car['placa']}</p>
+                    <div style="display:flex; justify-content:space-between; margin:15px 0;">
+                        <span>👤 {specs['pax']} Pax</span> <span>⚙️ {specs['trans']}</span> <span>⛽ {specs['fuel']}</span>
+                    </div>
+                    <h3 style="margin:0;">R$ {car['precio']} <small style="font-size:12px; color:gray;">/ día</small></h3>
+                    <p style="color:green;">Gs. {car['precio'] * st.session_state.cotizacion:,.0f} aprox.</p>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            with st.expander("Ver Disponibilidad y Reservar"):
+                ocupadas = get_fechas_ocupadas(car['nombre'])
+                # Calendario Airbnb
+                cal_html = '<div class="airbnb-container">'
+                for m_add in [0, 1]:
+                    target_date = date.today() + timedelta(days=30*m_add)
+                    m, y = target_date.month, target_date.year
+                    cal_html += f'<div class="airbnb-month"><div style="color:white; text-align:center; margin-bottom:10px;">{calendar.month_name[m]} {y}</div><div class="airbnb-grid">'
+                    for d in ["L","M","M","J","V","S","D"]: cal_html += f'<div style="color:gray; font-size:10px;">{d}</div>'
+                    for week in calendar.monthcalendar(y, m):
+                        for day in week:
+                            if day == 0: cal_html += '<div></div>'
+                            else:
+                                curr = date(y, m, day)
+                                cl = "airbnb-ocupado" if curr in ocupadas else ""
+                                cal_html += f'<div class="airbnb-cell {cl}">{day}</div>'
+                    cal_html += '</div></div>'
+                st.markdown(cal_html + '</div>', unsafe_allow_html=True)
+                
+                # Formulario
+                f1, f2 = st.columns(2)
+                ini_d = f1.date_input("Inicio", key=f"id_{car['nombre']}")
+                fin_d = f2.date_input("Fin", key=f"fd_{car['nombre']}")
+                
+                # Lógica de Horarios
+                h_max = time(12, 0) if ini_d.weekday() >= 5 else time(17, 0)
+                ini_t = f1.time_input("Entrega (8:00 a "+h_max.strftime("%H:%M")+")", time(9,0), key=f"it_{car['nombre']}")
+                fin_t = f2.time_input("Retorno", time(9,0), key=f"ft_{car['nombre']}")
+                
+                if st.button("PROCEDER A RESERVA", key=f"btn_{car['nombre']}"):
+                    if any(ini_d + timedelta(days=i) in ocupadas for i in range((fin_d - ini_d).days + 1)):
+                        st.error("Fechas ocupadas")
+                    else:
+                        st.session_state.booking_data = {
+                            "car": car['nombre'], "precio": car['precio'],
+                            "inicio": datetime.combine(ini_d, ini_t),
+                            "fin": datetime.combine(fin_d, fin_t)
+                        }
+                        st.session_state.view = 'BOOKING'; st.rerun()
+
+# --- VISTA: RESERVA (BOOKING WIZARD) ---
+elif st.session_state.view == 'BOOKING':
+    data = st.session_state.booking_data
+    st.markdown(f"### Confirmando: {data['car']}")
+    
+    col_a, col_b = st.columns([2, 1])
+    with col_a:
+        nombre = st.text_input("Nombre Completo")
+        doc = st.text_input("Documento (CI/RG/Pasaporte)")
+        wa = st.text_input("WhatsApp")
+        st.write("Firma el contrato digitalmente:")
+        canvas = st_canvas(stroke_width=2, stroke_color="#000", background_color="#fff", height=150, key="signature")
+        
+    with col_b:
+        dias = max(1, (data['fin'] - data['inicio']).days)
+        total = dias * data['precio']
         st.markdown(f"""
-            <div style="background:white; border:1px solid #eee; padding:10px; border-radius:15px; text-align:center;">
-                <small style="color:gray;">Cotización Hoy</small><br>
-                <b style="color:{COLORS['bordo']}; font-size:1.1rem;">1 BRL = Gs. {st.session_state.rates['PYG']:,}</b>
+            <div style="background:white; padding:20px; border-radius:15px; border:1px solid {COLORS['gold']};">
+                <h4>Resumen</h4>
+                <p>Periodo: {dias} días</p>
+                <p>Total R$: {total:,.2f}</p>
+                <p>Total Gs: {total * st.session_state.cotizacion:,.0f}</p>
+                <small>Pago vía PIX: 24510861818</small>
             </div>
         """, unsafe_allow_html=True)
-
-def render_nav():
-    st.write("")
-    c1, c2, c3, c4, _ = st.columns([1,1,1,1,3])
-    if c1.button("🚗 FLOTA"): st.session_state.view = 'HOME'; st.rerun()
-    if c2.button("📍 SEDE"): st.session_state.view = 'MAP'; st.rerun()
-    if c3.button("🔐 ADMIN"): st.session_state.view = 'ADMIN'; st.rerun()
-    if c4.button("🔄"): get_rates(); st.rerun()
-    st.divider()
-
-# --- VISTAS ---
-
-def view_home():
-    st.markdown("<h2 style='text-align:center;'>Vehículos Disponibles</h2>", unsafe_allow_html=True)
-    
-    for car in st.session_state.data['fleet']:
-        with st.container():
-            # Diseño Asimétrico: Imagen izquierda, Info derecha
-            col_img, col_info = st.columns([1.5, 2])
-            
-            with col_img:
-                st.image(car['img'], use_container_width=True)
-            
-            with col_info:
-                status_class = "available" if car['estado'] == "Disponible" else "maintenance"
-                st.markdown(f"""
-                    <div class="vehicle-container">
-                        <span class="status-pill {status_class}">{car['estado']}</span>
-                        <h2 style="margin:10px 0;">{car['nombre']}</h2>
-                        <p style="color:gray; font-size:0.9rem;">Placa: <b>{car['placa']}</b></p>
-                        <div style="display:flex; justify-content:space-between; margin:20px 0;">
-                            <div><small>👤</small><br><b>{car['specs']['pax']} Pasajeros</b></div>
-                            <div><small>⚙️</small><br><b>{car['specs']['trans']}</b></div>
-                            <div><small>⛽</small><br><b>{car['specs']['fuel']}</b></div>
-                        </div>
-                        <div style="display:flex; align-items:flex-end; gap:10px;">
-                            <span style="font-size:2rem; font-weight:bold; color:{COLORS['bordo']};">R$ {car['precio']}</span>
-                            <span style="color:gray; margin-bottom:10px;">/ día</span>
-                        </div>
-                        <p style="color:{COLORS['gold']}; font-weight:bold;">Aprox. Gs. {(car['precio'] * st.session_state.rates['PYG']):,.0f}</p>
-                    </div>
-                """, unsafe_allow_html=True)
-                
-                if car['estado'] == "Disponible":
-                    if st.button(f"SOLICITAR RESERVA", key=f"btn_{car['id']}"):
-                        st.session_state.selected_car = car
-                        st.session_state.view = 'BOOKING'
-                        st.rerun()
-                else:
-                    st.button("NO DISPONIBLE", disabled=True, key=f"dis_{car['id']}")
-
-def view_booking():
-    car = st.session_state.get('selected_car')
-    if not car: st.session_state.view = 'HOME'; st.rerun()
-    
-    st.markdown(f"## 📝 Reserva de {car['nombre']}")
-    
-    col_form, col_summary = st.columns([2, 1])
-    
-    with col_form:
-        st.subheader("Datos del Arrendatario")
-        c1, c2 = st.columns(2)
-        nombre = c1.text_input("Nombre Completo")
-        documento = c2.text_input("CI / Pasaporte")
-        whatsapp = c1.text_input("WhatsApp (con código de país)")
-        metodo = c2.selectbox("Forma de Pago", ["PIX", "Efectivo", "Transferencia", "Tarjeta"])
+        comprobante = st.file_uploader("Adjuntar Comprobante")
         
-        st.subheader("Período de Alquiler")
-        fechas = st.date_input("Rango de Fechas", [date.today(), date.today() + timedelta(days=3)])
-        
-        st.subheader("Firma del Contrato")
-        st.write("Dibuja tu firma abajo:")
-        canvas_result = st_canvas(
-            stroke_width=2, stroke_color="#000", background_color="#fff",
-            height=150, key="signature", drawing_mode="freedraw"
-        )
-        
-    with col_summary:
-        st.markdown(f"""
-            <div style="background:white; padding:20px; border-radius:20px; border:1px solid {COLORS['gold']};">
-                <h3 style="margin-top:0;">Resumen</h3>
-                <p>Vehículo: <b>{car['nombre']}</b></p>
-                <hr>
-        """, unsafe_allow_html=True)
-        
-        if len(fechas) == 2:
-            dias = (fechas[1] - fechas[0]).days or 1
-            total_brl = dias * car['precio']
-            st.write(f"Días: **{dias}**")
-            st.write(f"Total: **R$ {total_brl:,.2f}**")
-            st.write(f"Total Gs: **{total_brl * st.session_state.rates['PYG']:,.0f}**")
-        
-        if st.button("CONFIRMAR ALQUILER"):
-            if not nombre or not whatsapp or not canvas_result.json_data:
-                st.error("Por favor, completa todos los campos y firma.")
+        if st.button("CONFIRMAR TODO"):
+            if not (nombre and doc and wa and comprobante): st.error("Faltan datos")
             else:
-                new_id = str(uuid.uuid4())[:8]
-                reserva = {
-                    "id": new_id, "cliente": nombre, "doc": documento, "carro": car['nombre'],
-                    "inicio": str(fechas[0]), "fin": str(fechas[1]), "total": total_brl,
-                    "status": "Confirmado", "pago": metodo
-                }
-                st.session_state.data['reservations'].append(reserva)
-                save_db()
-                
-                # Link WhatsApp
-                msg = f"*RESERVA JM ALQUILER*\nID: {new_id}\nCliente: {nombre}\nAuto: {car['nombre']}\nTotal: R$ {total_brl}"
-                st.balloons()
-                st.success("¡Reserva guardada!")
-                st.markdown(f"[📲 Enviar Comprobante al WhatsApp](https://wa.me/{CORPORATE_WA}?text={requests.utils.quote(msg)})")
-                time.sleep(4)
-                st.session_state.view = 'HOME'
-                st.rerun()
+                conn = sqlite3.connect(DB_NAME)
+                res_id = str(uuid.uuid4())[:8]
+                conn.execute("INSERT INTO reservas VALUES (?,?,?,?,?,?,?,?,?,?)", 
+                             (res_id, nombre, doc, wa, data['car'], data['inicio'], data['fin'], total, comprobante.read(), "Pendiente"))
+                conn.commit(); conn.close()
+                st.balloons(); st.success("Reserva Enviada")
+                wa_msg = urllib.parse.quote(f"Hola JM, reserva de {nombre} para {data['car']}. ID: {res_id}")
+                st.markdown(f'<a href="https://wa.me/{CORPORATE_WA}?text={wa_msg}" target="_blank">ENVIAR WHATSAPP</a>', unsafe_allow_html=True)
 
-def view_admin():
-    if st.text_input("Clave Maestra", type="password") != ADMIN_KEY:
-        st.warning("Acceso restringido")
-        return
-
-    st.markdown("## 🛡️ Panel de Control")
-    
-    # Métricas
-    df_res = pd.DataFrame(st.session_state.data['reservations'])
-    df_exp = pd.DataFrame(st.session_state.data['expenses'])
-    
-    m1, m2, m3 = st.columns(3)
-    rev = df_res['total'].sum() if not df_res.empty else 0
-    m1.metric("Ingresos (BRL)", f"R$ {rev:,.2f}")
-    m2.metric("Gastos", f"{len(df_exp)}")
-    m3.metric("Ocupación", f"{len(df_res)}")
-
-    tab1, tab2, tab3 = st.tabs(["📋 Reservas", "🚗 Flota", "💸 Gastos"])
-    
-    with tab1:
-        st.dataframe(df_res, use_container_width=True)
-        if st.button("✨ Analizar con Gemini AI"):
-            st.info("Función de análisis inteligente activada. (Requiere API Key en secrets)")
-
-    with tab2:
-        for i, v in enumerate(st.session_state.data['fleet']):
-            col1, col2 = st.columns([3, 1])
-            col1.write(f"**{v['nombre']}** ({v['placa']})")
-            new_st = col2.selectbox("Estado", ["Disponible", "Taller"], 
-                                    index=0 if v['estado']=="Disponible" else 1, key=f"v_{i}")
-            if new_st != v['estado']:
-                st.session_state.data['fleet'][i]['estado'] = new_st
-                save_db(); st.rerun()
-
-    with tab3:
-        with st.form("gasto_nuevo"):
-            d = st.text_input("Descripción")
-            m = st.number_input("Monto BRL")
-            if st.form_submit_button("Añadir Gasto"):
-                st.session_state.data['expenses'].append({"item": d, "monto": m, "fecha": str(date.today())})
-                save_db(); st.rerun()
-        st.table(df_exp)
-
-# --- FLUJO PRINCIPAL ---
-init_session()
-render_header()
-render_nav()
-
-if st.session_state.view == 'HOME':
-    view_home()
-elif st.session_state.view == 'BOOKING':
-    view_booking()
+# --- VISTA: ADMIN ---
 elif st.session_state.view == 'ADMIN':
-    view_admin()
-elif st.session_state.view == 'MAP':
-    st.markdown("### 📍 Nuestra Ubicación")
-    st.markdown("Av. Aviadores del Chaco c/ Av. Monseñor Rodriguez - Ciudad del Este")
-    st.map(pd.DataFrame({'lat': [-25.509], 'lon': [-54.611]}))
+    if st.text_input("Password", type="password") == ADMIN_KEY:
+        conn = sqlite3.connect(DB_NAME)
+        res_df = pd.read_sql_query("SELECT * FROM reservas", conn)
+        exp_df = pd.read_sql_query("SELECT * FROM egresos", conn)
+        
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Ingresos R$", f"{res_df['total'].sum():,.2f}")
+        m2.metric("Egresos R$", f"{exp_df['monto'].sum():,.2f}")
+        
+        # IA Gemini
+        if st.button("✨ Generar Análisis IA"):
+            try:
+                genai.configure(api_key=st.secrets["GEMINI_KEY"])
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                report = model.generate_content(f"Analiza estas ventas: {res_df[['auto', 'total']].to_json()}")
+                st.info(report.text)
+            except: st.error("Configura GEMINI_KEY en Secrets")
 
-st.markdown(f"""
-    <div style="text-align:center; padding: 40px; color: gray; font-size: 0.8rem; border-top: 1px solid #eee; margin-top: 50px;">
-        JM ALQUILER PREMIUM &copy; 2026 - Ciudad del Este, Paraguay<br>
-        <span style="color:{COLORS['gold']}">Excelencia en Movilidad VIP</span>
-    </div>
-""", unsafe_allow_html=True)
+        st.subheader("Gestión de Flota")
+        flota_adm = pd.read_sql_query("SELECT * FROM flota", conn)
+        for _, f in flota_adm.iterrows():
+            c1, c2, c3 = st.columns([2,1,1])
+            c1.write(f"{f['nombre']} - {f['estado']}")
+            if c3.button("🔧 Cambiar Estado", key=f"st_{f['nombre']}"):
+                nuevo = "En Taller" if f['estado']=="Disponible" else "Disponible"
+                conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo, f['nombre']))
+                conn.commit(); st.rerun()
+        
+        st.subheader("Reservas Recientes")
+        st.dataframe(res_df)
+        conn.close()
+
+elif st.session_state.view == 'MAP':
+    st.markdown("### Nuestra Sede - Ciudad del Este")
+    st.map(pd.DataFrame({'lat': [-25.509], 'lon': [-54.611]}))
