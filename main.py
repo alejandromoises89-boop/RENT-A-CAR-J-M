@@ -8,7 +8,6 @@ import urllib.parse
 import calendar
 import styles
 import streamlit as st
-from streamlit_gsheets
 import GSheetsConnection
 
 
