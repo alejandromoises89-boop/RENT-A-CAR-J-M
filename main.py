@@ -8,30 +8,8 @@ import urllib.parse
 import calendar
 import styles
 import streamlit as st
-from streamlit_gsheets import GSheetsConnection
-
-# Título para tu app de alquileres
-st.title("🚗 Control de Alquileres de Vehículos")
-
-# Crear la conexión usando la configuración de Secrets
-conn = st.connection("gsheets", type=GSheetsConnection)
-
-# Leer los datos de la hoja "GENERAL" (que es la que tienes en tu Excel)
-# Nota: Si tu hoja tiene un nombre específico, puedes indicarlo con worksheet="NOMBRE"
-df = conn.read(ttl="10m") # ttl="10m" hace que los datos se actualicen cada 10 min
-
-# Limpiar filas vacías si las hay
-df = df.dropna(how="all")
-
-# Mostrar los datos en una tabla interactiva
-st.subheader("Listado General de Alquileres")
-st.dataframe(df, use_container_width=True)
-
-# Ejemplo: Buscar por nombre de cliente
-busqueda = st.text_input("Buscar cliente por nombre:")
-if busqueda:
-    resultados = df[df['NOMBRE'].str.contains(busqueda, case=False, na=False)]
-    st.write(resultados)
+from streamlit_gsheets
+import GSheetsConnection
 
 
 # --- CONFIGURACIÓN DE PÁGINA ---
