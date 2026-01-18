@@ -21,12 +21,12 @@ st.set_page_config(
     layout="wide",
     page_icon="https://i.ibb.co/PzsvxYrM/JM-Asociados-Logotipo-02.png")
 
-# --- FUNCIONES GOOGLE SHEETS (UNIFICADAS Y CORREGIDAS) ---
+# --- FUNCIONES GOOGLE SHEETS ---
 def conectar_google_sheets():
     scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
     creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
     client = gspread.authorize(creds)
-    spreadsheet = client.open("LISTA DE ALQUILERES DE VEHICULOS")
+    spreadsheet = client.open("LISTA ALQUILERES DE VEHICULOS-")
     return spreadsheet
 
 def obtener_datos_cloud():
@@ -35,14 +35,34 @@ def obtener_datos_cloud():
         worksheet = sh.worksheet("reservas")
         df = pd.DataFrame(worksheet.get_all_records())
         if not df.empty:
-            df['inicio'] = pd.to_datetime(df['inicio'])
-            df['fin'] = pd.to_datetime(df['fin'])
-            # BLOQUEO AUTOMÁTICO: Filtramos para que solo muestre lo anterior a 2026
-            fecha_limite = pd.Timestamp(2026, 1, 1)
-            df = df[df['inicio'] < fecha_limite]
+            # Ajuste por espacios en blanco en los títulos de tu Excel
+            df['inicio'] = pd.to_datetime(df[' SALIDA'], errors='coerce')
+            df['fin'] = pd.to_datetime(df[' ENTREGA'], errors='coerce')
+            df['auto_excel'] = df['AUTO'].str.upper().str.strip()
         return df
     except Exception as e:
         return pd.DataFrame()
+
+def obtener_fechas_ocupadas_unificado(nombre_auto_app):
+    df = obtener_datos_cloud()
+    bloqueadas = set()
+    if df.empty: return bloqueadas
+    
+    # Mapeo de nombres App -> Excel
+    busqueda = nombre_auto_app.upper()
+    if "VOXY" in busqueda: busqueda = "VOXY GRIS"
+    elif "VITZ NEGRO" in busqueda: busqueda = "VITZ NEGRO"
+    elif "VITZ BLANCO" in busqueda: busqueda = "VITZ BLANCO"
+    elif "TUCSON" in busqueda: busqueda = "HYUNDAI TUCSON BLANCO"
+
+    df_auto = df[df['auto_excel'] == busqueda]
+    for _, row in df_auto.iterrows():
+        if pd.notnull(row['inicio']) and pd.notnull(row['fin']):
+            start = row['inicio'].date()
+            end = row['fin'].date()
+            for i in range((end - start).days + 1):
+                bloqueadas.add(start + timedelta(days=i))
+    return bloqueadas
 
 # Aplicar estilo premium
 try:
@@ -83,22 +103,6 @@ def init_db():
 
 init_db()
 
-# --- FUNCIONES DE VALIDACIÓN ---
-def obtener_fechas_ocupadas(auto):
-    df = obtener_datos_cloud()
-    bloqueadas = set()
-    if df.empty: return bloqueadas
-    
-    df_auto = df[df['auto'] == auto]
-    for _, row in df_auto.iterrows():
-        try:
-            start = row['inicio'].date()
-            end = row['fin'].date()
-            for i in range((end - start).days + 1): 
-                bloqueadas.add(start + timedelta(days=i))
-        except: continue
-    return bloqueadas
-
 def esta_disponible(auto, t_ini, t_fin):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -109,10 +113,19 @@ def esta_disponible(auto, t_ini, t_fin):
     df_cloud = obtener_datos_cloud()
     if df_cloud.empty: return True
     
-    df_auto = df_cloud[df_cloud['auto'] == auto]
+    # Verificación de disponibilidad contra fechas de la nube
+    # Se usa el mismo mapeo para bloquear el botón de reserva
+    busqueda = auto.upper()
+    if "VOXY" in busqueda: busqueda = "VOXY GRIS"
+    elif "VITZ NEGRO" in busqueda: busqueda = "VITZ NEGRO"
+    elif "VITZ BLANCO" in busqueda: busqueda = "VITZ BLANCO"
+    elif "TUCSON" in busqueda: busqueda = "HYUNDAI TUCSON BLANCO"
+    
+    df_auto = df_cloud[df_cloud['auto_excel'] == busqueda]
     for _, row in df_auto.iterrows():
-        if not (t_fin <= row['inicio'] or t_ini >= row['fin']):
-            return False
+        if pd.notnull(row['inicio']) and pd.notnull(row['fin']):
+            if not (t_fin <= row['inicio'] or t_ini >= row['fin']):
+                return False
     return True
 
 # --- INTERFAZ ---
@@ -128,7 +141,9 @@ with t_res:
             st.markdown(f'''<div class="card-auto"><h3>{v["nombre"]}</h3><img src="{v["img"]}" width="100%"><p style="font-weight:bold; font-size:20px; color:#D4AF37; margin-bottom:2px;">R$ {v["precio"]} / día</p><p style="color:#28a745; margin-top:0px;">Gs. {precio_gs:,.0f} / día</p></div>''', unsafe_allow_html=True)
             
             with st.expander(f"Ver Disponibilidad"):
-                ocupadas = obtener_fechas_ocupadas(v['nombre'])
+                # USAMOS LA FUNCIÓN CORREGIDA AQUÍ:
+                ocupadas = obtener_fechas_ocupadas_unificado(v['nombre'])
+                
                 meses_display = [(date.today().month, date.today().year), ((date.today().month % 12) + 1, date.today().year if date.today().month < 12 else date.today().year + 1)]
 
                 html_cal = """<style>.airbnb-container { display: flex; flex-direction: row; gap: 25px; overflow-x: auto; padding: 10px 0; scrollbar-width: none; }.airbnb-month { min-width: 200px; flex: 1; }.airbnb-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }.airbnb-cell { position: relative; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: white; }.airbnb-raya { position: absolute; width: 100%; height: 2px; background-color: #ff385c; top: 50%; left: 0; z-index: 1; }</style><div class="airbnb-container">"""
@@ -196,12 +211,10 @@ with t_res:
                         if st.button("CONFIRMAR RESERVA", key=f"btn{v['nombre']}", disabled=not acepto):
                             if foto:
                                 try:
-                                    # Guardar en Google Sheets
                                     sh = conectar_google_sheets()
                                     worksheet = sh.worksheet("reservas")
                                     worksheet.append_row([datetime.now().strftime("%Y-%m-%d %H:%M:%S"), c_n, c_d, c_w, v['nombre'], dt_i.strftime('%Y-%m-%d %H:%M:%S'), dt_f.strftime('%Y-%m-%d %H:%M:%S'), total_r])
                                     
-                                    # Guardar en SQLite Local
                                     conn = sqlite3.connect(DB_NAME)
                                     conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante) VALUES (?,?,?,?,?,?,?,?)", (c_n, c_d, c_w, v['nombre'], dt_i, dt_f, total_r, foto.read()))
                                     conn.commit(); conn.close()
@@ -220,14 +233,20 @@ with t_ubi:
     st.markdown('<div style="border: 2px solid #D4AF37; border-radius: 15px; overflow: hidden;"><iframe width="100%" height="400" src="https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d14402.046808728952!2d-54.6366113!3d-25.5213456!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!5e0!3m2!1ses!2spy!4v1700000000000"></iframe></div>', unsafe_allow_html=True)
 
 with t_adm:
-    if st.text_input("Clave de Acceso", type="password") == "8899":
+    if st.text_input("Clave", type="password") == "8899":
         conn = sqlite3.connect(DB_NAME)
         res_df = obtener_datos_cloud()
         egr_df = pd.read_sql_query("SELECT * FROM egresos", conn)
         flota_adm = pd.read_sql_query("SELECT * FROM flota", conn)
         
+        st.subheader("📋 RESERVAS REGISTRADAS EN EXCEL")
+        if not res_df.empty:
+            st.dataframe(res_df[['NOMBRE', 'AUTO', ' SALIDA', ' ENTREGA', 'TOTAL']])
+        else:
+            st.warning("No se encontraron datos en la pestaña 'reservas'")
+        
         st.title("📊 PANEL DE CONTROL")
-        ing_r = res_df['total'].sum() if not res_df.empty else 0
+        ing_r = res_df['TOTAL'].sum() if not res_df.empty else 0
         egr_r = egr_df['monto'].sum() if not egr_df.empty else 0
         
         c_m1, c_m2, c_m3 = st.columns(3)
@@ -235,7 +254,6 @@ with t_adm:
         c_m2.metric("GASTOS", f"R$ {egr_r:,.2f}")
         c_m3.metric("UTILIDAD", f"R$ {ing_r - egr_r:,.2f}")
 
-        # Ajuste de Precios
         st.subheader("💰 PRECIOS")
         for _, f in flota_adm.iterrows():
             cp1, cp2 = st.columns([3, 1])
@@ -244,7 +262,6 @@ with t_adm:
                 conn.execute("UPDATE flota SET precio=? WHERE nombre=?", (nuevo_p, f['nombre']))
                 conn.commit(); st.rerun()
 
-        # Gestión de Estado
         st.subheader("🛠️ ESTADO FLOTA")
         for _, f in flota_adm.iterrows():
             ca1, ca2, ca3 = st.columns([2, 1, 1])
@@ -254,7 +271,6 @@ with t_adm:
                 conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo_est, f['nombre']))
                 conn.commit(); st.rerun()
 
-        # Gastos
         with st.expander("➕ NUEVO GASTO"):
             with st.form("g"):
                 conc = st.text_input("Concepto")
@@ -262,5 +278,4 @@ with t_adm:
                 if st.form_submit_button("Guardar"):
                     conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (conc, monto, date.today()))
                     conn.commit(); st.rerun()
-
         conn.close()
