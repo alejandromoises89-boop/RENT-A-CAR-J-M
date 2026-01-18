@@ -1,219 +1,294 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
-import gspread
-from google.oauth2.service_account import Credentials
 import requests
+import plotly.express as px
 from datetime import datetime, date, timedelta, time
+import urllib.parse
 import calendar
+import styles
 
-# --- CONFIGURACIÓN DE ESTILO Y PÁGINA ---
+# --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(
     page_title="JM ALQUILER DE VEHICULOS",
     layout="wide",
-    page_icon="https://i.ibb.co/PzsvxYrM/JM-Asociados-Logotipo-02.png"
-)
+    page_icon="https://i.ibb.co/PzsvxYrM/JM-Asociados-Logotipo-02.png")
 
-# Estética original: Negro, Dorado y Blanco
-st.markdown("""
-    <style>
-    .main { background-color: #0e1117; color: white; }
-    h1, h2, h3 { color: #D4AF37 !fo; text-align: center; font-family: 'Arial'; }
-    .stButton>button { background-color: #D4AF37; color: black; border-radius: 10px; width: 100%; font-weight: bold; }
-    .card-auto { 
-        border: 2px solid #D4AF37; padding: 15px; border-radius: 20px; 
-        background-color: #1c1f26; text-align: center; margin-bottom: 20px;
-    }
-    /* Estilo Calendario Airbnb */
-    .airbnb-container { display: flex; gap: 20px; overflow-x: auto; padding: 10px; }
-    .airbnb-month { min-width: 250px; background: #262730; padding: 10px; border-radius: 10px; }
-    .airbnb-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-    .airbnb-cell { position: relative; height: 35px; display: flex; align-items: center; justify-content: center; font-size: 13px; }
-    .occupied { background-color: #ff4b4b; border-radius: 50%; width: 25px; height: 25px; color: white; }
-    </style>
-    """, unsafe_allow_html=True)
+try:
+    st.markdown(styles.aplicar_estilo_premium(), unsafe_allow_html=True)
+except:
+    pass
 
-# --- CONEXIÓN GOOGLE SHEETS (CORREGIDA) ---
-def conectar_google_sheets():
+# --- LÓGICA DE COTIZACIÓN ---
+def obtener_cotizacion_real_guarani():
     try:
-        scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-        creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
-        client = gspread.authorize(creds)
-        return client.open("LISTA ALQUILERES DE VEHICULOS-")
-    except Exception as e:
-        st.sidebar.error(f"Error conexión: {e}")
-        return None
-
-def obtener_datos_cloud():
-    try:
-        sh = conectar_google_sheets()
-        if not sh: return pd.DataFrame()
-        worksheet = sh.worksheet("reservas")
-        data = worksheet.get_all_records()
-        df = pd.DataFrame(data)
-        if not df.empty:
-            # Limpiar nombres de columnas para evitar errores de espacios
-            df.columns = [str(c).strip().upper() for c in df.columns]
-            # Mapear columnas dinámicamente
-            col_salida = next((c for c in df.columns if 'SALIDA' in c), None)
-            col_entrega = next((c for c in df.columns if 'ENTREGA' in c), None)
-            col_auto = next((c for c in df.columns if 'AUTO' in c), None)
-            
-            df['DT_INICIO'] = pd.to_datetime(df[col_salida], dayfirst=True, errors='coerce')
-            df['DT_FIN'] = pd.to_datetime(df[col_entrega], dayfirst=True, errors='coerce')
-            df['AUTO_CLEAN'] = df[col_auto].str.upper().str.strip()
-        return df
+        url = "https://open.er-api.com/v6/latest/BRL"
+        data = requests.get(url, timeout=5).json()
+        return round(data['rates']['PYG'], 0)
     except:
-        return pd.DataFrame()
+        return 1450.0
 
-# --- BASE DE DATOS LOCAL INTEGRADA ---
-DB_NAME = 'jm_master_v5.db'
+COTIZACION_DIA = obtener_cotizacion_real_guarani()
+DB_NAME = 'jm_corporativo_permanente.db'
 
+# --- BASE DE DATOS ---
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
+    c.execute('CREATE TABLE IF NOT EXISTS reservas (id INTEGER PRIMARY KEY, cliente TEXT, ci TEXT, celular TEXT, auto TEXT, inicio TIMESTAMP, fin TIMESTAMP, total REAL, comprobante BLOB)')
     c.execute('CREATE TABLE IF NOT EXISTS egresos (id INTEGER PRIMARY KEY, concepto TEXT, monto REAL, fecha DATE)')
-    c.execute('''CREATE TABLE IF NOT EXISTS flota (
-                nombre TEXT PRIMARY KEY, precio REAL, img TEXT, placa TEXT, 
-                color TEXT, km_actual INTEGER, km_cambio INTEGER, 
-                venc_seguro DATE, cuota_venc DATE, estado TEXT)''')
+    c.execute('CREATE TABLE IF NOT EXISTS flota (nombre TEXT PRIMARY KEY, precio REAL, img TEXT, estado TEXT, placa TEXT, color TEXT)')
     
-    autos_iniciales = [
-        ("HYUNDAI TUCSON BLANCO", 260.0, "https://i.ibb.co/rGJHxvbm/Tucson-sin-fondo.png", "AAVI502", "Blanco", 0, 5000, "2026-12-31", "2026-02-10", "Disponible"),
-        ("TOYOTA VITZ BLANCO", 195.0, "https://i.ibb.co/Y7ZHY8kX/pngegg.png", "AAVP719", "Blanco", 0, 5000, "2026-12-31", "2026-02-10", "Disponible"),
-        ("TOYOTA VITZ NEGRO", 195.0, "https://i.ibb.co/rKFwJNZg/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel.png", "AAOR725", "Negro", 0, 5000, "2026-12-31", "2026-02-10", "Disponible"),
-        ("TOYOTA VOXY GRIS", 240.0, "https://i.ibb.co/VpSpSJ9Q/voxy.png", "AAUG465", "Gris", 0, 5000, "2026-12-31", "2026-02-10", "Disponible")
+    autos = [
+        ("Hyundai Tucson Blanco", 260.0, "https://i.ibb.co/rGJHxvbm/Tucson-sin-fondo.png", "Disponible", "AAVI502", "Blanco"),
+        ("Toyota Vitz Blanco", 195.0, "https://i.ibb.co/Y7ZHY8kX/pngegg.png", "Disponible", "AAVP719", "Blanco"),
+        ("Toyota Vitz Negro", 195.0, "https://i.ibb.co/rKFwJNZg/2014-toyota-yaris-hatchback-2014-toyota-yaris-2018-toyota-yaris-toyota-yaris-yaris-toyota-vitz-fuel.png", "Disponible", "AAOR725", "Negro"),
+        ("Toyota Voxy Gris", 240.0, "https://i.ibb.co/VpSpSJ9Q/voxy.png", "Disponible", "AAUG465", "Gris")
     ]
-    for a in autos_iniciales:
-        c.execute("INSERT OR IGNORE INTO flota VALUES (?,?,?,?,?,?,?,?,?,?)", a)
+    for a in autos:
+        c.execute("INSERT OR IGNORE INTO flota VALUES (?,?,?,?,?,?)", a)
     conn.commit()
     conn.close()
 
 init_db()
 
-# --- LÓGICA DE COTIZACIÓN ---
-def get_pyg():
-    try: return requests.get("https://open.er-api.com/v6/latest/BRL").json()['rates']['PYG']
-    except: return 1450.0
+# --- FUNCIONES DE VALIDACIÓN ---
+def obtener_fechas_ocupadas(auto):
+    conn = sqlite3.connect(DB_NAME)
+    df = pd.read_sql_query("SELECT inicio, fin FROM reservas WHERE auto = ?", conn, params=(auto,))
+    conn.close()
+    bloqueadas = set()
+    for _, row in df.iterrows():
+        try:
+            start = pd.to_datetime(row['inicio']).date()
+            end = pd.to_datetime(row['fin']).date()
+            for i in range((end - start).days + 1): bloqueadas.add(start + timedelta(days=i))
+        except: continue
+    return bloqueadas
 
-GS_BRL = get_pyg()
+def esta_disponible(auto, t_ini, t_fin):
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute("SELECT estado FROM flota WHERE nombre=?", (auto,))
+    res = c.fetchone()
+    if res and res[0] == "En Taller": return False
+    q = "SELECT COUNT(*) FROM reservas WHERE auto = ? AND NOT (fin <= ? OR inicio >= ?)"
+    c.execute(q, (auto, t_ini.strftime('%Y-%m-%d %H:%M:%S'), t_fin.strftime('%Y-%m-%d %H:%M:%S')))
+    disponible = c.fetchone()[0] == 0
+    conn.close()
+    return disponible
 
-# --- INTERFAZ PRINCIPAL ---
-st.image("https://i.ibb.co/PzsvxYrM/JM-Asociados-Logotipo-02.png", width=200)
+# --- INTERFAZ ---
 st.markdown("<h1>JM ALQUILER DE VEHICULOS</h1>", unsafe_allow_html=True)
+t_res, t_ubi, t_adm = st.tabs(["📋 RESERVAS", "📍 UBICACIÓN", "🛡️ ADMINISTRADOR"])
 
-tabs = st.tabs(["📋 RESERVAS", "📍 UBICACIÓN", "🛡️ ADMINISTRADOR"])
-
-# --- PESTAÑA 1: RESERVAS ---
-with tabs[0]:
-    df_cloud = obtener_datos_cloud()
+with t_res:
     conn = sqlite3.connect(DB_NAME); flota = pd.read_sql_query("SELECT * FROM flota", conn); conn.close()
-    
-    col1, col2 = st.columns(2)
-    for i, (_, car) in enumerate(flota.iterrows()):
-        with (col1 if i % 2 == 0 else col2):
-            st.markdown(f"""
-                <div class="card-auto">
-                    <h2 style="color:#D4AF37;">{car['nombre']}</h2>
-                    <img src="{car['img']}" width="100%">
-                    <p style="font-size:22px;">R$ {car['precio']} / Gs. {car['precio']*GS_BRL:,.0f}</p>
-                </div>
-            """, unsafe_allow_html=True)
+    cols = st.columns(2)
+    for i, (_, v) in enumerate(flota.iterrows()):
+        precio_gs = v['precio'] * COTIZACION_DIA
+        with cols[i % 2]:
+            st.markdown(f'''<div class="card-auto"><h3>{v["nombre"]}</h3><img src="{v["img"]}" width="100%"><p style="font-weight:bold; font-size:20px; color:#D4AF37; margin-bottom:2px;">R$ {v["precio"]} / día</p><p style="color:#28a745; margin-top:0px;">Gs. {precio_gs:,.0f} / día</p></div>''', unsafe_allow_html=True)
             
-            with st.expander("📅 VER DISPONIBILIDAD Y RESERVAR"):
-                # Calendario Estilo Airbnb
-                ocupadas = set()
-                if not df_cloud.empty:
-                    df_res = df_cloud[df_cloud['AUTO_CLEAN'] == car['nombre'].upper()]
-                    for _, r in df_res.iterrows():
-                        if pd.notnull(r['DT_INICIO']):
-                            dias = (r['DT_FIN'].date() - r['DT_INICIO'].date()).days + 1
-                            for d in range(dias): ocupadas.add(r['DT_INICIO'].date() + timedelta(days=d))
-                
-                # Mostrar 2 meses
-                cal_cols = st.columns(2)
-                for m_idx, m_offset in enumerate([0, 1]):
-                    curr_date = date.today() + timedelta(days=30*m_offset)
-                    with cal_cols[m_idx]:
-                        st.write(f"**{calendar.month_name[curr_date.month]} {curr_date.year}**")
-                        month_cal = calendar.monthcalendar(curr_date.year, curr_date.month)
-                        for week in month_cal:
-                            w_cols = st.columns(7)
-                            for d_idx, day in enumerate(week):
-                                if day != 0:
-                                    f_cal = date(curr_date.year, curr_date.month, day)
-                                    if f_cal in ocupadas: w_cols[d_idx].markdown(f'<div class="occupied">{day}</div>', unsafe_allow_html=True)
-                                    else: w_cols[d_idx].write(day)
+            with st.expander(f"Ver Disponibilidad"):
+                ocupadas = obtener_fechas_ocupadas(v['nombre'])
+                meses_display = [(date.today().month, date.today().year), ((date.today().month % 12) + 1, date.today().year if date.today().month < 12 else date.today().year + 1)]
+
+                html_cal = """<style>.airbnb-container { display: flex; flex-direction: row; gap: 25px; overflow-x: auto; padding: 10px 0; scrollbar-width: none; }.airbnb-month { min-width: 200px; flex: 1; }.airbnb-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }.airbnb-cell { position: relative; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: white; }.airbnb-raya { position: absolute; width: 100%; height: 2px; background-color: #ff385c; top: 50%; left: 0; z-index: 1; }</style><div class="airbnb-container">"""
+                for m, a in meses_display:
+                    nombre_mes = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"][m-1]
+                    html_cal += f'<div class="airbnb-month"><div style="font-weight: 600; color: white; margin-bottom: 12px; text-transform: capitalize;">{nombre_mes} {a}</div><div class="airbnb-grid">'
+                    for d_nom in ["L","M","M","J","V","S","D"]: html_cal += f'<div style="font-size: 11px; color: #888; padding-bottom: 5px;">{d_nom}</div>'
+                    for semana in calendar.monthcalendar(a, m):
+                        for dia in semana:
+                            if dia == 0: html_cal += '<div></div>'
+                            else:
+                                f_act = date(a, m, dia); es_ocu = f_act in ocupadas; raya = '<div class="airbnb-raya"></div>' if es_ocu else ""
+                                html_cal += f'<div class="airbnb-cell {"airbnb-ocupado" if es_ocu else ""}">{dia}{raya}</div>'
+                    html_cal += '</div></div>'
+                st.markdown(html_cal + "</div>", unsafe_allow_html=True)
 
                 st.divider()
-                f_ini = st.date_input("Fecha Retiro", key=f"ini{car['nombre']}")
-                f_fin = st.date_input("Fecha Entrega", key=f"fin{car['nombre']}")
+                # --- DATOS DEL CLIENTE ---
+                c1, c2 = st.columns(2)
+                f_ini = c1.date_input("Fecha Inicio", key=f"d1{v['nombre']}")
+                f_fin = c2.date_input("Fecha Fin", key=f"d2{v['nombre']}")
+
+                # --- LÓGICA DE HORARIOS ESPECÍFICA INSERTADA ---
+                es_finde_i = f_ini.weekday() >= 5
+                es_finde_f = f_fin.weekday() >= 5
                 
-                if st.button("SOLICITAR POR WHATSAPP", key=f"wa{car['nombre']}"):
-                    msg = f"Hola JM! Quiero reservar el {car['nombre']} del {f_ini} al {f_fin}."
-                    url = f"https://wa.me/595983515320?text={urllib.parse.quote(msg)}"
-                    st.markdown(f'<a href="{url}" target="_blank">Click aquí para abrir WhatsApp</a>', unsafe_allow_html=True)
+                h_max_i = time(12, 0) if es_finde_i else time(17, 0)
+                h_max_f = time(12, 0) if es_finde_f else time(17, 0)
+                
+                h_ini = c1.time_input(f"Hora Entrega (8:00 - {h_max_i.strftime('%H:%M')})", time(8,0), key=f"h1{v['nombre']}")
+                h_fin = c2.time_input(f"Hora Retorno (8:00 - {h_max_f.strftime('%H:%M')})", h_max_f, key=f"h2{v['nombre']}")
 
-# --- PESTAÑA 2: UBICACIÓN ---
-with tabs[1]:
-    st.markdown("### 📍 Nuestra Oficina")
-    st.markdown("""
-        <div style="border:2px solid #D4AF37; border-radius:15px; overflow:hidden;">
-            <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3601.503460838936!2d-54.613!3d-25.513!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2zMjXCsDMwJzQ2LjgiUyA1NMKwMzYnNDYuOCJX!5e0!3m2!1ses!2spy!4v1620000000000" 
-            width="100%" height="450" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
-        </div>
-    """, unsafe_allow_html=True)
+                # Validación de límites
+                horario_valido = True
+                if h_ini < time(8,0) or h_ini > h_max_i:
+                    st.error(f"⚠️ Entrega permitida solo de 08:00 a {h_max_i.strftime('%H:%M')}")
+                    horario_valido = False
+                if h_fin < time(8,0) or h_fin > h_max_f:
+                    st.error(f"⚠️ Retorno permitido solo de 08:00 a {h_max_f.strftime('%H:%M')}")
+                    horario_valido = False
 
-# --- PESTAÑA 3: ADMINISTRADOR ---
-with tabs[2]:
-    pwd = st.text_input("Clave de Acceso", type="password")
-    if pwd == "8899":
+                dt_i = datetime.combine(f_ini, h_ini)
+                dt_f = datetime.combine(f_fin, h_fin)
+                
+                if esta_disponible(v['nombre'], dt_i, dt_f) and horario_valido:
+                    c_n = st.text_input("Nombre Completo", placeholder="Ej: Guillerme Oliveira", key=f"n{v['nombre']}")
+                    c_d = st.text_input("CI / Cédula / RG", key=f"d{v['nombre']}")
+                    c_w = st.text_input("Número de WhatsApp", key=f"w{v['nombre']}")
+                    c_pais = st.text_input("País / Domicilio", key=f"p{v['nombre']}")
+                    
+                    dias = max(1, (dt_f.date() - dt_i.date()).days)
+                    total_r = dias * v['precio']
+                    total_gs = total_r * COTIZACION_DIA
+                    
+                    if c_n and c_d and c_w:
+                        st.markdown(f"""
+                        <div style="background-color: #f9f9f9; color: #333; padding: 25px; border-radius: 10px; height: 380px; overflow-y: scroll; font-family: 'Courier New', monospace; font-size: 13px; border: 2px solid #D4AF37; text-align: justify; line-height: 1.5;">
+                            <center><b style="font-size: 16px;">CONTRATO DE ALQUILER DE VEHÍCULO Y AUTORIZACIÓN PARA CONDUCIR</b></center><br>
+                            <b>ARRENDADOR:</b> J&M ASOCIADOS. C.I.: 1.702.076-0.<br>
+                            <b>ARRENDATARIO:</b> {c_n.upper()}. Doc: {c_d.upper()}.<br><br>
+                            <b>DURACIÓN:</b> {dias} días. Desde {dt_i.strftime('%d/%m/%Y %H:%M')} hasta {dt_f.strftime('%d/%m/%Y %H:%M')}.<br><br>
+                            <b>PRECIO TOTAL:</b> Gs. {total_gs:,.0f} / R$ {total_r:,.2f}.<br><br>
+                            <b>CLAUSULAS:</b> El arrendatario es responsable civil y penal. Límite 200km diarios. Depósito Gs. 5.000.000 por siniestros.<br>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        acepto = st.checkbox("He leído y acepto los términos del contrato.", key=f"chk{v['nombre']}")
+                        st.markdown(f'<div style="background-color:#1a1c23; padding:15px; border-radius:10px; border:1px solid #D4AF37; margin-top:10px;"><b>PAGO PIX: R$ {total_r}</b><br>Llave: 24510861818 - Marina Baez</div>', unsafe_allow_html=True)
+                        
+                        foto = st.file_uploader("Adjuntar Comprobante", key=f"f{v['nombre']}")
+                        
+                        if st.button("CONFIRMAR RESERVA", key=f"btn{v['nombre']}", disabled=not acepto):
+                            if foto:
+                                conn = sqlite3.connect(DB_NAME)
+                                conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total, comprobante) VALUES (?,?,?,?,?,?,?,?)", 
+                                             (c_n, c_d, c_w, v['nombre'], dt_i, dt_f, total_r, foto.read()))
+                                conn.commit(); conn.close()
+                                texto_wa = f"Hola JM, soy {c_n}.\nHe aceptado el contrato.\n🚗 Vehículo: {v['nombre']}\n🗓️ Periodo: {dt_i.strftime('%d/%m/%Y %H:%M')} al {dt_f.strftime('%d/%m/%Y %H:%M')}\n💰 Total: R$ {total_r}"
+                                link_wa = f"https://wa.me/595991681191?text={urllib.parse.quote(texto_wa)}"
+                                st.markdown(f'<a href="{link_wa}" target="_blank" style="background-color:#25D366; color:white; padding:15px; border-radius:10px; text-align:center; display:block; text-decoration:none; font-weight:bold;">✅ ENVIAR POR WHATSAPP</a>', unsafe_allow_html=True)
+                                st.success("¡Reserva Guardada!")
+                            else:
+                                st.error("Por favor, adjunte el comprobante.")
+                else:
+                    if horario_valido: st.error("Vehículo no disponible en las fechas seleccionadas.")
+
+# --- PESTAÑAS UBICACIÓN Y ADM (SIN CAMBIOS) ---
+with t_ubi:
+    st.markdown("<h3 style='text-align: center; color: #D4AF37;'>NUESTRA UBICACIÓN</h3>", unsafe_allow_html=True)
+    st.markdown('<div style="border: 2px solid #D4AF37; border-radius: 15px; overflow: hidden;"><iframe width="100%" height="400" src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d57604.246417743!2d-54.67759567832031!3d-25.530374699999997!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94f68595fe36b1d1%3A0xce33cb9eeec10b1e!2sCiudad%20del%20Este!5e0!3m2!1ses!2spy!4v1709564821000!5m2!1ses!2spy"></iframe></div>', unsafe_allow_html=True)
+    cs1, cs2 = st.columns(2)
+    cs1.markdown('<a href="https://instagram.com/jm_asociados_consultoria" target="_blank"><div style="background: linear-gradient(45deg, #f09433, #bc1888); color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold;">📸 INSTAGRAM</div></a>', unsafe_allow_html=True)
+    cs2.markdown('<a href="https://wa.me/595991681191" target="_blank"><div style="background-color:#25D366; color:white; padding:15px; border-radius:15px; text-align:center; font-weight:bold;">💬 WHATSAPP</div></a>', unsafe_allow_html=True)
+
+with t_adm:
+    if st.text_input("Clave de Acceso", type="password") == "8899":
         conn = sqlite3.connect(DB_NAME)
+        res_df = pd.read_sql_query("SELECT * FROM reservas", conn)
+        egr_df = pd.read_sql_query("SELECT * FROM egresos", conn)
         flota_adm = pd.read_sql_query("SELECT * FROM flota", conn)
         
-        # 1. BUSCADOR DE CLIENTES (EXCEL)
-        st.subheader("🔍 BUSCADOR DE CONTRATOS")
-        df_adm = obtener_datos_cloud()
-        busq = st.text_input("Nombre del cliente o auto...")
-        if not df_adm.empty:
-            if busq:
-                df_adm = df_adm[df_adm.apply(lambda row: busq.upper() in str(row.values).upper(), axis=1)]
-            st.dataframe(df_adm, use_container_width=True)
-        else: st.warning("No se detectan datos en el Excel.")
+        st.title("📊 PANEL DE CONTROL ESTRATÉGICO")
 
-        # 2. GESTIÓN DE FLOTA Y MANTENIMIENTO
-        st.divider()
-        st.subheader("⚙️ GESTIÓN DE FLOTA")
-        for idx, row in flota_adm.iterrows():
-            with st.expander(f"🚗 {row['nombre']} - {row['placa']}"):
-                c1, c2, c3 = st.columns(3)
-                # Edición de datos básicos
-                n_precio = c1.number_input("Precio Día", value=float(row['precio']), key=f"p{idx}")
-                n_km_a = c2.number_input("KM Actual", value=int(row['km_actual']), key=f"k{idx}")
-                n_km_c = c3.number_input("Próx. Cambio Aceite", value=int(row['km_cambio']), key=f"kc{idx}")
-                
-                n_seg = c1.date_input("Venc. Seguro", value=pd.to_datetime(row['venc_seguro']).date(), key=f"s{idx}")
-                n_cuo = c2.date_input("Venc. Cuota", value=pd.to_datetime(row['cuota_venc']).date(), key=f"cu{idx}")
-                n_est = c3.selectbox("Estado", ["Disponible", "En Taller"], index=0 if row['estado']=="Disponible" else 1, key=f"es{idx}")
-                
-                # ALERTAS
-                if n_km_a >= n_km_c: st.error("🚨 REQUIERE CAMBIO DE ACEITE")
-                if (n_seg - date.today()).days < 10: st.warning(f"⚠️ SEGURO VENCE EN {(n_seg - date.today()).days} DÍAS")
+        # --- SECCIÓN 1: MÉTRICAS FINANCIERAS DUALES ---
+        ing_r = res_df['total'].sum() if not res_df.empty else 0
+        egr_r = egr_df['monto'].sum() if not egr_df.empty else 0
+        util_r = ing_r - egr_r
 
-                if st.button("GUARDAR CAMBIOS", key=f"btn{idx}"):
-                    conn.execute("""UPDATE flota SET precio=?, km_actual=?, km_cambio=?, venc_seguro=?, cuota_venc=?, estado=? 
-                                 WHERE nombre=?""", (n_precio, n_km_a, n_km_c, n_seg, n_cuo, n_est, row['nombre']))
+        c_m1, c_m2, c_m3 = st.columns(3)
+        with c_m1:
+            st.metric("INGRESOS TOTALES", f"R$ {ing_r:,.2f}")
+            st.caption(f"Gs. {ing_r * COTIZACION_DIA:,.0f}")
+        with c_m2:
+            st.metric("GASTOS TOTALES", f"R$ {egr_r:,.2f}")
+            st.caption(f"Gs. {egr_r * COTIZACION_DIA:,.0f}")
+        with c_m3:
+            st.metric("UTILIDAD NETA", f"R$ {util_r:,.2f}")
+            st.caption(f"Gs. {util_r * COTIZACION_DIA:,.0f}")
+
+        # --- SECCIÓN 2: GRÁFICOS Y REPORTES (REINTEGRADO) ---
+        if not res_df.empty:
+            st.subheader("📈 ANÁLISIS DE VENTAS Y TENDENCIAS")
+            res_df['inicio_dt'] = pd.to_datetime(res_df['inicio'])
+            df_plot = res_df.sort_values('inicio_dt')
+            
+            fig_l = px.line(df_plot, x='inicio_dt', y='total', color='auto', markers=True, 
+                           title="Evolución de Ingresos (R$)", labels={'total':'Monto R$', 'inicio_dt':'Fecha'})
+            st.plotly_chart(fig_l, use_container_width=True)
+            
+            csv_data = df_plot.to_csv(index=False).encode('utf-8')
+            st.download_button("📥 Descargar Reporte de Ventas (CSV)", csv_data, "reporte_jm_asociados.csv", "text/csv")
+
+        # --- SECCIÓN 3: AJUSTE DE PRECIOS POR DÍA ---
+        st.subheader("💰 AJUSTE DE PRECIOS DE ALQUILER")
+        with st.expander("Ver y editar precios por día"):
+            for _, f in flota_adm.iterrows():
+                cp1, cp2 = st.columns([3, 1])
+                cp1.write(f"{f['nombre']} ({f['placa']})")
+                nuevo_p = cp2.number_input(f"R$ / día", value=float(f['precio']), key=f"price_{f['nombre']}")
+                if nuevo_p != f['precio']:
+                    conn.execute("UPDATE flota SET precio=? WHERE nombre=?", (nuevo_p, f['nombre']))
                     conn.commit(); st.rerun()
 
-        # 3. EGRESOS
-        st.divider()
-        st.subheader("💸 REGISTRO DE GASTOS")
-        with st.form("gasto_nuevo"):
-            c1, c2 = st.columns(2)
-            conc = c1.text_input("Concepto")
-            mont = c2.number_input("Monto R$")
-            if st.form_submit_button("REGISTRAR GASTO"):
-                conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (conc, mont, date.today()))
-                conn.commit(); st.success("Gasto guardado"); st.rerun()
+        # --- SECCIÓN 4: DISPONIBILIDAD (TALLER/DISP) ---
+        st.subheader("🛠️ DISPONIBILIDAD DE VEHÍCULOS")
+        with st.expander("Gestionar Estado (Disponible / En Taller)"):
+            for _, f in flota_adm.iterrows():
+                ca1, ca2, ca3 = st.columns([2, 1, 1])
+                ca1.write(f"{f['nombre']}")
+                ca2.write("🟢 Disponible" if f['estado'] == "Disponible" else "🔴 En Taller")
+                if ca3.button("CAMBIAR", key=f"status_{f['nombre']}"):
+                    nuevo_est = "En Taller" if f['estado'] == "Disponible" else "Disponible"
+                    conn.execute("UPDATE flota SET estado=? WHERE nombre=?", (nuevo_est, f['nombre']))
+                    conn.commit(); st.rerun()
+
+        # --- SECCIÓN 5: EGRESOS ---
+        st.subheader("💸 DETALLE DE GASTOS")
+        if not egr_df.empty:
+            egr_df['Gs.'] = egr_df['monto'] * COTIZACION_DIA
+            st.dataframe(egr_df.rename(columns={'monto':'R$', 'concepto':'Detalle'}).style.format({'R$':'{:.2f}', 'Gs.':'{:,.0f}'}))
         
+        with st.expander("➕ CARGAR NUEVO GASTO"):
+            with st.form("nuevo_g"):
+                d_g = st.text_input("Concepto")
+                cg1, cg2 = st.columns(2)
+                v_gs = cg1.number_input("Monto Gs.", step=1000)
+                v_r = cg2.number_input("Monto R$", step=1.0)
+                if st.form_submit_button("Guardar Gasto"):
+                    final = v_r if v_r > 0 else (v_gs / COTIZACION_DIA)
+                    conn.execute("INSERT INTO egresos (concepto, monto, fecha) VALUES (?,?,?)", (d_g, final, date.today()))
+                    conn.commit(); st.rerun()
+
+        # --- SECCIÓN 6: BLOQUEO MANUAL Y RESERVAS ---
+        st.subheader("📑 REGISTRO DE RESERVAS Y CONTRATOS")
+        with st.expander("📅 BLOQUEAR CALENDARIO (Contratos Manuales/Viejos)"):
+            with st.form("f_ant"):
+                c_n_m = st.text_input("Nombre Cliente")
+                c_d_m = st.text_input("CPF / Documento")
+                c_a_m = st.selectbox("Vehículo", flota_adm['nombre'].tolist())
+                fi, ff = st.columns(2)
+                d_i = fi.date_input("Inicio")
+                d_f = ff.date_input("Fin")
+                m_r = st.number_input("Monto Cobrado R$", value=0.0)
+                if st.form_submit_button("Registrar y Bloquear"):
+                    conn.execute("INSERT INTO reservas (cliente, ci, celular, auto, inicio, fin, total) VALUES (?,?,?,?,?,?,?)",
+                                 (f"[M] {c_n_m}", c_d_m, "000", c_a_m, d_i, d_f, m_r))
+                    conn.commit(); st.rerun()
+
+        for _, r in res_df.iterrows():
+            with st.expander(f"Reserva #{r['id']} - {r['cliente']} (DOC: {r['ci']})"):
+                st.write(f"Auto: {r['auto']} | Total: R$ {r['total']} (Gs. {r['total']*COTIZACION_DIA:,.0f})")
+                
+                txt_c = f"CONTRATO J&M ASOCIADOS\n\nCLIENTE: {r['cliente']}\nDOCUMENTO: {r['ci']}\nAUTO: {r['auto']}\nPERIODO: {r['inicio']} al {r['fin']}\nTOTAL: R$ {r['total']}\n\nCLAUSULAS RESUMIDAS:\n1. Alquiler de vehiculo en buen estado.\n2. Arrendatario responsable civil y penalmente.\n3. Límite 200km/día.\n4. Depósito de Gs. 5.000.000 por siniestro.\n5. Valido en Paraguay y MERCOSUR."
+                st.download_button(f"📥 Descargar Contrato {r['id']}", txt_c, file_name=f"Contrato_{r['cliente']}.txt")
+                
+                if r['comprobante']: st.image(r['comprobante'], width=200)
+                if st.button("🗑️ Borrar", key=f"del_{r['id']}"):
+                    conn.execute("DELETE FROM reservas WHERE id=?", (r['id'],))
+                    conn.commit(); st.rerun()
         conn.close()
