@@ -1,12 +1,54 @@
 import streamlit as st
 import sqlite3
 import pandas as pd
-import requests
+import gspread
+from google.oauth2.service_account import Credentialsimport requests
 import plotly.express as px
 from datetime import datetime, date, timedelta, time
 import urllib.parse
 import calendar
 import styles
+
+# --- CONFIGURACIÓN DE GOOGLE SHEETS ---
+def conectar_google_sheets():
+    # Usamos los secretos de Streamlit
+    scope = ["https://www.googleapis.com/auth/spreadsheets"]
+    creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
+    client = gspread.authorize(creds)
+    
+    # Abre tu hoja por nombre
+    spreadsheet = client.open("LISTA DE ALQUILERES DE VEHICULOS")
+    return spreadsheet
+
+def obtener_datos_cloud():
+    sh = conectar_google_sheets()
+    # Asumiendo que la pestaña se llama 'reservas'
+    worksheet = sh.worksheet("reservas")
+    df = pd.DataFrame(worksheet.get_all_records())
+    
+    # Convertir fechas para validación
+    df['inicio'] = pd.to_datetime(df['inicio'])
+    df['fin'] = pd.to_datetime(df['fin'])
+    return df
+
+# --- NUEVA FUNCIÓN DE BLOQUEO ---
+def filtrar_fechas_bloqueadas(df):
+    # Definimos el límite: 1 de enero de 2026
+    fecha_limite = pd.Timestamp(2026, 1, 1)
+    
+    # Bloqueamos los contratos que inicien en enero en adelante
+    df_permitidos = df[df['inicio'] < fecha_limite]
+    return df_permitidos
+
+# --- REEMPLAZO EN TU LÓGICA ---
+# Sustituye tus llamadas a sqlite3 por estas funciones:
+
+try:
+    df_reservas = obtener_datos_cloud()
+    # Aplicamos el bloqueo automático
+    df_reservas = filtrar_fechas_bloqueadas(df_reservas)
+except Exception as e:
+    st.error(f"Error conectando a Google Sheets: {e}")
 
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(
