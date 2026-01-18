@@ -7,8 +7,8 @@ from datetime import datetime, date, timedelta, time
 import urllib.parse
 import calendar
 import styles
-import streamlit
-import st-gsheets-conecction
+import stramlit as st
+from stramlit_gsheets import GSheetsConnection
 
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(
